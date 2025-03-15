@@ -13,7 +13,7 @@ export class UserController {
 
   @Post('register')
   @ApiOperation({
-    summary: 'Register a new test user (with email verification)',
+    summary: 'Register a new user (with email verification)',
   })
   @ApiResponse({
     status: 201,
