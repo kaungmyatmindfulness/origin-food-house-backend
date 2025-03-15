@@ -8,7 +8,38 @@ generator client {
 }
 
 model User {
-  id    Int    @id @default(autoincrement())
-  name  String
-  email String @unique
+  id                 Int       @id @default(autoincrement())
+  email              String    @unique
+  password           String
+  name               String?
+  verified           Boolean   @default(false)
+  verificationToken  String?
+  verificationExpiry DateTime?
+
+  userShops UserShop[]
+}
+
+model Shop {
+  id        Int        @id @default(autoincrement())
+  name      String
+  userShops UserShop[]
+}
+
+model UserShop {
+  id     Int  @id @default(autoincrement())
+  userId Int
+  shopId Int
+  role   Role
+
+  user User @relation(fields: [userId], references: [id])
+  shop Shop @relation(fields: [shopId], references: [id])
+
+  @@unique([userId, shopId])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  SALE
+  CHEF
 }
