@@ -3,7 +3,6 @@ const fetch = require('node-fetch');
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const FormData = require('form-data');
 
 // Load environment variables
 const POSTMAN_API_KEY = process.env.POSTMAN_API_KEY;
@@ -116,7 +115,7 @@ async function main() {
     console.error('Error syncing Postman collection:', err.message);
     process.exit(1);
   } finally {
-    // Optional: clean up temporary files
+    // Clean up temporary files
     if (fs.existsSync(SWAGGER_FILE)) fs.unlinkSync(SWAGGER_FILE);
     if (fs.existsSync(TEMP_COLLECTION)) fs.unlinkSync(TEMP_COLLECTION);
     if (fs.existsSync(FINAL_COLLECTION)) fs.unlinkSync(FINAL_COLLECTION);

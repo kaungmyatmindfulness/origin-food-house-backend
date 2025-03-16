@@ -20,11 +20,13 @@ model User {
 }
 
 model Shop {
-  id        Int        @id @default(autoincrement())
-  name      String
-  address   String?
-  phone     String?
-  userShops UserShop[]
+  id         Int        @id @default(autoincrement())
+  name       String
+  address    String?
+  phone      String?
+  userShops  UserShop[]
+  categories Category[]
+  menuItems  MenuItem[]
 }
 
 model UserShop {
@@ -37,6 +39,36 @@ model UserShop {
   shop Shop @relation(fields: [shopId], references: [id])
 
   @@unique([userId, shopId])
+}
+
+model Category {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  shopId Int
+  shop   Shop @relation(fields: [shopId], references: [id])
+
+  menuItems MenuItem[]
+}
+
+model MenuItem {
+  id           Int       @id @default(autoincrement())
+  name         String
+  description  String?
+  basePrice    Float
+  imageKey     String?
+  categoryId   Int?
+  category     Category? @relation(fields: [categoryId], references: [id])
+  // store arrays of variations, sizes, addOnOptions as JSON
+  variations   Json?
+  sizes        Json?
+  addOnOptions Json?
+
+  shopId Int
+  shop   Shop @relation(fields: [shopId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum Role {
