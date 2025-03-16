@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
 import { UserService } from '../user/user.service';
+import { RequestWithUser } from 'src/auth/types/expressRequest.interface';
 
 @Injectable()
 export class AuthService {
@@ -16,7 +17,6 @@ export class AuthService {
    */
   async validateUser(email: string, password: string) {
     const user = await this.userService.findByEmail(email);
-    console.log('📝 -> AuthService -> validateUser -> user:', user);
     if (!user) return null;
 
     if (!user.verified) {
@@ -28,25 +28,35 @@ export class AuthService {
   }
 
   /**
-   * Step 2: User picks a shop to finalize login.
-   * Embed shop + role in the JWT payload.
+   * Step 1: After local strategy validates credentials,
+   * issue a JWT with just userId (sub).
+   */
+  loginNoShop(user: RequestWithUser['user']) {
+    const payload = { sub: user.userId }; // no shopId yet
+    const access_token = this.jwtService.sign(payload);
+    return { access_token };
+  }
+
+  /**
+   * Step 2: The user picks a shop. We verify membership, then
+   * issue a new token embedding shopId and role.
    */
   async loginWithShop(userId: number, shopId: number) {
     const memberships = await this.userService.getUserShops(userId);
-    const shopMembership = memberships.find((m) => m.shopId === shopId);
-    if (!shopMembership) {
-      throw new UnauthorizedException('User not a member of this shop');
+    const membership = memberships.find((m) => m.shopId === shopId);
+    if (!membership) {
+      throw new UnauthorizedException(
+        'User is not a member of the chosen shop',
+      );
     }
 
     const payload = {
       sub: userId,
-      shopId: shopMembership.shopId,
-      role: shopMembership.role,
+      shopId: membership.shopId,
+      role: membership.role,
     };
-
-    return {
-      access_token: this.jwtService.sign(payload),
-    };
+    const access_token = this.jwtService.sign(payload);
+    return { access_token };
   }
 
   /**

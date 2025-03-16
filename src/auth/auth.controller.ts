@@ -7,6 +7,7 @@ import {
   Get,
   Query,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,100 +23,91 @@ import { ChooseShopDto } from './dto/choose-shop.dto';
 
 import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
 import { RequestWithUser } from 'src/auth/types/expressRequest.interface';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  /**
+   * Step 1: Login with email/password.
+   * Issues a JWT with userId (sub), but no shopId yet.
+   */
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @ApiOperation({ summary: 'Login with email/password (step 1)' })
   @ApiResponse({
     status: 200,
-    description: 'Credentials valid; user must choose a shop next.',
+    description: 'Returns a JWT containing { sub: userId }. No shopId yet.',
     schema: {
       example: {
         status: 'success',
         data: {
-          id: 1,
-          email: 'john@example.com',
-          verified: true,
+          access_token: 'eyJhbGciOiJIUzI1NiIsInR...',
         },
-        message: 'Credentials valid. Please choose a shop to finalize login.',
+        message: 'Credentials valid, token has no shopId yet.',
         error: null,
       },
     },
   })
-  @ApiResponse({
-    status: 401,
-    description: 'Invalid credentials or user not verified',
-    schema: {
-      example: {
-        status: 'error',
-        data: null,
-        message: 'Invalid credentials',
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Email or password is incorrect',
-        },
-      },
-    },
-  })
-  login(@Request() req: RequestWithUser, @Body() _: LoginDto) {
-    // By now, LocalAuthGuard has validated the credentials
-    // and attached the user object to req.user.
-    // We return a success response, prompting the user to pick a shop next.
+  login(
+    @Request() req: RequestWithUser,
+    @Body() _: LoginDto,
+  ): BaseApiResponse<{ access_token: string }> {
+    const user = req.user;
+
+    // Step 1: Sign a token with sub=user.id
+    const result = this.authService.loginNoShop(user);
 
     return {
       status: 'success',
-      data: req.user,
-      message: 'Credentials valid. Please choose a shop to finalize login.',
+      data: result,
+      message: 'Credentials valid, token has no shopId yet.',
       error: null,
     };
   }
 
+  /**
+   * Step 2: After receiving a userId token, user picks a shop.
+   * We create a NEW JWT that includes { sub: userId, shopId, role }.
+   */
+  @UseGuards(JwtAuthGuard)
   @Post('login/shop')
   @ApiOperation({ summary: 'Choose a shop to finalize login (step 2)' })
   @ApiResponse({
     status: 200,
-    description: 'Returns a JWT token containing userId, shopId, role',
+    description: 'Returns a new JWT with userId + shopId + role.',
     schema: {
       example: {
         status: 'success',
         data: {
-          access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+          access_token: 'eyJhbGciOiJIUzI1NiIsInR...',
         },
-        message: null,
+        message: 'Shop selected, new token generated.',
         error: null,
       },
     },
   })
-  @ApiBadRequestResponse({
-    description: 'User is not a member of the chosen shop',
-    schema: {
-      example: {
-        status: 'error',
-        data: null,
-        message: 'User not a member of this shop',
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'User does not have access to shop=2',
-        },
-      },
-    },
-  })
   async loginWithShop(
+    @Request() req: RequestWithUser,
     @Body() body: ChooseShopDto,
   ): Promise<BaseApiResponse<{ access_token: string }>> {
-    const result = await this.authService.loginWithShop(
-      body.userId,
-      body.shopId,
-    );
+    const { userId } = req.user;
+
+    if (!userId) {
+      throw new UnauthorizedException(
+        'No userId in token. Did you skip step 1?',
+      );
+    }
+
+    const { shopId } = body;
+    const result = await this.authService.loginWithShop(userId, shopId);
+
     return {
       status: 'success',
-      data: result, // e.g., { access_token: '...' }
-      message: null,
+      data: result,
+      message: 'Shop selected, new token generated.',
       error: null,
     };
   }

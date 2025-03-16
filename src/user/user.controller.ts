@@ -1,10 +1,25 @@
-import { Controller, Post, Body, Get, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { AddUserToShopDto } from './dto/add-user-to-shop.dto';
 import { BaseApiResponse } from 'src/common/dto/base-api-response.dto'; // Adjust the import path
+import { RequestWithUser } from 'src/auth/types/expressRequest.interface';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @ApiTags('user')
 @Controller('user')
@@ -119,6 +134,54 @@ export class UserController {
     return {
       status: 'success',
       data: userShops,
+      message: null,
+      error: null,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  @ApiOperation({
+    summary: 'Get current user info (profile, roles, shops, etc.)',
+  })
+  @ApiBearerAuth()
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the current user details',
+    schema: {
+      example: {
+        status: 'success',
+        data: {
+          id: 12,
+          email: 'john@example.com',
+          name: 'John Doe',
+          userShops: [
+            {
+              id: 50,
+              role: 'OWNER',
+              shop: {
+                id: 7,
+                name: 'Coffee Corner',
+                address: '123 Brew St',
+                phoneNumber: '555-1234',
+              },
+            },
+          ],
+        },
+        message: null,
+        error: null,
+      },
+    },
+  })
+  async getCurrentUser(
+    @Req() req: RequestWithUser,
+  ): Promise<BaseApiResponse<any>> {
+    const { userId } = req.user;
+    const user = await this.userService.findUserProfile(userId);
+
+    return {
+      status: 'success',
+      data: user,
       message: null,
       error: null,
     };

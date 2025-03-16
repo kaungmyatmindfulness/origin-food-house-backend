@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { UserModule } from 'src/user/user.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { EmailModule } from 'src/email/email.module';
+import { ShopModule } from 'src/shop/shop.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { EmailModule } from 'src/email/email.module';
     }),
     UserModule,
     AuthModule,
+    ShopModule,
     EmailModule,
   ],
   controllers: [],

@@ -2,7 +2,7 @@ import { Request } from 'express';
 
 export interface RequestWithUser extends Request {
   user: {
-    id: number;
+    userId: number;
     email: string;
     verified?: boolean;
   };

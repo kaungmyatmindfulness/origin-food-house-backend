@@ -1,7 +1,11 @@
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { User, UserShop } from '@prisma/client';
 
 import { EmailService } from '../email/email.service';
@@ -108,5 +112,24 @@ export class UserService {
       where: { userId },
       include: { shop: true },
     });
+  }
+
+  /**
+   * Fetch the user by ID, including shops/roles if desired.
+   */
+  async findUserProfile(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        userShops: {
+          include: { shop: true },
+        },
+      },
+      omit: { password: true },
+    });
+    if (!user) {
+      throw new NotFoundException(`User not found (id=${userId})`);
+    }
+    return user;
   }
 }
