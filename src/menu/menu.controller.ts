@@ -69,7 +69,7 @@ export class MenuController {
     @Req() req: RequestWithUser,
     @Body() dto: CreateMenuItemDto,
   ): Promise<BaseApiResponse<any>> {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const shopId = req.user.shopId;
     const newItem = await this.menuService.createMenuItem(userId, shopId, dto);
     return {
@@ -90,7 +90,7 @@ export class MenuController {
     @Param('id', ParseIntPipe) itemId: number,
     @Body() dto: UpdateMenuItemDto,
   ): Promise<BaseApiResponse<any>> {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const shopId = req.user.shopId;
     const updated = await this.menuService.updateMenuItem(
       userId,
@@ -115,7 +115,7 @@ export class MenuController {
     @Req() req: RequestWithUser,
     @Param('id', ParseIntPipe) itemId: number,
   ): Promise<BaseApiResponse<any>> {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const shopId = req.user.shopId;
     const deleted = await this.menuService.deleteMenuItem(
       userId,

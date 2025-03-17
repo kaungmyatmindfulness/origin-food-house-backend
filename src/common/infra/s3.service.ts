@@ -3,6 +3,8 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  ListObjectsV2CommandInput,
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
 import { ConfigService } from '@nestjs/config';
 
@@ -45,7 +47,6 @@ export class S3Service {
         Key: key,
         Body: data,
         ContentType: contentType,
-        ACL: 'public-read', // or your desired ACL
       }),
     );
     return key; // or return a full public URL if desired
@@ -58,5 +59,31 @@ export class S3Service {
         Key: key,
       }),
     );
+  }
+
+  async listAllObjects(prefix?: string): Promise<string[]> {
+    const results: string[] = [];
+    let continuationToken: string | undefined = undefined;
+
+    do {
+      const input: ListObjectsV2CommandInput = {
+        Bucket: this.bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      };
+      const command = new ListObjectsV2Command(input);
+      const response = await this.s3Client.send(command);
+
+      if (response.Contents) {
+        for (const obj of response.Contents) {
+          if (obj.Key) {
+            results.push(obj.Key);
+          }
+        }
+      }
+      continuationToken = response.NextContinuationToken;
+    } while (continuationToken);
+
+    return results;
   }
 }

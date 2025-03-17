@@ -176,7 +176,7 @@ export class UserController {
   async getCurrentUser(
     @Req() req: RequestWithUser,
   ): Promise<BaseApiResponse<any>> {
-    const { userId } = req.user;
+    const userId = req.user.id;
     const user = await this.userService.findUserProfile(userId);
 
     return {

@@ -30,7 +30,7 @@ export class ShopController {
     @Req() req: RequestWithUser,
     @Body() dto: CreateShopDto,
   ): Promise<BaseApiResponse<any>> {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const shop = await this.shopService.createShop(userId, dto);
     return {
       status: 'success',
@@ -47,7 +47,7 @@ export class ShopController {
     @Param('id', ParseIntPipe) shopId: number,
     @Body() dto: UpdateShopDto,
   ): Promise<BaseApiResponse<any>> {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const updated = await this.shopService.updateShop(userId, shopId, dto);
     return {
       status: 'success',
@@ -67,7 +67,7 @@ export class ShopController {
     @Param('id', ParseIntPipe) shopId: number,
     @Body() dto: InviteOrAssignRoleDto,
   ): Promise<BaseApiResponse<any>> {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const result = await this.shopService.inviteOrAssignRoleByEmail(
       userId,
       shopId,

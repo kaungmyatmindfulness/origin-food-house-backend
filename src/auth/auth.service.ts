@@ -32,7 +32,8 @@ export class AuthService {
    * issue a JWT with just userId (sub).
    */
   loginNoShop(user: RequestWithUser['user']) {
-    const payload = { sub: user.userId }; // no shopId yet
+    const payload = { sub: user.id }; // no shopId yet
+    console.log('📝 -> AuthService -> loginNoShop -> payload:', payload);
     const access_token = this.jwtService.sign(payload);
     return { access_token };
   }
