@@ -3,7 +3,9 @@ import { UnusedImageCleanupService } from 'src/common/cleanup/unused-image-clean
 import { CommonModule } from 'src/common/common.module';
 import { EmailModule } from 'src/email/email.module';
 import { MenuModule } from 'src/menu/menu.module';
+import { OrderModule } from 'src/order/order.module';
 import { ShopModule } from 'src/shop/shop.module';
+import { TableSessionModule } from 'src/table-session/table-session.module';
 import { UserModule } from 'src/user/user.module';
 
 import { Module } from '@nestjs/common';
@@ -20,12 +22,14 @@ import { PrismaService } from './prisma.service';
       envFilePath: '.env',
     }),
     ScheduleModule.forRoot(),
-    CommonModule,
-    UserModule,
     AuthModule,
-    ShopModule,
-    MenuModule,
+    CommonModule,
     EmailModule,
+    MenuModule,
+    OrderModule,
+    ShopModule,
+    TableSessionModule,
+    UserModule,
   ],
   controllers: [],
   providers: [AppService, PrismaService, UnusedImageCleanupService],

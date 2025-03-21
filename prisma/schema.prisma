@@ -20,13 +20,15 @@ model User {
 }
 
 model Shop {
-  id         Int        @id @default(autoincrement())
-  name       String
-  address    String?
-  phone      String?
-  userShops  UserShop[]
-  categories Category[]
-  menuItems  MenuItem[]
+  id           Int               @id @default(autoincrement())
+  name         String
+  address      String?
+  phone        String?
+  userShops    UserShop[]
+  categories   Category[]
+  menuItems    MenuItem[]
+  tables       RestaurantTable[]
+  TableSession TableSession[]
 }
 
 model UserShop {
@@ -67,8 +69,85 @@ model MenuItem {
   shopId Int
   shop   Shop @relation(fields: [shopId], references: [id])
 
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  OrderChunkItem OrderChunkItem[]
+}
+
+model TableSession {
+  id     Int  @id @default(autoincrement())
+  shopId Int
+  shop   Shop @relation(fields: [shopId], references: [id])
+
+  tableId Int
+  table   RestaurantTable @relation(fields: [tableId], references: [id])
+
+  sessionUuid String    @unique
+  status      String    @default("active") // "active", "closed"
+  createdAt   DateTime  @default(now())
+  closedAt    DateTime?
+
+  // One-to-one with Order
+  order Order?
+}
+
+model RestaurantTable {
+  id     Int  @id @default(autoincrement())
+  shopId Int
+  shop   Shop @relation(fields: [shopId], references: [id])
+
+  number String? // e.g. "Table #1"
+
+  tableSessions TableSession[]
+}
+
+model Order {
+  id             Int          @id @default(autoincrement())
+  tableSessionId Int          @unique
+  tableSession   TableSession @relation(fields: [tableSessionId], references: [id])
+
+  status    String    @default("open") // "open", "paid"
+  createdAt DateTime  @default(now())
+  paidAt    DateTime?
+
+  // multiple chunks in one order
+  chunks OrderChunk[]
+}
+
+model OrderChunk {
+  id      Int   @id @default(autoincrement())
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id])
+
+  // e.g. "pending", "in-progress", "done" for KDS
+  status String @default("pending")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  chunkItems OrderChunkItem[]
+}
+
+model OrderChunkItem {
+  id           Int        @id @default(autoincrement())
+  orderChunkId Int
+  orderChunk   OrderChunk @relation(fields: [orderChunkId], references: [id])
+
+  menuItemId Int
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+
+  price      Float
+  quantity   Int    @default(1)
+  finalPrice Float? // final price = price * quantity
+
+  variant Json?
+  size    Json?
+  addOns  Json?
+
+  // Customer’s notes for special instructions
+  notes String?
+
+  createdAt DateTime @default(now())
 }
 
 enum Role {
