@@ -17,6 +17,9 @@ model User {
   verificationToken  String?
   verificationExpiry DateTime?
 
+  resetToken       String?
+  resetTokenExpiry DateTime?
+
   userShops UserShop[]
 }
 

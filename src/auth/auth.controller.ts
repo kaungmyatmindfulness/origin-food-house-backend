@@ -56,7 +56,6 @@ export class AuthController {
     @Body() _: LoginDto,
   ): BaseApiResponse<{ access_token: string }> {
     const user = req.user;
-    console.log('📝 -> AuthController -> user:', user);
 
     // Step 1: Sign a token with sub=user.id
     const result = this.authService.loginNoShop(user);
@@ -94,7 +93,6 @@ export class AuthController {
     @Request() req: RequestWithUser,
     @Body() body: ChooseShopDto,
   ): Promise<BaseApiResponse<{ access_token: string }>> {
-    console.log('📝 -> AuthController -> req.user:', req.user);
     const userId = req.user.id;
 
     if (!userId) {
