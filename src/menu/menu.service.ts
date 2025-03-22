@@ -63,8 +63,7 @@ export class MenuService {
         variations: (dto.variations ||
           undefined) as unknown as Prisma.JsonObject,
         sizes: (dto.sizes || undefined) as unknown as Prisma.JsonObject,
-        addOnOptions: (dto.addOnOptions ||
-          undefined) as unknown as Prisma.JsonObject,
+        addOns: (dto.addOnOptions || undefined) as unknown as Prisma.JsonObject,
       },
     });
   }
@@ -104,7 +103,7 @@ export class MenuService {
         sizes: (dto.sizes !== undefined
           ? dto.sizes
           : undefined) as unknown as Prisma.JsonObject,
-        addOnOptions: (dto.addOnOptions !== undefined
+        addOns: (dto.addOnOptions !== undefined
           ? dto.addOnOptions
           : undefined) as unknown as Prisma.JsonObject,
       },

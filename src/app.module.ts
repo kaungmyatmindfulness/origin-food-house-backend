@@ -11,12 +11,20 @@ import { UserModule } from 'src/user/user.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60 * 1000, // 1 minute
+        limit: 20,
+      },
+    ]),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
@@ -32,7 +40,15 @@ import { PrismaService } from './prisma.service';
     UserModule,
   ],
   controllers: [],
-  providers: [AppService, PrismaService, UnusedImageCleanupService],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+    AppService,
+    PrismaService,
+    UnusedImageCleanupService,
+  ],
   exports: [PrismaService],
 })
 export class AppModule {}
