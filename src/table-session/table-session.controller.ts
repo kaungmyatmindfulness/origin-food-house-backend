@@ -8,7 +8,7 @@ export class TableSessionController {
   constructor(private tableSessionService: TableSessionService) {}
 
   @Post('create')
-  @ApiOperation({ summary: 'Create a new table session for a shop and table' })
+  @ApiOperation({ summary: 'Create a new table session for shop + table' })
   async createSession(@Body() body: { shopId: number; tableId: number }) {
     const session = await this.tableSessionService.createSession(
       body.shopId,
@@ -35,7 +35,7 @@ export class TableSessionController {
   }
 
   @Patch(':uuid/close')
-  @ApiOperation({ summary: 'Close the session by UUID' })
+  @ApiOperation({ summary: 'Close the table session by UUID' })
   async closeSession(@Param('uuid') uuid: string) {
     const closed = await this.tableSessionService.closeSession(uuid);
     return {

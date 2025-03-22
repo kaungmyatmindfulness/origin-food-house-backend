@@ -1,8 +1,7 @@
-// src/order/order.controller.ts
-
 import { Controller, Post, Patch, Param, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { OrderService } from './order.service';
+import { ChunkStatus } from '@prisma/client';
 
 @ApiTags('orders')
 @Controller('orders')
@@ -10,24 +9,24 @@ export class OrderController {
   constructor(private orderService: OrderService) {}
 
   @Post(':sessionId/chunk')
-  @ApiOperation({ summary: 'Add a new chunk of items to the single order' })
+  @ApiOperation({ summary: 'Add a chunk with items to the single order' })
   async addChunk(
     @Param('sessionId') sessionId: number,
     @Body()
-    chunkData: {
+    body: {
       items: Array<{
         menuItemId: number;
         price: number;
         quantity: number;
         finalPrice?: number;
-        variant?: any;
-        size?: any;
-        addOns?: any;
+        chosenVariationId?: number;
+        chosenSizeId?: number;
+        chosenAddOns?: any;
         notes?: string;
       }>;
     },
   ) {
-    const chunk = await this.orderService.addChunk(sessionId, chunkData);
+    const chunk = await this.orderService.addChunk(sessionId, body);
     return {
       status: 'success',
       data: chunk,
@@ -37,10 +36,10 @@ export class OrderController {
   }
 
   @Patch('chunk/:chunkId/status')
-  @ApiOperation({ summary: 'Update the status of an order chunk (KDS usage)' })
+  @ApiOperation({ summary: 'Update chunk status (KDS usage)' })
   async updateChunkStatus(
     @Param('chunkId') chunkId: number,
-    @Body() body: { status: string },
+    @Body() body: { status: ChunkStatus },
   ) {
     const updated = await this.orderService.updateChunkStatus(
       chunkId,
@@ -55,7 +54,7 @@ export class OrderController {
   }
 
   @Post(':sessionId/pay')
-  @ApiOperation({ summary: 'Pay the single order, auto-close the session' })
+  @ApiOperation({ summary: 'Pay the single order, auto-close session' })
   async payOrder(@Param('sessionId') sessionId: number) {
     const paid = await this.orderService.payOrder(sessionId);
     return {

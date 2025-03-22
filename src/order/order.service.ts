@@ -1,50 +1,54 @@
-// src/order/order.service.ts
-
 import {
   Injectable,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { TableSessionStatus, OrderStatus, ChunkStatus } from '@prisma/client';
 
 @Injectable()
 export class OrderService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Ensures the table session (in a certain shop) has exactly one order.
-   * If not exist, create it. If session is closed, no new order is possible.
+   * Ensures exactly one Order for a given TableSession.
+   * - If no order exists, create a new one with status=OPEN.
+   * - If the session is closed, throw Forbidden.
    */
   async initOrderForSession(tableSessionId: number) {
-    // check session
     const session = await this.prisma.tableSession.findUnique({
       where: { id: tableSessionId },
       include: { order: true },
     });
     if (!session) {
-      throw new NotFoundException(`Session not found (id=${tableSessionId})`);
+      throw new NotFoundException(
+        `TableSession not found (id=${tableSessionId})`,
+      );
     }
-    if (session.status === 'closed') {
+    if (session.status === TableSessionStatus.CLOSED) {
       throw new ForbiddenException(
-        'Session is closed, cannot create or modify order',
+        `Cannot create or modify an order on a CLOSED session`,
       );
     }
 
+    // Return existing order if present
     if (session.order) {
       return session.order;
     }
-    // create new
-    const order = await this.prisma.order.create({
+
+    // Otherwise create a new order
+    return this.prisma.order.create({
       data: {
         tableSessionId,
-        status: 'open',
+        status: OrderStatus.OPEN, // Use the enum
       },
     });
-    return order;
   }
 
   /**
-   * Add a chunk to the single order in this session.
+   * Adds a new "chunk" (batch of items) to the single order.
+   * - The chunk is created with status=PENDING (for KDS).
+   * - Each item references a MenuItem, plus user-chosen details.
    */
   async addChunk(
     tableSessionId: number,
@@ -54,42 +58,44 @@ export class OrderService {
         price: number;
         quantity: number;
         finalPrice?: number;
-        variant?: any;
-        size?: any;
-        addOns?: any;
+        chosenVariationId?: number;
+        chosenSizeId?: number;
+        chosenAddOns?: number[];
         notes?: string;
       }>;
     },
   ) {
+    // Ensure we have an order for this session
     const order = await this.initOrderForSession(tableSessionId);
 
-    // create chunk in "pending" status
+    // Create a new chunk with default status=PENDING
     const chunk = await this.prisma.orderChunk.create({
       data: {
         orderId: order.id,
-        status: 'pending',
+        status: ChunkStatus.PENDING, // Use the enum
         chunkItems: {
           create: chunkData.items.map((i) => ({
             menuItemId: i.menuItemId,
             price: i.price,
             quantity: i.quantity,
             finalPrice: i.finalPrice,
-            variant: i.variant,
-            size: i.size,
-            addOns: i.addOns,
+            chosenVariationId: i.chosenVariationId,
+            chosenSizeId: i.chosenSizeId,
+            chosenAddOns: i.chosenAddOns,
             notes: i.notes,
           })),
         },
       },
       include: { chunkItems: true },
     });
+
     return chunk;
   }
 
   /**
-   * Update chunk status for KDS usage
+   * Updates the status of an existing chunk, e.g. "PENDING" -> "IN_PROGRESS" -> "DONE".
    */
-  async updateChunkStatus(chunkId: number, newStatus: string) {
+  async updateChunkStatus(chunkId: number, newStatus: ChunkStatus) {
     const chunk = await this.prisma.orderChunk.findUnique({
       where: { id: chunkId },
     });
@@ -105,7 +111,9 @@ export class OrderService {
   }
 
   /**
-   * Pay the order & auto-close the table session
+   * Pays the single order for this TableSession, then closes the session.
+   * - If order already paid, throw.
+   * - Else mark order=PAID, paidAt=now, session=CLOSED.
    */
   async payOrder(tableSessionId: number) {
     // find session & order
@@ -115,23 +123,29 @@ export class OrderService {
     });
     if (!session || !session.order) {
       throw new NotFoundException(
-        `No order found for sessionId=${tableSessionId}`,
+        `No order found for TableSession (id=${tableSessionId})`,
       );
     }
-    if (session.order.status === 'paid') {
-      throw new ForbiddenException('Order already paid');
+    if (session.order.status === OrderStatus.PAID) {
+      throw new ForbiddenException(`Order already paid`);
     }
 
-    // mark order as paid
+    // Mark order as paid
     const updatedOrder = await this.prisma.order.update({
       where: { id: session.order.id },
-      data: { status: 'paid', paidAt: new Date() },
+      data: {
+        status: OrderStatus.PAID,
+        paidAt: new Date(),
+      },
     });
 
-    // close session
+    // Also close the session
     await this.prisma.tableSession.update({
       where: { id: tableSessionId },
-      data: { status: 'closed', closedAt: new Date() },
+      data: {
+        status: TableSessionStatus.CLOSED,
+        closedAt: new Date(),
+      },
     });
 
     return updatedOrder;

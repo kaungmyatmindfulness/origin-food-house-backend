@@ -1,5 +1,3 @@
-// src/table-session/table-session.service.ts
-
 import {
   Injectable,
   NotFoundException,
@@ -13,7 +11,7 @@ export class TableSessionService {
   constructor(private prisma: PrismaService) {}
 
   async createSession(shopId: number, tableId: number) {
-    // 1) Check the table belongs to this shop
+    // check that the table belongs to this shop
     const table = await this.prisma.restaurantTable.findUnique({
       where: { id: tableId },
     });
@@ -21,17 +19,18 @@ export class TableSessionService {
       throw new NotFoundException(`Table not found (id=${tableId})`);
     }
     if (table.shopId !== shopId) {
-      throw new ForbiddenException(`Table doesn't belong to shopId=${shopId}`);
+      throw new ForbiddenException(
+        `This table does not belong to shopId=${shopId}`,
+      );
     }
-
-    // 2) Create session
+    // create
     const sessionUuid = uuidv4();
     return this.prisma.tableSession.create({
       data: {
         shopId,
         tableId,
         sessionUuid,
-        status: 'active',
+        status: 'ACTIVE',
       },
     });
   }
@@ -52,16 +51,15 @@ export class TableSessionService {
       where: { sessionUuid: uuid },
     });
     if (!session) {
-      throw new NotFoundException(`Session not found for uuid=${uuid}`);
+      throw new NotFoundException(`Session not found (uuid=${uuid})`);
     }
-    if (session.status === 'closed') {
+    if (session.status === 'CLOSED') {
       throw new ForbiddenException('Session already closed');
     }
-
     return this.prisma.tableSession.update({
       where: { id: session.id },
       data: {
-        status: 'closed',
+        status: 'CLOSED',
         closedAt: new Date(),
       },
     });

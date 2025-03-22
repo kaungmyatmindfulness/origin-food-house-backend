@@ -7,6 +7,7 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// ----------------- USER + SHOP LOGIC -----------------
 model User {
   id                 Int       @id @default(autoincrement())
   email              String    @unique
@@ -20,10 +21,11 @@ model User {
 }
 
 model Shop {
-  id           Int               @id @default(autoincrement())
-  name         String
-  address      String?
-  phone        String?
+  id      Int     @id @default(autoincrement())
+  name    String
+  address String?
+  phone   String?
+
   userShops    UserShop[]
   categories   Category[]
   menuItems    MenuItem[]
@@ -43,35 +45,94 @@ model UserShop {
   @@unique([userId, shopId])
 }
 
+// ----------------- CATEGORY + MENU ITEM -----------------
 model Category {
-  id   Int    @id @default(autoincrement())
-  name String
-
+  id     Int    @id @default(autoincrement())
+  name   String
   shopId Int
-  shop   Shop @relation(fields: [shopId], references: [id])
+  shop   Shop   @relation(fields: [shopId], references: [id])
 
   menuItems MenuItem[]
+
+  // Analytics tip: we can query categories by shop 
+  @@index([shopId])
 }
 
 model MenuItem {
-  id           Int       @id @default(autoincrement())
-  name         String
-  description  String?
-  basePrice    Float
-  imageKey     String?
-  categoryId   Int?
-  category     Category? @relation(fields: [categoryId], references: [id])
-  // store arrays of variations, sizes, addOnOptions as JSON
-  variations   Json?
-  sizes        Json?
-  addOnOptions Json?
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String?
+  basePrice   Float
+  imageKey    String?
+
+  categoryId Int?
+  category   Category? @relation(fields: [categoryId], references: [id])
 
   shopId Int
   shop   Shop @relation(fields: [shopId], references: [id])
 
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  // Normalized Variation/Size/AddOn
+  variations Variation[]
+  sizes      Size[]
+  addOns     AddOn[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // referencing order usage
   OrderChunkItem OrderChunkItem[]
+
+  // Analytics: we often filter by shop or category
+  @@index([shopId])
+  @@index([categoryId])
+}
+
+// Normalized Variation/Size/AddOn for analytics 
+model Variation {
+  id         Int      @id @default(autoincrement())
+  menuItemId Int
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+
+  name       String
+  extraPrice Float  @default(0)
+
+  @@index([menuItemId])
+}
+
+model Size {
+  id         Int      @id @default(autoincrement())
+  menuItemId Int
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+
+  name       String
+  extraPrice Float  @default(0)
+
+  @@index([menuItemId])
+}
+
+model AddOn {
+  id         Int      @id @default(autoincrement())
+  menuItemId Int
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+
+  name       String
+  extraPrice Float  @default(0)
+
+  @@index([menuItemId])
+}
+
+// ----------------- TABLE SESSION + ORDER -----------------
+model RestaurantTable {
+  id     Int  @id @default(autoincrement())
+  shopId Int
+  shop   Shop @relation(fields: [shopId], references: [id])
+
+  number String?
+
+  tableSessions TableSession[]
+
+  // we might do queries by shop + table number
+  @@index([shopId])
 }
 
 model TableSession {
@@ -82,23 +143,16 @@ model TableSession {
   tableId Int
   table   RestaurantTable @relation(fields: [tableId], references: [id])
 
-  sessionUuid String    @unique
-  status      String    @default("active") // "active", "closed"
-  createdAt   DateTime  @default(now())
+  sessionUuid String             @unique
+  status      TableSessionStatus @default(ACTIVE)
+  createdAt   DateTime           @default(now())
   closedAt    DateTime?
 
   // One-to-one with Order
   order Order?
-}
 
-model RestaurantTable {
-  id     Int  @id @default(autoincrement())
-  shopId Int
-  shop   Shop @relation(fields: [shopId], references: [id])
-
-  number String? // e.g. "Table #1"
-
-  tableSessions TableSession[]
+  // Analytics: often we query sessions by shop + status
+  @@index([shopId, status])
 }
 
 model Order {
@@ -106,12 +160,16 @@ model Order {
   tableSessionId Int          @unique
   tableSession   TableSession @relation(fields: [tableSessionId], references: [id])
 
-  status    String    @default("open") // "open", "paid"
-  createdAt DateTime  @default(now())
+  status    OrderStatus @default(OPEN) // "open", "paid"
+  createdAt DateTime    @default(now())
   paidAt    DateTime?
 
   // multiple chunks in one order
   chunks OrderChunk[]
+
+  // Possibly index status if we do status-based queries
+  // or combine tableSessionId + status
+  @@index([tableSessionId, status])
 }
 
 model OrderChunk {
@@ -120,12 +178,14 @@ model OrderChunk {
   order   Order @relation(fields: [orderId], references: [id])
 
   // e.g. "pending", "in-progress", "done" for KDS
-  status String @default("pending")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  status    ChunkStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @default(now()) @updatedAt
 
   chunkItems OrderChunkItem[]
+
+  // If we do KDS queries by order + status
+  @@index([orderId, status])
 }
 
 model OrderChunkItem {
@@ -138,16 +198,17 @@ model OrderChunkItem {
 
   price      Float
   quantity   Int    @default(1)
-  finalPrice Float? // final price = price * quantity
+  finalPrice Float? // final = price * quantity or advanced logic
 
-  variant Json?
-  size    Json?
-  addOns  Json?
+  chosenVariationId Int?
+  chosenSizeId      Int?
+  chosenAddOns      Json?
 
-  // Customer’s notes for special instructions
-  notes String?
-
+  notes     String?
   createdAt DateTime @default(now())
+
+  @@index([orderChunkId])
+  @@index([menuItemId])
 }
 
 enum Role {
@@ -155,4 +216,20 @@ enum Role {
   ADMIN
   SALE
   CHEF
+}
+
+enum TableSessionStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum OrderStatus {
+  OPEN
+  PAID
+}
+
+enum ChunkStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
 }
