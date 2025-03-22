@@ -1,5 +1,6 @@
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import * as disposableDomains from 'disposable-email-domains';
 
 import {
   BadRequestException,
@@ -24,6 +25,11 @@ export class UserService {
    * Create a new user account + send verification email.
    */
   async createUser(dto: CreateUserDto): Promise<User> {
+    const domain = dto.email.split('@')[1];
+    if (process.env.NODE_ENV !== 'dev' && disposableDomains.includes(domain)) {
+      throw new BadRequestException('Disposable domain not allowed');
+    }
+
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
