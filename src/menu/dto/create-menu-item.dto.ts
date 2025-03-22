@@ -1,72 +1,112 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class VariationDto {
-  @ApiProperty({ example: 'Beef' })
+  @ApiProperty({ example: 'Extra Spicy' })
+  @IsString()
   name: string;
 
   @ApiProperty({
-    example: 2.0,
-    description: 'Additional price beyond basePrice',
+    example: 1.5,
+    description: 'Additional price beyond basePrice for this variation',
   })
+  @IsNumber()
   additionalPrice: number;
 }
 
 export class SizeDto {
-  @ApiProperty({ example: 'Large' })
+  @ApiProperty({ example: 'Family Size' })
+  @IsString()
   name: string;
 
   @ApiProperty({
-    example: 2.0,
-    description: 'Additional price beyond basePrice',
+    example: 3.0,
+    description: 'Additional price beyond basePrice for this size',
   })
+  @IsNumber()
   additionalPrice: number;
 }
 
 export class AddOnOptionDto {
-  @ApiProperty({ example: 'Extra Cheese' })
+  @ApiProperty({ example: 'Extra Peanuts' })
+  @IsString()
   name: string;
 
-  @ApiProperty({ example: 0.5 })
+  @ApiProperty({
+    example: 0.5,
+    description: 'Additional price for this add-on',
+  })
+  @IsNumber()
   additionalPrice: number;
 }
 
 export class CreateMenuItemDto {
-  @ApiProperty({ example: 'Tuscan Chicken' })
+  @ApiProperty({ example: 'Kung Pao Chicken' })
+  @IsString()
   name: string;
 
-  @ApiPropertyOptional({ example: 'Grilled chicken with garlic and rosemary' })
+  @ApiPropertyOptional({
+    example:
+      'Spicy Sichuan chicken stir-fried with peanuts, chili peppers, and vegetables',
+  })
+  @IsOptional()
+  @IsString()
   description?: string;
 
   @ApiProperty({
-    example: 4.99,
+    example: 8.99,
     description: 'Base price if no extras are chosen',
   })
+  @IsNumber()
   basePrice: number;
 
   @ApiPropertyOptional({
     description: 'S3 key for the item’s image (from common upload API)',
-    example: 'uploads/abc123-original',
+    example: 'uploads/xyz789-original',
   })
+  @IsOptional()
+  @IsString()
   imageKey?: string;
 
-  @ApiPropertyOptional({ example: 10, description: 'Optional category ID' })
+  @ApiPropertyOptional({ example: 2, description: 'Optional category ID' })
+  @IsOptional()
+  @IsNumber()
   categoryId?: number;
 
   @ApiPropertyOptional({
     type: [VariationDto],
-    description: 'Possible variations (beef, chicken, etc.) with extra cost',
+    description: 'Possible variations (e.g. Extra Spicy) with extra cost',
   })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => VariationDto)
   variations?: VariationDto[];
 
   @ApiPropertyOptional({
     type: [SizeDto],
-    description: 'Available sizes (small, medium, large) with extra cost',
+    description: 'Available sizes (e.g. Family Size) with extra cost',
   })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SizeDto)
   sizes?: SizeDto[];
 
   @ApiPropertyOptional({
     type: [AddOnOptionDto],
-    description: 'Add-on options (extra cheese, etc.) each with cost',
+    description: 'Add-on options (e.g. Extra Peanuts) each with cost',
   })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AddOnOptionDto)
   addOnOptions?: AddOnOptionDto[];
 }

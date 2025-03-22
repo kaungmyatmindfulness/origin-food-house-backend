@@ -29,10 +29,15 @@ import { RequestWithUser } from 'src/auth/types/expressRequest.interface';
 export class MenuController {
   constructor(private menuService: MenuService) {}
 
-  // READ all items for a shop (public)
+  // Public endpoint to get all menu items for a given shop
   @Get()
   @ApiOperation({ summary: 'Get all menu items for a shop (public read)' })
-  @ApiQuery({ name: 'shopId', required: true })
+  @ApiQuery({
+    name: 'shopId',
+    required: true,
+    type: Number,
+    description: 'ID of the shop',
+  })
   async getShopMenuItems(
     @Query('shopId', ParseIntPipe) shopId: number,
   ): Promise<BaseApiResponse<any>> {
@@ -45,7 +50,7 @@ export class MenuController {
     };
   }
 
-  // READ single item by ID
+  // Public endpoint to get a single menu item by its ID
   @Get(':id')
   @ApiOperation({ summary: 'Get a single menu item by ID (public read)' })
   async getMenuItemById(
@@ -60,7 +65,7 @@ export class MenuController {
     };
   }
 
-  // CREATE (OWNER or ADMIN)
+  // Protected endpoint for creating a menu item (requires OWNER or ADMIN role)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Post()
@@ -80,7 +85,7 @@ export class MenuController {
     };
   }
 
-  // UPDATE (OWNER or ADMIN)
+  // Protected endpoint for updating a menu item (requires OWNER or ADMIN role)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Put(':id')
@@ -106,7 +111,7 @@ export class MenuController {
     };
   }
 
-  // DELETE (OWNER or ADMIN)
+  // Protected endpoint for deleting a menu item (requires OWNER or ADMIN role)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Delete(':id')

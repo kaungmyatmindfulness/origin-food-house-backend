@@ -10,25 +10,24 @@ import { v4 as uuidv4 } from 'uuid';
 export class TableSessionService {
   constructor(private prisma: PrismaService) {}
 
-  async createSession(shopId: number, tableId: number) {
-    // check that the table belongs to this shop
+  async createSession(dto: { shopId: number; tableId: number }) {
+    // Check that table belongs to shop
     const table = await this.prisma.restaurantTable.findUnique({
-      where: { id: tableId },
+      where: { id: dto.tableId },
     });
     if (!table) {
-      throw new NotFoundException(`Table not found (id=${tableId})`);
+      throw new NotFoundException(`Table not found (id=${dto.tableId})`);
     }
-    if (table.shopId !== shopId) {
+    if (table.shopId !== dto.shopId) {
       throw new ForbiddenException(
-        `This table does not belong to shopId=${shopId}`,
+        `Table does not belong to shop ${dto.shopId}`,
       );
     }
-    // create
     const sessionUuid = uuidv4();
     return this.prisma.tableSession.create({
       data: {
-        shopId,
-        tableId,
+        shopId: dto.shopId,
+        tableId: dto.tableId,
         sessionUuid,
         status: 'ACTIVE',
       },
@@ -41,7 +40,7 @@ export class TableSessionService {
       include: { order: true },
     });
     if (!session) {
-      throw new NotFoundException(`No session found for uuid=${uuid}`);
+      throw new NotFoundException(`Session not found (uuid=${uuid})`);
     }
     return session;
   }
@@ -58,10 +57,7 @@ export class TableSessionService {
     }
     return this.prisma.tableSession.update({
       where: { id: session.id },
-      data: {
-        status: 'CLOSED',
-        closedAt: new Date(),
-      },
+      data: { status: 'CLOSED', closedAt: new Date() },
     });
   }
 }

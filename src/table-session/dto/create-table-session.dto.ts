@@ -1,0 +1,12 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { IsInt } from 'class-validator';
+
+export class CreateTableSessionDto {
+  @ApiProperty({ example: 1, description: 'ID of the shop' })
+  @IsInt()
+  shopId: number;
+
+  @ApiProperty({ example: 2, description: 'ID of the restaurant table' })
+  @IsInt()
+  tableId: number;
+}
