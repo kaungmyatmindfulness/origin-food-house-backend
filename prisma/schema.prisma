@@ -20,6 +20,9 @@ model User {
   resetToken       String?
   resetTokenExpiry DateTime?
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
   userShops UserShop[]
 }
 
@@ -28,6 +31,10 @@ model Shop {
   name    String
   address String?
   phone   String?
+  email   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   userShops    UserShop[]
   categories   Category[]
@@ -54,6 +61,9 @@ model Category {
   name   String
   shopId Int
   shop   Shop   @relation(fields: [shopId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   menuItems MenuItem[]
 
@@ -99,6 +109,9 @@ model Variation {
   name       String
   extraPrice Float  @default(0)
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
   @@index([menuItemId])
 }
 
@@ -110,6 +123,9 @@ model Size {
   name       String
   extraPrice Float  @default(0)
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
   @@index([menuItemId])
 }
 
@@ -120,6 +136,9 @@ model AddOn {
 
   name       String
   extraPrice Float  @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([menuItemId])
 }
@@ -133,6 +152,9 @@ model RestaurantTable {
   number String?
 
   tableSessions TableSession[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   // we might do queries by shop + table number
   @@index([shopId])
@@ -148,11 +170,13 @@ model TableSession {
 
   sessionUuid String             @unique
   status      TableSessionStatus @default(ACTIVE)
-  createdAt   DateTime           @default(now())
   closedAt    DateTime?
 
   // One-to-one with Order
   order Order?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   // Analytics: often we query sessions by shop + status
   @@index([shopId, status])
@@ -163,12 +187,14 @@ model Order {
   tableSessionId Int          @unique
   tableSession   TableSession @relation(fields: [tableSessionId], references: [id])
 
-  status    OrderStatus @default(OPEN) // "open", "paid"
-  createdAt DateTime    @default(now())
-  paidAt    DateTime?
+  status OrderStatus @default(OPEN) // "open", "paid"
+  paidAt DateTime?
 
   // multiple chunks in one order
   chunks OrderChunk[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   // Possibly index status if we do status-based queries
   // or combine tableSessionId + status
@@ -181,11 +207,12 @@ model OrderChunk {
   order   Order @relation(fields: [orderId], references: [id])
 
   // e.g. "pending", "in-progress", "done" for KDS
-  status    ChunkStatus @default(PENDING)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @default(now()) @updatedAt
+  status ChunkStatus @default(PENDING)
 
   chunkItems OrderChunkItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   // If we do KDS queries by order + status
   @@index([orderId, status])
@@ -207,8 +234,10 @@ model OrderChunkItem {
   chosenSizeId      Int?
   chosenAddOns      Json?
 
-  notes     String?
+  notes String?
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([orderChunkId])
   @@index([menuItemId])
