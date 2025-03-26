@@ -11,9 +11,9 @@ import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 export class MenuService {
   constructor(private prisma: PrismaService) {}
 
-  async getShopMenuItems(shopId: number) {
+  async getStoreMenuItems(storeId: number) {
     return this.prisma.menuItem.findMany({
-      where: { shopId },
+      where: { storeId },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -28,14 +28,14 @@ export class MenuService {
     return item;
   }
 
-  // Helper method: verifies that the user is an OWNER or ADMIN of the shop.
-  async checkOwnerOrAdmin(userId: number, shopId: number) {
-    const membership = await this.prisma.userShop.findUnique({
-      // Assuming a composite unique index exists on (userId, shopId)
-      where: { userId_shopId: { userId, shopId } },
+  // Helper method: verifies that the user is an OWNER or ADMIN of the store.
+  async checkOwnerOrAdmin(userId: number, storeId: number) {
+    const membership = await this.prisma.userStore.findUnique({
+      // Assuming a composite unique index exists on (userId, storeId)
+      where: { userId_storeId: { userId, storeId } },
     });
     if (!membership) {
-      throw new ForbiddenException('User is not a member of this shop');
+      throw new ForbiddenException('User is not a member of this store');
     }
     if (membership.role !== 'OWNER' && membership.role !== 'ADMIN') {
       throw new ForbiddenException(
@@ -45,10 +45,14 @@ export class MenuService {
     return membership;
   }
 
-  async createMenuItem(userId: number, shopId: number, dto: CreateMenuItemDto) {
-    // Check if the user is an owner or admin of the shop.
-    await this.checkOwnerOrAdmin(userId, shopId);
-    // Create the menu item using the shopId from JWT.
+  async createMenuItem(
+    userId: number,
+    storeId: number,
+    dto: CreateMenuItemDto,
+  ) {
+    // Check if the user is an owner or admin of the store.
+    await this.checkOwnerOrAdmin(userId, storeId);
+    // Create the menu item using the storeId from JWT.
     const newItem = await this.prisma.menuItem.create({
       data: {
         name: dto.name,
@@ -56,7 +60,7 @@ export class MenuService {
         basePrice: dto.basePrice,
         imageKey: dto.imageKey,
         categoryId: dto.categoryId,
-        shopId, // from JWT
+        storeId, // from JWT
         // Nested relations for variations, sizes, addOns can be handled separately.
       },
     });
@@ -65,22 +69,22 @@ export class MenuService {
 
   async updateMenuItem(
     userId: number,
-    shopId: number,
+    storeId: number,
     itemId: number,
     dto: UpdateMenuItemDto,
   ) {
     // Check membership and permissions.
-    await this.checkOwnerOrAdmin(userId, shopId);
-    // Verify the menu item exists and belongs to the shop.
+    await this.checkOwnerOrAdmin(userId, storeId);
+    // Verify the menu item exists and belongs to the store.
     const item = await this.prisma.menuItem.findUnique({
       where: { id: itemId },
     });
     if (!item) {
       throw new NotFoundException(`Menu item not found (id=${itemId})`);
     }
-    if (item.shopId !== shopId) {
+    if (item.storeId !== storeId) {
       throw new ForbiddenException(
-        'Unauthorized: This menu item does not belong to your shop.',
+        'Unauthorized: This menu item does not belong to your store.',
       );
     }
     const updated = await this.prisma.menuItem.update({
@@ -96,19 +100,19 @@ export class MenuService {
     return updated;
   }
 
-  async deleteMenuItem(userId: number, shopId: number, itemId: number) {
+  async deleteMenuItem(userId: number, storeId: number, itemId: number) {
     // Check membership and permissions.
-    await this.checkOwnerOrAdmin(userId, shopId);
-    // Verify the item exists and belongs to the shop.
+    await this.checkOwnerOrAdmin(userId, storeId);
+    // Verify the item exists and belongs to the store.
     const item = await this.prisma.menuItem.findUnique({
       where: { id: itemId },
     });
     if (!item) {
       throw new NotFoundException(`Menu item not found (id=${itemId})`);
     }
-    if (item.shopId !== shopId) {
+    if (item.storeId !== storeId) {
       throw new ForbiddenException(
-        'Unauthorized: This menu item does not belong to your shop.',
+        'Unauthorized: This menu item does not belong to your store.',
       );
     }
     const deleted = await this.prisma.menuItem.delete({

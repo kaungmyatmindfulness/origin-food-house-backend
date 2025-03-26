@@ -7,7 +7,7 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// ----------------- USER + SHOP LOGIC -----------------
+// ----------------- USER + store LOGIC -----------------
 model User {
   id                 Int       @id @default(autoincrement())
   email              String    @unique
@@ -23,10 +23,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  userShops UserShop[]
+  userStores UserStore[]
 }
 
-model Shop {
+model Store {
   id      Int     @id @default(autoincrement())
   name    String
   address String?
@@ -36,39 +36,39 @@ model Shop {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  userShops    UserShop[]
+  userStores   UserStore[]
   categories   Category[]
   menuItems    MenuItem[]
   tables       RestaurantTable[]
   TableSession TableSession[]
 }
 
-model UserShop {
-  id     Int  @id @default(autoincrement())
-  userId Int
-  shopId Int
-  role   Role
+model UserStore {
+  id      Int  @id @default(autoincrement())
+  userId  Int
+  storeId Int
+  role    Role
 
-  user User @relation(fields: [userId], references: [id])
-  shop Shop @relation(fields: [shopId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+  store Store @relation(fields: [storeId], references: [id])
 
-  @@unique([userId, shopId])
+  @@unique([userId, storeId])
 }
 
 // ----------------- CATEGORY + MENU ITEM -----------------
 model Category {
-  id     Int    @id @default(autoincrement())
-  name   String
-  shopId Int
-  shop   Shop   @relation(fields: [shopId], references: [id])
+  id      Int    @id @default(autoincrement())
+  name    String
+  storeId Int
+  store   Store  @relation(fields: [storeId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
   menuItems MenuItem[]
 
-  // Analytics tip: we can query categories by shop 
-  @@index([shopId])
+  // Analytics tip: we can query categories by store 
+  @@index([storeId])
 }
 
 model MenuItem {
@@ -81,8 +81,8 @@ model MenuItem {
   categoryId Int?
   category   Category? @relation(fields: [categoryId], references: [id])
 
-  shopId Int
-  shop   Shop @relation(fields: [shopId], references: [id])
+  storeId Int
+  store   Store @relation(fields: [storeId], references: [id])
 
   // Normalized Variation/Size/AddOn
   variations Variation[]
@@ -95,8 +95,8 @@ model MenuItem {
   // referencing order usage
   OrderChunkItem OrderChunkItem[]
 
-  // Analytics: we often filter by shop or category
-  @@index([shopId])
+  // Analytics: we often filter by store or category
+  @@index([storeId])
   @@index([categoryId])
 }
 
@@ -145,9 +145,9 @@ model AddOn {
 
 // ----------------- TABLE SESSION + ORDER -----------------
 model RestaurantTable {
-  id     Int  @id @default(autoincrement())
-  shopId Int
-  shop   Shop @relation(fields: [shopId], references: [id])
+  id      Int   @id @default(autoincrement())
+  storeId Int
+  store   Store @relation(fields: [storeId], references: [id])
 
   number String?
 
@@ -156,14 +156,14 @@ model RestaurantTable {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  // we might do queries by shop + table number
-  @@index([shopId])
+  // we might do queries by store + table number
+  @@index([storeId])
 }
 
 model TableSession {
-  id     Int  @id @default(autoincrement())
-  shopId Int
-  shop   Shop @relation(fields: [shopId], references: [id])
+  id      Int   @id @default(autoincrement())
+  storeId Int
+  store   Store @relation(fields: [storeId], references: [id])
 
   tableId Int
   table   RestaurantTable @relation(fields: [tableId], references: [id])
@@ -178,8 +178,8 @@ model TableSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  // Analytics: often we query sessions by shop + status
-  @@index([shopId, status])
+  // Analytics: often we query sessions by store + status
+  @@index([storeId, status])
 }
 
 model Order {

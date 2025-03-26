@@ -4,21 +4,21 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service'; // or your chosen ORM
-import { CreateShopDto } from './dto/create-shop.dto';
-import { UpdateShopDto } from './dto/update-shop.dto';
+import { CreateStoreDto } from './dto/create-store.dto';
+import { UpdateStoreDto } from './dto/update-store.dto';
 import { InviteOrAssignRoleDto } from './dto/invite-or-assign-role.dto';
 import { Role } from '@prisma/client';
 
 @Injectable()
-export class ShopService {
+export class StoreService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Create a new shop, automatically assigning the creator as OWNER.
+   * Create a new store, automatically assigning the creator as OWNER.
    */
-  async createShop(userId: number, dto: CreateShopDto) {
-    // 1. Create the shop
-    const shop = await this.prisma.shop.create({
+  async createStore(userId: number, dto: CreateStoreDto) {
+    // 1. Create the store
+    const store = await this.prisma.store.create({
       data: {
         name: dto.name,
         address: dto.address,
@@ -26,26 +26,26 @@ export class ShopService {
       },
     });
 
-    // 2. Assign the user as OWNER in UserShop pivot
-    await this.prisma.userShop.create({
+    // 2. Assign the user as OWNER in UserStore pivot
+    await this.prisma.userStore.create({
       data: {
         userId,
-        shopId: shop.id,
+        storeId: store.id,
         role: Role.OWNER,
       },
     });
 
-    return shop;
+    return store;
   }
 
   /**
-   * Update shop info, only if user is OWNER or ADMIN of the shop.
+   * Update store info, only if user is OWNER or ADMIN of the store.
    */
-  async updateShop(userId: number, shopId: number, dto: UpdateShopDto) {
+  async updateStore(userId: number, storeId: number, dto: UpdateStoreDto) {
     // Check role
-    const membership = await this.prisma.userShop.findUnique({
+    const membership = await this.prisma.userStore.findUnique({
       where: {
-        userId_shopId: { userId, shopId },
+        userId_storeId: { userId, storeId },
       },
     });
     if (
@@ -53,13 +53,13 @@ export class ShopService {
       !([Role.OWNER, Role.ADMIN] as Role[]).includes(membership.role)
     ) {
       throw new ForbiddenException(
-        'You do not have permission to edit this shop',
+        'You do not have permission to edit this store',
       );
     }
 
     // Perform update
-    const updated = await this.prisma.shop.update({
-      where: { id: shopId },
+    const updated = await this.prisma.store.update({
+      where: { id: storeId },
       data: {
         name: dto.name,
         address: dto.address,
@@ -77,15 +77,15 @@ export class ShopService {
    */
   async inviteOrAssignRoleByEmail(
     actingUserId: number,
-    shopId: number,
+    storeId: number,
     dto: InviteOrAssignRoleDto,
   ) {
-    // 1) Check the role of the acting user in this shop
-    const membership = await this.prisma.userShop.findUnique({
-      where: { userId_shopId: { userId: actingUserId, shopId } },
+    // 1) Check the role of the acting user in this store
+    const membership = await this.prisma.userStore.findUnique({
+      where: { userId_storeId: { userId: actingUserId, storeId } },
     });
     if (!membership) {
-      throw new ForbiddenException('You have no membership in this shop');
+      throw new ForbiddenException('You have no membership in this store');
     }
 
     // 2) Permission logic
@@ -113,12 +113,12 @@ export class ShopService {
       // or auto-create the user if you prefer
     }
 
-    // 4) Upsert userShop pivot to set the new role
-    const userShop = await this.prisma.userShop.upsert({
+    // 4) Upsert userStore pivot to set the new role
+    const userStore = await this.prisma.userStore.upsert({
       where: {
-        userId_shopId: {
+        userId_storeId: {
           userId: targetUser.id,
-          shopId,
+          storeId,
         },
       },
       update: {
@@ -126,11 +126,11 @@ export class ShopService {
       },
       create: {
         userId: targetUser.id,
-        shopId,
+        storeId,
         role: dto.role,
       },
     });
 
-    return userShop;
+    return userStore;
   }
 }

@@ -4,7 +4,7 @@ import { CommonModule } from 'src/common/common.module';
 import { EmailModule } from 'src/email/email.module';
 import { MenuModule } from 'src/menu/menu.module';
 import { OrderModule } from 'src/order/order.module';
-import { ShopModule } from 'src/shop/shop.module';
+import { StoreModule } from 'src/store/store.module';
 import { TableSessionModule } from 'src/table-session/table-session.module';
 import { UserModule } from 'src/user/user.module';
 
@@ -35,7 +35,7 @@ import { APP_GUARD } from '@nestjs/core';
     EmailModule,
     MenuModule,
     OrderModule,
-    ShopModule,
+    StoreModule,
     TableSessionModule,
     UserModule,
   ],

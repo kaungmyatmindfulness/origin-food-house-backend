@@ -16,7 +16,7 @@ import {
 
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { AddUserToShopDto } from './dto/add-user-to-shop.dto';
+import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
 import { BaseApiResponse } from 'src/common/dto/base-api-response.dto'; // Adjust the import path
 import { RequestWithUser } from 'src/auth/types/expressRequest.interface';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -71,42 +71,42 @@ export class UserController {
     };
   }
 
-  @Post('add-to-shop')
-  @ApiOperation({ summary: 'Assign a user to a shop with a given role' })
+  @Post('add-to-store')
+  @ApiOperation({ summary: 'Assign a user to a store with a given role' })
   @ApiResponse({
     status: 200,
-    description: 'User assigned to the shop successfully',
+    description: 'User assigned to the store successfully',
     schema: {
       example: {
         status: 'success',
         data: {
           id: 10,
           userId: 1,
-          shopId: 2,
+          storeId: 2,
           role: 'ADMIN',
         },
-        message: 'User added to shop successfully',
+        message: 'User added to store successfully',
         error: null,
       },
     },
   })
-  async addUserToShop(
-    @Body() dto: AddUserToShopDto,
+  async addUserToStore(
+    @Body() dto: AddUserToStoreDto,
   ): Promise<BaseApiResponse<any>> {
-    const userShop = await this.userService.addUserToShop(dto);
+    const userStore = await this.userService.addUserToStore(dto);
     return {
       status: 'success',
-      data: userShop,
-      message: 'User added to shop successfully',
+      data: userStore,
+      message: 'User added to store successfully',
       error: null,
     };
   }
 
-  @Get(':id/shops')
-  @ApiOperation({ summary: 'Get all shops/roles for a user' })
+  @Get(':id/stores')
+  @ApiOperation({ summary: 'Get all stores/roles for a user' })
   @ApiResponse({
     status: 200,
-    description: 'Lists all shops/roles associated with the user',
+    description: 'Lists all stores/roles associated with the user',
     schema: {
       example: {
         status: 'success',
@@ -114,13 +114,13 @@ export class UserController {
           {
             id: 10,
             userId: 1,
-            shopId: 2,
+            storeId: 2,
             role: 'ADMIN',
           },
           {
             id: 11,
             userId: 1,
-            shopId: 3,
+            storeId: 3,
             role: 'OWNER',
           },
         ],
@@ -129,11 +129,13 @@ export class UserController {
       },
     },
   })
-  async getUserShops(@Param('id') id: string): Promise<BaseApiResponse<any[]>> {
-    const userShops = await this.userService.getUserShops(Number(id));
+  async getUserStores(
+    @Param('id') id: string,
+  ): Promise<BaseApiResponse<any[]>> {
+    const userStores = await this.userService.getUserStores(Number(id));
     return {
       status: 'success',
-      data: userShops,
+      data: userStores,
       message: null,
       error: null,
     };
@@ -142,7 +144,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   @ApiOperation({
-    summary: 'Get current user info (profile, roles, shops, etc.)',
+    summary: 'Get current user info (profile, roles, stores, etc.)',
   })
   @ApiBearerAuth()
   @ApiResponse({
@@ -155,29 +157,45 @@ export class UserController {
           id: 12,
           email: 'john@example.com',
           name: 'John Doe',
-          userShops: [
+          userStores: [
             {
               id: 50,
               role: 'OWNER',
-              shop: {
+              store: {
                 id: 7,
                 name: 'Coffee Corner',
                 address: '123 Brew St',
                 phoneNumber: '555-1234',
               },
             },
+            {
+              id: 51,
+              role: 'ADMIN',
+              store: {
+                id: 10,
+                name: 'Pasta Place',
+                address: '45 Noodle Ave',
+                phoneNumber: '555-5678',
+              },
+            },
           ],
+          currentStore: {
+            id: 7,
+            name: 'Coffee Corner',
+            address: '123 Brew St',
+            phoneNumber: '555-1234',
+          },
+          currentRole: 'OWNER',
         },
         message: null,
         error: null,
       },
     },
   })
-  async getCurrentUser(
-    @Req() req: RequestWithUser,
-  ): Promise<BaseApiResponse<any>> {
+  async getCurrentUser(@Req() req: RequestWithUser) {
     const userId = req.user.id;
-    const user = await this.userService.findUserProfile(userId);
+    const storeId = req.user.storeId;
+    const user = await this.userService.findUserProfile(userId, storeId);
 
     return {
       status: 'success',

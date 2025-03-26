@@ -1,15 +1,17 @@
-// src/auth/auth.service.ts
-import {
-  Injectable,
-  UnauthorizedException,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { UserService } from '../user/user.service';
+import { Response } from 'express';
 import { RequestWithUser } from 'src/auth/types/expressRequest.interface';
+
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+
+import { UserService } from '../user/user.service';
 
 @Injectable()
 export class AuthService {
@@ -28,26 +30,49 @@ export class AuthService {
     return isMatch ? user : null;
   }
 
-  loginNoShop(user: RequestWithUser['user']) {
+  /**
+   * Issues a token with sub=user.id, sets it in an HTTP-only cookie, and also returns the token in JSON.
+   */
+  loginNoStore(user: RequestWithUser['user'], res: Response) {
     const payload = { sub: user.id };
     const access_token = this.jwtService.sign(payload);
+
+    // Attach the token in a cookie
+    res.cookie('access_token', access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV !== 'dev',
+      sameSite: 'strict',
+      maxAge: 1000 * 60 * 60 * 24, // 1 day, for example
+    });
+
     return { access_token };
   }
 
-  async loginWithShop(userId: number, shopId: number) {
-    const memberships = await this.userService.getUserShops(userId);
-    const membership = memberships.find((m) => m.shopId === shopId);
+  /**
+   * After picking a store, embed userId + storeId + role in the token, set it in an HTTP-only cookie, and return JSON.
+   */
+  async loginWithStore(userId: number, storeId: number, res: Response) {
+    const memberships = await this.userService.getUserStores(userId);
+    const membership = memberships.find((m) => m.storeId === storeId);
     if (!membership) {
       throw new UnauthorizedException(
-        'User is not a member of the chosen shop',
+        'User is not a member of the chosen store',
       );
     }
     const payload = {
       sub: userId,
-      shopId: membership.shopId,
+      storeId: membership.storeId,
       role: membership.role,
     };
     const access_token = this.jwtService.sign(payload);
+
+    res.cookie('access_token', access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV !== 'dev',
+      sameSite: 'strict',
+      maxAge: 1000 * 60 * 60 * 24, // 1 day, for example
+    });
+
     return { access_token };
   }
 

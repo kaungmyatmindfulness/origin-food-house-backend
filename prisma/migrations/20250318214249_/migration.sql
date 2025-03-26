@@ -1,7 +1,7 @@
 -- CreateTable
 CREATE TABLE "TableSession" (
     "id" SERIAL NOT NULL,
-    "shopId" INTEGER NOT NULL,
+    "storeId" INTEGER NOT NULL,
     "tableId" INTEGER NOT NULL,
     "sessionUuid" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'active',
@@ -14,7 +14,7 @@ CREATE TABLE "TableSession" (
 -- CreateTable
 CREATE TABLE "RestaurantTable" (
     "id" SERIAL NOT NULL,
-    "shopId" INTEGER NOT NULL,
+    "storeId" INTEGER NOT NULL,
     "number" TEXT,
 
     CONSTRAINT "RestaurantTable_pkey" PRIMARY KEY ("id")
@@ -66,13 +66,13 @@ CREATE UNIQUE INDEX "TableSession_sessionUuid_key" ON "TableSession"("sessionUui
 CREATE UNIQUE INDEX "Order_tableSessionId_key" ON "Order"("tableSessionId");
 
 -- AddForeignKey
-ALTER TABLE "TableSession" ADD CONSTRAINT "TableSession_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "TableSession" ADD CONSTRAINT "TableSession_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "TableSession" ADD CONSTRAINT "TableSession_tableId_fkey" FOREIGN KEY ("tableId") REFERENCES "RestaurantTable"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "RestaurantTable" ADD CONSTRAINT "RestaurantTable_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "RestaurantTable" ADD CONSTRAINT "RestaurantTable_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Order" ADD CONSTRAINT "Order_tableSessionId_fkey" FOREIGN KEY ("tableSessionId") REFERENCES "TableSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

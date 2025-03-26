@@ -1,35 +1,36 @@
+import { Response as ExpressResponse } from 'express';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { RequestWithUser } from 'src/auth/types/expressRequest.interface';
+import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
+
 import {
+  BadRequestException,
+  Body,
   Controller,
   Get,
   Post,
-  Patch,
-  UseGuards,
-  Request,
-  Body,
   Query,
-  BadRequestException,
+  Request,
+  Res,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiOperation,
   ApiQuery,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
-import { LocalAuthGuard } from './local-auth.guard';
-import { LoginDto } from './dto/login.dto';
-import { ChooseShopDto } from './dto/choose-shop.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-
-import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
-import { RequestWithUser } from 'src/auth/types/expressRequest.interface';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { ChooseStoreDto } from './dto/choose-store.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { LoginDto } from './dto/login.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { LocalAuthGuard } from './local-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -38,7 +39,7 @@ export class AuthController {
 
   /**
    * Step 1: Login with email/password.
-   * Issues a JWT with userId (sub) but no shopId.
+   * Issues a JWT with userId (sub) but no storeId.
    */
   @UseGuards(LocalAuthGuard)
   @Post('login')
@@ -46,14 +47,14 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description:
-      'Returns a JWT containing { sub: userId }. The token does not include shopId.',
+      'Returns a JWT containing { sub: userId }. The token does not include storeId.',
     schema: {
       example: {
         status: 'success',
         data: {
           access_token: 'eyJhbGciOiJIUzI1NiIsInR...',
         },
-        message: 'Credentials valid, token has no shopId yet.',
+        message: 'Credentials valid, token has no storeId yet.',
         error: null,
       },
     },
@@ -61,42 +62,45 @@ export class AuthController {
   login(
     @Request() req: RequestWithUser,
     @Body() _: LoginDto,
+    @Res({ passthrough: true }) res: ExpressResponse,
   ): BaseApiResponse<{ access_token: string }> {
     const user = req.user;
-    const result = this.authService.loginNoShop(user);
+    const result = this.authService.loginNoStore(user, res);
+
     return {
       status: 'success',
       data: result,
-      message: 'Credentials valid, token has no shopId yet.',
+      message: 'Credentials valid, token has no storeId yet.',
       error: null,
     };
   }
 
   /**
-   * Step 2: Choose a shop to finalize login.
-   * Returns a new JWT with userId, shopId, and role.
+   * Step 2: Choose a store to finalize login.
+   * Returns a new JWT with userId, storeId, and role.
    */
   @UseGuards(JwtAuthGuard)
-  @Post('login/shop')
+  @Post('login/store')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Select a shop to complete login (Step 2)' })
+  @ApiOperation({ summary: 'Select a store to complete login (Step 2)' })
   @ApiResponse({
     status: 200,
-    description: 'Returns a new JWT containing { sub: userId, shopId, role }.',
+    description: 'Returns a new JWT containing { sub: userId, storeId, role }.',
     schema: {
       example: {
         status: 'success',
         data: {
           access_token: 'eyJhbGciOiJIUzI1NiIsInR...',
         },
-        message: 'Shop selected, new token generated.',
+        message: 'Store selected, new token generated.',
         error: null,
       },
     },
   })
-  async loginWithShop(
+  async loginWithStore(
     @Request() req: RequestWithUser,
-    @Body() body: ChooseShopDto,
+    @Body() body: ChooseStoreDto,
+    @Res({ passthrough: true }) res: ExpressResponse,
   ): Promise<BaseApiResponse<{ access_token: string }>> {
     const userId = req.user.id;
     if (!userId) {
@@ -104,12 +108,12 @@ export class AuthController {
         'No userId in token. Did you skip step 1?',
       );
     }
-    const { shopId } = body;
-    const result = await this.authService.loginWithShop(userId, shopId);
+    const { storeId } = body;
+    const result = await this.authService.loginWithStore(userId, storeId, res);
     return {
       status: 'success',
       data: result,
-      message: 'Shop selected, new token generated.',
+      message: 'Store selected, new token generated.',
       error: null,
     };
   }

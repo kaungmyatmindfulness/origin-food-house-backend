@@ -141,7 +141,7 @@ This repository is a **NestJS-based** application for managing **table sessions*
 
 2. **Menu Items**
 
-   - `GET /menu?shopId=...` → Public listing of items.
+   - `GET /menu?storeId=...` → Public listing of items.
    - `POST /menu` → Create item (OWNER/ADMIN).
    - `PUT /menu/:id` → Update item.
    - `DELETE /menu/:id` → Delete item.
@@ -169,7 +169,7 @@ This repository is a **NestJS-based** application for managing **table sessions*
 ## 7. Further Notes
 
 - **Auto-Close Logic**: Once an order is “paid,” the system checks if **all** orders for that table session are paid. If so, it sets `TableSession.status = 'closed'`.
-- **Extensibility**: You can easily add new roles, add discount logic, multiple branches/shops, or advanced seat management if needed.
+- **Extensibility**: You can easily add new roles, add discount logic, multiple branches/stores, or advanced seat management if needed.
 - **Authentication**: Adjust your NestJS guards for each endpoint to ensure correct user roles can create/close table sessions, edit menu items, etc.
 
 ---

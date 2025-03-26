@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "Shop" ADD COLUMN     "phone" TEXT;
+ALTER TABLE "Store" ADD COLUMN     "phone" TEXT;

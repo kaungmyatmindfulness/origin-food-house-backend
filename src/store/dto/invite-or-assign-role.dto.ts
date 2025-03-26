@@ -9,7 +9,7 @@ export class InviteOrAssignRoleDto {
   email: string;
 
   @ApiProperty({
-    description: 'The new role for the user in this shop',
+    description: 'The new role for the user in this store',
     enum: Role,
     example: 'ADMIN',
   })

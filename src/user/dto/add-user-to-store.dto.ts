@@ -1,12 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 
-export class AddUserToShopDto {
+export class AddUserToStoreDto {
   @ApiProperty()
   userId: number;
 
   @ApiProperty()
-  shopId: number;
+  storeId: number;
 
   @ApiProperty({ enum: Role })
   role: Role;

@@ -29,19 +29,19 @@ import { RequestWithUser } from 'src/auth/types/expressRequest.interface';
 export class MenuController {
   constructor(private menuService: MenuService) {}
 
-  // Public endpoint to get all menu items for a given shop
+  // Public endpoint to get all menu items for a given store
   @Get()
-  @ApiOperation({ summary: 'Get all menu items for a shop (public read)' })
+  @ApiOperation({ summary: 'Get all menu items for a store (public read)' })
   @ApiQuery({
-    name: 'shopId',
+    name: 'storeId',
     required: true,
     type: Number,
-    description: 'ID of the shop',
+    description: 'ID of the store',
   })
-  async getShopMenuItems(
-    @Query('shopId', ParseIntPipe) shopId: number,
+  async getStoreMenuItems(
+    @Query('storeId', ParseIntPipe) storeId: number,
   ): Promise<BaseApiResponse<any>> {
-    const items = await this.menuService.getShopMenuItems(shopId);
+    const items = await this.menuService.getStoreMenuItems(storeId);
     return {
       status: 'success',
       data: items,
@@ -75,8 +75,8 @@ export class MenuController {
     @Body() dto: CreateMenuItemDto,
   ): Promise<BaseApiResponse<any>> {
     const userId = req.user.id;
-    const shopId = req.user.shopId;
-    const newItem = await this.menuService.createMenuItem(userId, shopId, dto);
+    const storeId = req.user.storeId;
+    const newItem = await this.menuService.createMenuItem(userId, storeId, dto);
     return {
       status: 'success',
       data: newItem,
@@ -96,10 +96,10 @@ export class MenuController {
     @Body() dto: UpdateMenuItemDto,
   ): Promise<BaseApiResponse<any>> {
     const userId = req.user.id;
-    const shopId = req.user.shopId;
+    const storeId = req.user.storeId;
     const updated = await this.menuService.updateMenuItem(
       userId,
-      shopId,
+      storeId,
       itemId,
       dto,
     );
@@ -121,10 +121,10 @@ export class MenuController {
     @Param('id', ParseIntPipe) itemId: number,
   ): Promise<BaseApiResponse<any>> {
     const userId = req.user.id;
-    const shopId = req.user.shopId;
+    const storeId = req.user.storeId;
     const deleted = await this.menuService.deleteMenuItem(
       userId,
-      shopId,
+      storeId,
       itemId,
     );
     return {

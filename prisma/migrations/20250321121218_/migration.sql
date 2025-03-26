@@ -32,10 +32,10 @@ ADD COLUMN     "status" "TableSessionStatus" NOT NULL DEFAULT 'ACTIVE';
 CREATE INDEX "AddOn_menuItemId_idx" ON "AddOn"("menuItemId");
 
 -- CreateIndex
-CREATE INDEX "Category_shopId_idx" ON "Category"("shopId");
+CREATE INDEX "Category_storeId_idx" ON "Category"("storeId");
 
 -- CreateIndex
-CREATE INDEX "MenuItem_shopId_idx" ON "MenuItem"("shopId");
+CREATE INDEX "MenuItem_storeId_idx" ON "MenuItem"("storeId");
 
 -- CreateIndex
 CREATE INDEX "MenuItem_categoryId_idx" ON "MenuItem"("categoryId");
@@ -53,13 +53,13 @@ CREATE INDEX "OrderChunkItem_orderChunkId_idx" ON "OrderChunkItem"("orderChunkId
 CREATE INDEX "OrderChunkItem_menuItemId_idx" ON "OrderChunkItem"("menuItemId");
 
 -- CreateIndex
-CREATE INDEX "RestaurantTable_shopId_idx" ON "RestaurantTable"("shopId");
+CREATE INDEX "RestaurantTable_storeId_idx" ON "RestaurantTable"("storeId");
 
 -- CreateIndex
 CREATE INDEX "Size_menuItemId_idx" ON "Size"("menuItemId");
 
 -- CreateIndex
-CREATE INDEX "TableSession_shopId_status_idx" ON "TableSession"("shopId", "status");
+CREATE INDEX "TableSession_storeId_status_idx" ON "TableSession"("storeId", "status");
 
 -- CreateIndex
 CREATE INDEX "Variation_menuItemId_idx" ON "Variation"("menuItemId");

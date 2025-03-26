@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
-export class UpdateShopDto {
+export class UpdateStoreDto {
   @ApiPropertyOptional()
   name?: string;
 

@@ -25,53 +25,53 @@ async function main() {
   }
   console.log(`Created ${users.length} users`);
 
-  // 2. Create Shops (3 shops)
-  const shops = [];
+  // 2. Create Stores (3 stores)
+  const stores = [];
   for (let i = 0; i < 3; i++) {
-    const shop = await prisma.shop.create({
+    const store = await prisma.store.create({
       data: {
         name: faker.company.name(),
         address: faker.address.streetAddress(),
         phone: faker.phone.number(),
       },
     });
-    shops.push(shop);
+    stores.push(store);
   }
-  console.log(`Created ${shops.length} shops`);
+  console.log(`Created ${stores.length} stores`);
 
-  // 3. Assign some users to each shop with role OWNER or ADMIN
-  for (const shop of shops) {
+  // 3. Assign some users to each store with role OWNER or ADMIN
+  for (const store of stores) {
     // Pick a random user to be OWNER
     const owner = users[Math.floor(Math.random() * users.length)];
-    await prisma.userShop.create({
+    await prisma.userStore.create({
       data: {
         userId: owner.id,
-        shopId: shop.id,
+        storeId: store.id,
         role: Role.OWNER,
       },
     });
     // Assign 2 more random users as ADMIN
     for (let i = 0; i < 2; i++) {
       const admin = users[Math.floor(Math.random() * users.length)];
-      await prisma.userShop.create({
+      await prisma.userStore.create({
         data: {
           userId: admin.id,
-          shopId: shop.id,
+          storeId: store.id,
           role: Role.ADMIN,
         },
       });
     }
   }
-  console.log('Assigned users to shops');
+  console.log('Assigned users to stores');
 
-  // 4. Create Categories for each shop (3 categories per shop)
+  // 4. Create Categories for each store (3 categories per store)
   const categories = [];
-  for (const shop of shops) {
+  for (const store of stores) {
     for (let i = 0; i < 3; i++) {
       const category = await prisma.category.create({
         data: {
           name: faker.food.adjective(), // e.g., "Spicy Dishes"
-          shopId: shop.id,
+          storeId: store.id,
         },
       });
       categories.push(category);
@@ -79,14 +79,14 @@ async function main() {
   }
   console.log(`Created ${categories.length} categories`);
 
-  // 5. Create Menu Items for each shop (10 menu items per shop)
+  // 5. Create Menu Items for each store (10 menu items per store)
   const menuItems = [];
-  for (const shop of shops) {
+  for (const store of stores) {
     for (let i = 0; i < 10; i++) {
-      // randomly pick a category from those belonging to this shop
-      const shopCategories = categories.filter((c) => c.shopId === shop.id);
+      // randomly pick a category from those belonging to this store
+      const storeCategories = categories.filter((c) => c.storeId === store.id);
       const category =
-        shopCategories[Math.floor(Math.random() * shopCategories.length)];
+        storeCategories[Math.floor(Math.random() * storeCategories.length)];
 
       const menuItem = await prisma.menuItem.create({
         data: {
@@ -101,7 +101,7 @@ async function main() {
           ),
           imageKey: `uploads/${faker.string.uuid()}-original`,
           categoryId: category ? category.id : null,
-          shopId: shop.id,
+          storeId: store.id,
         },
       });
       menuItems.push(menuItem);
@@ -160,13 +160,13 @@ async function main() {
   }
   console.log(`Created ${menuItems.length} menu items`);
 
-  // 6. Create Restaurant Tables for each shop (5 per shop)
+  // 6. Create Restaurant Tables for each store (5 per store)
   const tables = [];
-  for (const shop of shops) {
+  for (const store of stores) {
     for (let i = 0; i < 5; i++) {
       const table = await prisma.restaurantTable.create({
         data: {
-          shopId: shop.id,
+          storeId: store.id,
           number: `Table-${i + 1}`,
         },
       });
@@ -181,7 +181,7 @@ async function main() {
     // Create one active session for each table
     const session = await prisma.tableSession.create({
       data: {
-        shopId: table.shopId,
+        storeId: table.storeId,
         tableId: table.id,
         sessionUuid: faker.string.uuid(),
         status: 'ACTIVE',
@@ -193,7 +193,7 @@ async function main() {
     if (Math.random() > 0.5) {
       await prisma.tableSession.create({
         data: {
-          shopId: table.shopId,
+          storeId: table.storeId,
           tableId: table.id,
           sessionUuid: faker.string.uuid(),
           status: 'CLOSED',
@@ -225,13 +225,13 @@ async function main() {
         },
       });
 
-      // For each chunk, add 3 order chunk items using random menu items from the same shop
-      const shopMenuItems = menuItems.filter(
-        (mi) => mi.shopId === session.shopId,
+      // For each chunk, add 3 order chunk items using random menu items from the same store
+      const storeMenuItems = menuItems.filter(
+        (mi) => mi.storeId === session.storeId,
       );
       for (let j = 0; j < 3; j++) {
         const menuItem =
-          shopMenuItems[Math.floor(Math.random() * shopMenuItems.length)];
+          storeMenuItems[Math.floor(Math.random() * storeMenuItems.length)];
         await prisma.orderChunkItem.create({
           data: {
             orderChunkId: chunk.id,

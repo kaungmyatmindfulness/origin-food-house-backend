@@ -10,23 +10,23 @@ import { v4 as uuidv4 } from 'uuid';
 export class TableSessionService {
   constructor(private prisma: PrismaService) {}
 
-  async createSession(dto: { shopId: number; tableId: number }) {
-    // Check that table belongs to shop
+  async createSession(dto: { storeId: number; tableId: number }) {
+    // Check that table belongs to store
     const table = await this.prisma.restaurantTable.findUnique({
       where: { id: dto.tableId },
     });
     if (!table) {
       throw new NotFoundException(`Table not found (id=${dto.tableId})`);
     }
-    if (table.shopId !== dto.shopId) {
+    if (table.storeId !== dto.storeId) {
       throw new ForbiddenException(
-        `Table does not belong to shop ${dto.shopId}`,
+        `Table does not belong to store ${dto.storeId}`,
       );
     }
     const sessionUuid = uuidv4();
     return this.prisma.tableSession.create({
       data: {
-        shopId: dto.shopId,
+        storeId: dto.storeId,
         tableId: dto.tableId,
         sessionUuid,
         status: 'ACTIVE',

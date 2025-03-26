@@ -15,28 +15,28 @@ ADD COLUMN     "verified" BOOLEAN NOT NULL DEFAULT false,
 ALTER COLUMN "name" DROP NOT NULL;
 
 -- CreateTable
-CREATE TABLE "Shop" (
+CREATE TABLE "Store" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
 
-    CONSTRAINT "Shop_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Store_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "UserShop" (
+CREATE TABLE "UserStore" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
-    "shopId" INTEGER NOT NULL,
+    "storeId" INTEGER NOT NULL,
     "role" "Role" NOT NULL,
 
-    CONSTRAINT "UserShop_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "UserStore_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "UserShop_userId_shopId_key" ON "UserShop"("userId", "shopId");
+CREATE UNIQUE INDEX "UserStore_userId_storeId_key" ON "UserStore"("userId", "storeId");
 
 -- AddForeignKey
-ALTER TABLE "UserShop" ADD CONSTRAINT "UserShop_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "UserStore" ADD CONSTRAINT "UserStore_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "UserShop" ADD CONSTRAINT "UserShop_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "UserStore" ADD CONSTRAINT "UserStore_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -7,11 +7,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { User, UserShop } from '@prisma/client';
+import { User, UserStore } from '@prisma/client';
 
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma.service';
-import { AddUserToShopDto } from './dto/add-user-to-shop.dto';
+import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
@@ -62,14 +62,14 @@ export class UserService {
   async findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({
       where: { email },
-      include: { userShops: true },
+      include: { userStores: true },
     });
   }
 
   async findById(id: number): Promise<User | null> {
     return this.prisma.user.findUnique({
       where: { id },
-      include: { userShops: true },
+      include: { userStores: true },
     });
   }
 
@@ -89,54 +89,85 @@ export class UserService {
   }
 
   /**
-   * Add or update user’s role in a shop (owner, admin, sale, chef).
+   * Add or update user’s role in a store (owner, admin, sale, chef).
    */
-  async addUserToShop(dto: AddUserToShopDto): Promise<UserShop> {
+  async addUserToStore(dto: AddUserToStoreDto): Promise<UserStore> {
     const user = await this.findById(dto.userId);
     if (!user) throw new BadRequestException('User not found');
 
-    const shop = await this.prisma.shop.findUnique({
-      where: { id: dto.shopId },
+    const store = await this.prisma.store.findUnique({
+      where: { id: dto.storeId },
     });
-    if (!shop) throw new BadRequestException('Shop not found');
+    if (!store) throw new BadRequestException('Store not found');
 
-    return this.prisma.userShop.upsert({
+    return this.prisma.userStore.upsert({
       where: {
-        userId_shopId: { userId: dto.userId, shopId: dto.shopId },
+        userId_storeId: { userId: dto.userId, storeId: dto.storeId },
       },
       update: { role: dto.role },
       create: {
         userId: dto.userId,
-        shopId: dto.shopId,
+        storeId: dto.storeId,
         role: dto.role,
       },
     });
   }
 
-  async getUserShops(userId: number) {
-    return this.prisma.userShop.findMany({
+  async getUserStores(userId: number) {
+    return this.prisma.userStore.findMany({
       where: { userId },
-      include: { shop: true },
+      include: { store: true },
     });
   }
 
   /**
-   * Fetch the user by ID, including shops/roles if desired.
+   * Fetch the user by ID, including stores/roles, and also
+   * return the user's current store info and role if `currentStoreId` is provided.
    */
-  async findUserProfile(userId: number) {
+  async findUserProfile(userId: number, currentStoreId?: number) {
+    // 1) Fetch user with all userStores (including the store object)
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
-        userShops: {
-          include: { shop: true },
+        userStores: {
+          include: {
+            store: true,
+          },
         },
       },
-      omit: { password: true },
     });
+
     if (!user) {
       throw new NotFoundException(`User not found (id=${userId})`);
     }
-    return user;
+
+    // 2) Omit password from the returned object
+    //    (You can also do this at a serialization layer if needed)
+    const { password: _, ...rest } = user;
+
+    // 3) Find membership for the current logged-in store
+    let currentStoreInfo = null;
+    let currentRole = null;
+
+    if (currentStoreId) {
+      const membership = user.userStores.find(
+        (us) => us.storeId === currentStoreId,
+      );
+      if (membership) {
+        currentStoreInfo = membership.store; // The actual store record
+        currentRole = membership.role; // The user's role in that store
+      }
+    }
+
+    // 4) Return an object that includes:
+    //    - userStores (for all stores)
+    //    - currentStoreInfo, currentRole if the user is logged into a specific store
+    return {
+      ...rest,
+      userStores: user.userStores,
+      currentStore: currentStoreInfo,
+      currentRole,
+    };
   }
 
   async setResetToken(userId: number, token: string, expiry: Date) {
