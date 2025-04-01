@@ -50,18 +50,27 @@ export class MenuService {
     storeId: number,
     dto: CreateMenuItemDto,
   ) {
-    // Check if the user is an owner or admin of the store.
+    // 1) check role
     await this.checkOwnerOrAdmin(userId, storeId);
-    // Create the menu item using the storeId from JWT.
+
+    // 2) find current max sortOrder for menu items in this store
+    const maxSort = await this.prisma.menuItem.aggregate({
+      where: { storeId },
+      _max: { sortOrder: true },
+    });
+    const newSortOrder = (maxSort._max.sortOrder || 0) + 1;
+
+    // 3) create item
     const newItem = await this.prisma.menuItem.create({
       data: {
         name: dto.name,
         description: dto.description,
         basePrice: dto.basePrice,
         imageKey: dto.imageKey,
+        storeId,
         categoryId: dto.categoryId,
-        storeId, // from JWT
-        // Nested relations for variations, sizes, addOns can be handled separately.
+        sortOrder: newSortOrder,
+        // variations, sizes, addOnOptions can be handled if needed
       },
     });
     return newItem;

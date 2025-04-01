@@ -16,6 +16,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 import { APP_GUARD } from '@nestjs/core';
+import { CategoryModule } from 'src/category/category.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { APP_GUARD } from '@nestjs/core';
     }),
     ScheduleModule.forRoot(),
     AuthModule,
+    CategoryModule,
     CommonModule,
     EmailModule,
     MenuModule,
