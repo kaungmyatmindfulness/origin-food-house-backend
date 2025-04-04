@@ -1,49 +1,90 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common'; // Import Logger
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Request } from 'express';
-import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { JwtPayload } from './interfaces/jwt-payload.interface'; // Assuming this interface exists
 
 function extractJwtFromCookie(req: Request): string | null {
-  const cookies = req.cookies as Record<string, string | undefined>;
-  try {
-    const token = cookies['access_token'];
-    return token || null;
-  } catch {
-    return null;
-  }
+  const cookies = req.cookies as Record<string, string>;
+  const token = cookies?.['access_token'];
+  return token || null;
 }
+
 /**
  * Combined extractor:
  * 1) Try Bearer from header,
  * 2) if null, try the "access_token" cookie.
  */
 function jwtExtractor(req: Request): string | null {
-  // Step 1: Try from Authorization header
   const authHeader = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
   if (authHeader) {
     return authHeader;
   }
-  // Step 2: Fall back to cookie
   return extractJwtFromCookie(req);
 }
 
+// --- Strategy ---
+
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private configService: ConfigService) {
+export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
+  private readonly logger = new Logger(JwtStrategy.name);
+
+  constructor(private readonly configService: ConfigService) {
+    const secret = configService.get<string>('SECRET_KEY');
+    let effectiveSecret = secret;
+    let isFallbackSecret = false;
+
+    if (!secret) {
+      effectiveSecret = 'SECRET_KEY';
+      isFallbackSecret = true;
+    }
+
     super({
       jwtFromRequest: jwtExtractor,
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('SECRET_KEY') || 'SECRET_KEY',
+      secretOrKey: effectiveSecret!,
     });
+
+    if (isFallbackSecret) {
+      this.logger.error(
+        '!!! SECURITY ALERT: SECRET_KEY not found in environment variables. Using insecure default fallback "SECRET_KEY". Configure SECRET_KEY immediately! !!!',
+      );
+    } else {
+      this.logger.log('JWT Strategy initialized with configured SECRET_KEY.');
+    }
+    this.logger.log('JWT Strategy constructor finished.');
   }
 
-  validate(payload: JwtPayload) {
-    return {
-      id: payload.sub,
+  /**
+   * Validates the token payload after signature/expiration check.
+   * @param payload The decoded JWT payload.
+   * @returns The object to be attached to `req.user`.
+   */
+  validate(payload: JwtPayload): { sub: number; storeId: number } {
+    this.logger.verbose(
+      `Validating JWT payload for User ID: ${payload?.sub}, Store ID: ${payload?.storeId}`,
+    );
+
+    if (
+      !payload ||
+      typeof payload.sub !== 'number' ||
+      typeof payload.storeId !== 'number'
+    ) {
+      this.logger.warn(
+        'JWT payload validation encountered unexpected structure or missing fields.',
+        payload,
+      );
+    }
+
+    const userPayload = {
+      sub: payload.sub,
       storeId: payload.storeId,
-      role: payload.role,
     };
+
+    this.logger.verbose(
+      `JWT validation successful for User ID: ${userPayload.sub}`,
+    );
+    return userPayload;
   }
 }

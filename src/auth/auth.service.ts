@@ -416,40 +416,4 @@ export class AuthService {
   private async hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, this.BCRYPT_SALT_ROUNDS);
   }
-
-  /**
-   * Note: Cookie generation logic should be moved to the Controller.
-   * Example Helper for Controller:
-   *
-   * getCookieOptions(): CookieOptions {
-   * return {
-   * httpOnly: true,
-   * secure: process.env.NODE_ENV === 'production', // Use stricter check
-   * sameSite: 'strict',
-   * maxAge: this.JWT_EXPIRATION_MS
-   * };
-   * }
-   */
 }
-
-// --- Define necessary types (e.g., in src/auth/types/index.ts) ---
-/*
-import { Request } from 'express';
-import { User, Role } from '@prisma/client';
-
-// Payload for JWT when no store is selected
-export interface UserJwtPayload {
-  sub: number; // User ID
-}
-
-// Payload for JWT when store IS selected
-export interface UserJwtPayloadWithStore extends UserJwtPayload {
-  storeId: number;
-  role: Role;
-}
-
-// Extend Express Request interface
-export interface RequestWithUser extends Request {
-  user: UserJwtPayloadWithStore | UserJwtPayload; // Or a more specific User type if deserialized
-}
-*/

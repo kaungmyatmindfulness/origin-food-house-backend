@@ -159,12 +159,13 @@ export class UserController {
   async getCurrentUser(
     @Req() req: RequestWithUser,
   ): Promise<BaseApiResponse<UserProfileResponse>> {
-    // ** Use imported type **
     const userId = req.user.sub;
     const storeId = 'storeId' in req.user ? req.user.storeId : undefined;
+    console.log('📝 -> UserController -> storeId:', storeId);
     this.logger.log(
       `Request for profile of User ID: ${userId}, Current Store Context: ${storeId ?? 'None'}`,
     );
+    console.log('📝 -> UserController -> userId:', userId);
     const userProfile = await this.userService.findUserProfile(userId, storeId);
     return BaseApiResponse.success(
       userProfile,
