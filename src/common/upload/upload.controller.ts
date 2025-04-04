@@ -52,7 +52,7 @@ export class UploadController {
           imageKey: 'uploads/81eaa567-d441-4d16-8f56-74d708a7b622',
         },
         message: 'Image uploaded successfully',
-        error: null,
+        errors: null,
       },
     },
   })
@@ -66,7 +66,7 @@ export class UploadController {
       status: 'success',
       data: { imageKey },
       message: 'Image uploaded successfully',
-      error: null,
+      errors: null,
     };
   }
 }

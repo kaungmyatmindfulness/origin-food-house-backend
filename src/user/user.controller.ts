@@ -6,202 +6,169 @@ import {
   Param,
   Req,
   UseGuards,
+  ParseIntPipe,
+  Logger,
+  HttpCode,
+  HttpStatus,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiOkResponse,
+  ApiCreatedResponse,
+  ApiBadRequestResponse,
+  ApiNotFoundResponse,
+  ApiForbiddenResponse,
+  ApiParam,
 } from '@nestjs/swagger';
 
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
-import { BaseApiResponse } from 'src/common/dto/base-api-response.dto'; // Adjust the import path
-import { RequestWithUser } from 'src/auth/types/expressRequest.interface';
+import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
+import { RequestWithUser } from 'src/auth/types';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { Prisma, Role, UserStore, Store } from '@prisma/client'; // Keep Prisma types needed
+
+// ** Import specific types **
+import { UserPublicPayload } from './types/user-payload.types';
+import { UserProfileResponse } from './types/user-profile.response';
 
 @ApiTags('user')
 @Controller('user')
 export class UserController {
+  private readonly logger = new Logger(UserController.name);
+
   constructor(private readonly userService: UserService) {}
 
   @Post('register')
-  @ApiOperation({
-    summary: 'Register a new user (with email verification)',
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Register a new user (sends verification email)' })
+  @ApiCreatedResponse({
+    description: 'User registered successfully. Verification email sent.',
+    type: BaseApiResponse, // Consider creating specific Response DTOs for Swagger accuracy
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Validation error (e.g., email exists, disposable domain, invalid input)',
   })
   @ApiResponse({
-    status: 201,
-    description: 'User created successfully',
-    schema: {
-      example: {
-        status: 'success',
-        data: {
-          id: 1,
-          email: 'john@example.com',
-          // other user fields
-        },
-        message: 'User registered successfully',
-        error: null,
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Validation or other client error',
-    schema: {
-      example: {
-        status: 'error',
-        data: null,
-        message: 'Validation error',
-        error: { code: 'VALIDATION_ERROR', message: 'Email is required' },
-      },
-    },
+    status: 500,
+    description: 'Internal server error (e.g., failed to send email)',
   })
   async register(
     @Body() createUserDto: CreateUserDto,
-  ): Promise<BaseApiResponse<unknown>> {
-    // The service returns the new user record
+  ): Promise<BaseApiResponse<UserPublicPayload>> {
+    // ** Corrected return type **
+    this.logger.log(`Registration attempt for email: ${createUserDto.email}`);
     const user = await this.userService.createUser(createUserDto);
-    return {
-      status: 'success',
-      data: user, // The newly created user data
-      message: 'User registered successfully',
-      error: null,
-    };
+    return BaseApiResponse.success(
+      user, // user object matches UserPublicPayload now
+      'User registered successfully. Please check your email to verify your account.',
+    );
   }
 
+  // --- Authorization Required Beyond This Point ---
+
+  @UseGuards(JwtAuthGuard)
   @Post('add-to-store')
-  @ApiOperation({ summary: 'Assign a user to a store with a given role' })
-  @ApiResponse({
-    status: 200,
-    description: 'User assigned to the store successfully',
-    schema: {
-      example: {
-        status: 'success',
-        data: {
-          id: 10,
-          userId: 1,
-          storeId: 2,
-          role: 'ADMIN',
-        },
-        message: 'User added to store successfully',
-        error: null,
-      },
-    },
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Assign a user to a store with a role (Admin/Owner Protected - Example)',
+  })
+  @ApiOkResponse({
+    description: 'User assigned/updated in store successfully.',
+    type: BaseApiResponse, // Consider specific Response DTO
+  })
+  @ApiBadRequestResponse({
+    description: 'Validation error (e.g., invalid role, missing fields)',
+  })
+  @ApiNotFoundResponse({ description: 'User or Store not found.' })
+  @ApiForbiddenResponse({
+    description: 'User does not have permission to perform this action.',
   })
   async addUserToStore(
     @Body() dto: AddUserToStoreDto,
-  ): Promise<BaseApiResponse<unknown>> {
+  ): Promise<BaseApiResponse<UserStore>> {
+    // ... (authorization TODO remains) ...
+    this.logger.log(
+      `Request to add/update User ID ${dto.userId} in Store ID ${dto.storeId}`,
+    );
     const userStore = await this.userService.addUserToStore(dto);
-    return {
-      status: 'success',
-      data: userStore,
-      message: 'User added to store successfully',
-      error: null,
-    };
+    return BaseApiResponse.success(
+      userStore,
+      'User role in store updated successfully.',
+    );
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id/stores')
-  @ApiOperation({ summary: 'Get all stores/roles for a user' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lists all stores/roles associated with the user',
-    schema: {
-      example: {
-        status: 'success',
-        data: [
-          {
-            id: 10,
-            userId: 1,
-            storeId: 2,
-            role: 'ADMIN',
-          },
-          {
-            id: 11,
-            userId: 1,
-            storeId: 3,
-            role: 'OWNER',
-          },
-        ],
-        message: null,
-        error: null,
-      },
-    },
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get all store memberships for a specific user (Protected)',
   })
+  @ApiParam({
+    name: 'id',
+    description: 'Numeric ID of the target user',
+    type: Number,
+  })
+  @ApiOkResponse({
+    description: 'List of user store memberships retrieved.',
+    type: BaseApiResponse, // Consider specific Response DTO
+  })
+  @ApiForbiddenResponse({
+    description: 'User does not have permission to view this.',
+  })
+  @ApiNotFoundResponse({ description: 'Target user not found.' })
   async getUserStores(
-    @Param('id') id: string,
-  ): Promise<BaseApiResponse<any[]>> {
-    const userStores = await this.userService.getUserStores(Number(id));
-    return {
-      status: 'success',
-      data: userStores,
-      message: null,
-      error: null,
-    };
+    @Param('id', ParseIntPipe) userId: number,
+    @Req() req: RequestWithUser,
+  ): Promise<
+    BaseApiResponse<Array<UserStore & { store: Prisma.StoreGetPayload<true> }>> // Use Prisma type directly
+  > {
+    // ... (authorization TODO remains) ...
+    this.logger.log(
+      `Request for stores of User ID: ${userId} by User ID: ${req.user.sub}`,
+    );
+    const userStores = await this.userService.getUserStores(userId);
+    if (!userStores || userStores.length === 0) {
+      const userExists = await this.userService.findById(userId); // findById now returns public payload or null
+      if (!userExists) {
+        throw new NotFoundException(`User with ID ${userId} not found.`);
+      }
+    }
+    return BaseApiResponse.success(
+      userStores,
+      'User stores retrieved successfully.',
+    );
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  @ApiOperation({
-    summary: 'Get current user info (profile, roles, stores, etc.)',
-  })
   @ApiBearerAuth()
-  @ApiResponse({
-    status: 200,
-    description: 'Returns the current user details',
-    schema: {
-      example: {
-        status: 'success',
-        data: {
-          id: 12,
-          email: 'john@example.com',
-          name: 'John Doe',
-          userStores: [
-            {
-              id: 50,
-              role: 'OWNER',
-              store: {
-                id: 7,
-                name: 'Coffee Corner',
-                address: '123 Brew St',
-                phoneNumber: '555-1234',
-              },
-            },
-            {
-              id: 51,
-              role: 'ADMIN',
-              store: {
-                id: 10,
-                name: 'Pasta Place',
-                address: '45 Noodle Ave',
-                phoneNumber: '555-5678',
-              },
-            },
-          ],
-          currentStore: {
-            id: 7,
-            name: 'Coffee Corner',
-            address: '123 Brew St',
-            phoneNumber: '555-1234',
-          },
-          currentRole: 'OWNER',
-        },
-        message: null,
-        error: null,
-      },
-    },
+  @ApiOperation({ summary: 'Get current logged-in user profile' })
+  @ApiOkResponse({
+    description: 'Current user profile retrieved successfully.',
+    type: BaseApiResponse, // Consider specific Response DTO using UserProfileResponse
   })
-  async getCurrentUser(@Req() req: RequestWithUser) {
-    const userId = req.user.id;
-    const storeId = req.user.storeId;
-    const user = await this.userService.findUserProfile(userId, storeId);
-
-    return {
-      status: 'success',
-      data: user,
-      message: null,
-      error: null,
-    };
+  @ApiNotFoundResponse({ description: 'User associated with token not found.' })
+  async getCurrentUser(
+    @Req() req: RequestWithUser,
+  ): Promise<BaseApiResponse<UserProfileResponse>> {
+    // ** Use imported type **
+    const userId = req.user.sub;
+    const storeId = 'storeId' in req.user ? req.user.storeId : undefined;
+    this.logger.log(
+      `Request for profile of User ID: ${userId}, Current Store Context: ${storeId ?? 'None'}`,
+    );
+    const userProfile = await this.userService.findUserProfile(userId, storeId);
+    return BaseApiResponse.success(
+      userProfile,
+      'Profile retrieved successfully.',
+    );
   }
 }

@@ -235,7 +235,7 @@ model OrderChunkItemCustomization {
 enum Role {
   OWNER
   ADMIN
-  STAFF
+  SALE
   CHEF
 }
 

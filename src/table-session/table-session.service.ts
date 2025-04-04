@@ -37,7 +37,7 @@ export class TableSessionService {
   async getSessionByUuid(uuid: string) {
     const session = await this.prisma.tableSession.findUnique({
       where: { sessionUuid: uuid },
-      include: { order: true },
+      include: { orders: true },
     });
     if (!session) {
       throw new NotFoundException(`Session not found (uuid=${uuid})`);

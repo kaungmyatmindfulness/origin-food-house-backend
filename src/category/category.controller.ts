@@ -1,196 +1,158 @@
 import {
   Controller,
-  Get,
   Post,
   Body,
+  Get,
   Patch,
   Param,
   Delete,
   UseGuards,
-  Req,
+  Req, // Keep Req only if needed for userId (sub)
   ParseIntPipe,
+  Logger,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
 import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { RequestWithUser } from 'src/auth/types/expressRequest.interface';
-import { SortCategoriesPayloadDto } from 'src/category/dto/sort-categories-payload.dto';
+import { SortCategoriesPayloadDto } from './dto/sort-categories-payload.dto';
+import { RequestWithUser } from 'src/auth/types';
+import { Category } from '@prisma/client';
+import { StoreId } from 'src/common/decorators/store-id.decorator'; // Import the decorator
 
 @ApiTags('category')
 @Controller('category')
-@UseGuards(JwtAuthGuard) // all routes require JWT
+@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
+// ... global ApiResponses ...
 export class CategoryController {
+  private readonly logger = new Logger(CategoryController.name);
+
   constructor(private readonly categoryService: CategoryService) {}
 
-  /**
-   * Create a new category
-   */
+  // REMOVED: private getStoreIdFromRequest(req: RequestWithUser): number { ... }
+
   @Post()
-  @ApiOperation({ summary: 'Create a new category (OWNER or ADMIN only)' })
-  @ApiResponse({
-    status: 201,
-    description: 'Category created successfully',
-    schema: {
-      example: {
-        status: 'success',
-        data: {
-          id: 10,
-          name: 'Main Dishes',
-          storeId: 3,
-          createdAt: '2025-03-25T12:00:00.000Z',
-          updatedAt: '2025-03-25T12:00:00.000Z',
-        },
-        message: 'Category created',
-        error: null,
-      },
-    },
-  })
+  @HttpCode(HttpStatus.CREATED)
+  // ... Api decorators ...
   async create(
-    @Req() req: RequestWithUser,
+    @Req() req: RequestWithUser, // Still need req for userId (sub)
+    @StoreId() storeId: number, // Use the decorator to get storeId
     @Body() dto: CreateCategoryDto,
-  ): Promise<BaseApiResponse<unknown>> {
-    const userId = req.user.id;
-    const storeId = req.user.storeId; // from the JWT
+  ): Promise<BaseApiResponse<Category>> {
+    const userId = req.user.sub;
+    // storeId is now validated and injected by the @StoreId() decorator
+    this.logger.log(
+      `User ${userId} creating category in Store ${storeId}. Name: ${dto.name}`,
+    );
     const category = await this.categoryService.create(userId, storeId, dto);
-    return {
-      status: 'success',
-      data: category,
-      message: 'Category created',
-      error: null,
-    };
+    return BaseApiResponse.success(category, 'Category created successfully.');
   }
 
-  /**
-   * Get all categories for the user's current store
-   */
   @Get()
-  @ApiOperation({ summary: 'Get categories for the current store' })
+  // ... Api decorators ...
   async findAll(
-    @Req() req: RequestWithUser,
-  ): Promise<BaseApiResponse<unknown>> {
-    const storeId = req.user.storeId;
-    // if you want to also check role, you can,
-    // but read-only might be allowed for all roles
-    const categories = await this.categoryService.findAll(storeId);
-    return {
-      status: 'success',
-      data: categories,
-      message: null,
-      error: null,
-    };
+    @Req() req: RequestWithUser, // Still need req for userId (sub) if logging/auditing
+    @StoreId() storeId: number, // Use the decorator
+  ): Promise<BaseApiResponse<Category[]>> {
+    const includeItems = false;
+    this.logger.verbose(
+      `User ${req.user.sub} fetching categories for Store ${storeId}`,
+    );
+    const categories = await this.categoryService.findAll(
+      storeId,
+      includeItems,
+    );
+    return BaseApiResponse.success(
+      categories,
+      'Categories retrieved successfully.',
+    );
   }
 
-  /**
-   * Get a single category by ID
-   */
   @Get(':id')
-  @ApiOperation({ summary: 'Get a category by ID in the current store' })
+  // ... Api decorators ...
   async findOne(
+    // Removed Req as userId isn't strictly needed just to view within the store context
+    @StoreId() storeId: number, // Use decorator to ensure store context exists
     @Param('id', ParseIntPipe) categoryId: number,
-  ): Promise<BaseApiResponse<unknown>> {
-    // Possibly no store check if read is public
-    // or you can do a store check
-    const category = await this.categoryService.findOne(categoryId);
-    return {
-      status: 'success',
-      data: category,
-      message: null,
-      error: null,
-    };
+  ): Promise<BaseApiResponse<Category>> {
+    this.logger.verbose(
+      `Workspaceing category ID ${categoryId} within Store ${storeId} context.`,
+    );
+    const category = await this.categoryService.findOne(categoryId, storeId);
+    return BaseApiResponse.success(
+      category,
+      'Category retrieved successfully.',
+    );
   }
 
-  /**
-   * Update a category by ID
-   */
   @Patch(':id')
-  @ApiOperation({ summary: 'Update a category (OWNER or ADMIN only)' })
+  // ... Api decorators ...
   async update(
-    @Req() req: RequestWithUser,
+    @Req() req: RequestWithUser, // Need req for userId (sub)
+    @StoreId() storeId: number, // Use decorator
     @Param('id', ParseIntPipe) categoryId: number,
     @Body() dto: UpdateCategoryDto,
-  ): Promise<BaseApiResponse<unknown>> {
-    const userId = req.user.id;
-    const storeId = req.user.storeId;
-    const updated = await this.categoryService.update(
+  ): Promise<BaseApiResponse<Category>> {
+    const userId = req.user.sub;
+    this.logger.log(
+      `User ${userId} updating category ID ${categoryId} in Store ${storeId}.`,
+    );
+    const updatedCategory = await this.categoryService.update(
       userId,
       storeId,
       categoryId,
       dto,
     );
-    return {
-      status: 'success',
-      data: updated,
-      message: 'Category updated',
-      error: null,
-    };
+    return BaseApiResponse.success(
+      updatedCategory,
+      'Category updated successfully.',
+    );
   }
 
-  /**
-   * Delete a category by ID
-   */
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a category (OWNER or ADMIN only)' })
+  // ... Api decorators ...
   async remove(
-    @Req() req: RequestWithUser,
+    @Req() req: RequestWithUser, // Need req for userId (sub)
+    @StoreId() storeId: number, // Use decorator
     @Param('id', ParseIntPipe) categoryId: number,
-  ): Promise<BaseApiResponse<unknown>> {
-    const userId = req.user.id;
-    const storeId = req.user.storeId;
-    const deleted = await this.categoryService.remove(
+  ): Promise<BaseApiResponse<{ id: number }>> {
+    const userId = req.user.sub;
+    this.logger.log(
+      `User ${userId} deleting category ID ${categoryId} from Store ${storeId}.`,
+    );
+    const deletedResult = await this.categoryService.remove(
       userId,
       storeId,
       categoryId,
     );
-    return {
-      status: 'success',
-      data: deleted,
-      message: 'Category deleted',
-      error: null,
-    };
+    return BaseApiResponse.success(
+      deletedResult,
+      'Category deleted successfully.',
+    );
   }
 
-  @UseGuards(JwtAuthGuard)
   @Patch('sort')
-  @ApiOperation({ summary: 'Update sort order for categories + menu items' })
-  @ApiResponse({
-    status: 200,
-    description: 'Successfully updated sort orders',
-    schema: {
-      example: {
-        status: 'success',
-        data: null,
-        message: 'Categories & menu items reordered successfully',
-        error: null,
-      },
-    },
-  })
+  // ... Api decorators ...
   async sortCategories(
-    @Req() req: RequestWithUser,
+    @Req() req: RequestWithUser, // Need req for userId (sub)
+    @StoreId() storeId: number, // Use decorator
     @Body() payload: SortCategoriesPayloadDto,
   ): Promise<BaseApiResponse<null>> {
-    const userId = req.user.id;
-    const storeId = req.user.storeId;
-
+    const userId = req.user.sub;
+    this.logger.log(
+      `User ${userId} sorting categories/items in Store ${storeId}.`,
+    );
     const result = await this.categoryService.sortCategoriesAndMenuItems(
       userId,
       storeId,
       payload,
     );
-    return {
-      status: 'success',
-      data: null,
-      message: result.message,
-      error: null,
-    };
+    return BaseApiResponse.success(null, result.message);
   }
 }

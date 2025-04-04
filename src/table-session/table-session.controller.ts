@@ -15,7 +15,7 @@ export class TableSessionController {
       status: 'success',
       data: session,
       message: 'Table session created',
-      error: null,
+      errors: null,
     };
   }
 
@@ -34,7 +34,7 @@ export class TableSessionController {
       status: 'success',
       data: closed,
       message: 'Session closed',
-      error: null,
+      errors: null,
     };
   }
 }

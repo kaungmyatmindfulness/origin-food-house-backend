@@ -1,91 +1,54 @@
+// src/menu/dto/update-menu-item.dto.ts
 import {
   IsString,
   IsNumber,
   IsOptional,
   IsArray,
   ValidateNested,
+  Min,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-
-class UpsertCategoryDto {
-  @ApiPropertyOptional({ example: 2 })
-  @IsOptional()
-  @IsNumber()
-  id?: number;
-
-  @ApiProperty({ example: 'Main Dishes' })
-  @IsString()
-  name: string;
-}
-
-class UpsertVariationDto {
-  @ApiPropertyOptional({ example: 1 })
-  @IsOptional()
-  @IsNumber()
-  id?: number;
-
-  @ApiProperty({ example: 'Extra Spicy' })
-  @IsString()
-  name: string;
-
-  @ApiProperty({ example: 1.5, description: 'Additional price' })
-  @IsNumber()
-  additionalPrice: number;
-}
-
-class UpsertSizeDto {
-  @ApiPropertyOptional({ example: 1 })
-  @IsOptional()
-  @IsNumber()
-  id?: number;
-
-  @ApiProperty({ example: 'Family Size' })
-  @IsString()
-  name: string;
-
-  @ApiProperty({ example: 3.0 })
-  @IsNumber()
-  additionalPrice: number;
-}
-
-class UpsertAddOnOptionDto {
-  @ApiPropertyOptional({ example: 1 })
-  @IsOptional()
-  @IsNumber()
-  id?: number;
-
-  @ApiProperty({ example: 'Extra Peanuts' })
-  @IsString()
-  name: string;
-
-  @ApiProperty({ example: 0.5 })
-  @IsNumber()
-  additionalPrice: number;
-}
+import { UpsertCategoryDto } from './upsert-category.dto';
+import { UpsertCustomizationGroupDto } from './upsert-customization-group.dto';
+import { Decimal } from '@prisma/client/runtime/library';
 
 export class UpdateMenuItemDto {
-  @ApiProperty({ example: 'Kung Pao Chicken' })
+  @ApiPropertyOptional({ example: 'Pad Krapow Moo Kai Dao' })
+  @IsOptional() // Make fields optional for partial updates
   @IsString()
-  name: string;
+  name?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    example:
+      'Stir-fried minced pork with holy basil, served with rice and fried egg.',
+  })
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiProperty({ example: 8.99 })
+  @ApiPropertyOptional({
+    example: 10.5,
+    type: Number,
+    description: 'Base price before customizations',
+  })
+  @IsOptional()
   @IsNumber()
-  basePrice: number;
+  @Min(0)
+  basePrice?: number | Decimal; // Accept number
 
-  @ApiPropertyOptional({ example: 'uploads/xyz789-original' })
+  @ApiPropertyOptional({
+    example: 'images/krapow-pork-egg.jpg',
+    description: 'Key for image stored in S3 or similar',
+  })
   @IsOptional()
   @IsString()
   imageKey?: string;
 
   @ApiPropertyOptional({
     type: UpsertCategoryDto,
-    description: 'If id => update existing, else create new category',
+    description:
+      'Optional: Update or change category. Provide ID to link/update existing, or just name to create new.',
   })
   @IsOptional()
   @ValidateNested()
@@ -93,26 +56,13 @@ export class UpdateMenuItemDto {
   category?: UpsertCategoryDto;
 
   @ApiPropertyOptional({
-    type: [UpsertVariationDto],
-    description: 'Variations with optional id => update else create',
+    type: [UpsertCustomizationGroupDto],
+    description:
+      'Optional: Full list of desired customization groups. Provide IDs to update existing groups/options. Groups/options missing IDs will be created. Existing groups/options NOT included in this array (by ID) WILL BE DELETED.',
   })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => UpsertVariationDto)
-  variations?: UpsertVariationDto[];
-
-  @ApiPropertyOptional({ type: [UpsertSizeDto] })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => UpsertSizeDto)
-  sizes?: UpsertSizeDto[];
-
-  @ApiPropertyOptional({ type: [UpsertAddOnOptionDto] })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => UpsertAddOnOptionDto)
-  addOnOptions?: UpsertAddOnOptionDto[];
+  @Type(() => UpsertCustomizationGroupDto)
+  customizationGroups?: UpsertCustomizationGroupDto[];
 }
