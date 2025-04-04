@@ -2,7 +2,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
 import { UserService } from '../user/user.service';
-import { User } from '@prisma/client'; // Import User type
+import { Role, User } from '@prisma/client'; // Import User type
 
 import {
   BadRequestException,
@@ -10,10 +10,11 @@ import {
   NotFoundException,
   UnauthorizedException,
   InternalServerErrorException, // Added for potential issues
-  Logger, // Added for logging
+  Logger,
+  ForbiddenException, // Added for logging
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config'; // Ideally use ConfigService
+import { PrismaService } from 'src/prisma.service';
 
 @Injectable()
 export class AuthService {
@@ -31,8 +32,67 @@ export class AuthService {
   constructor(
     private userService: UserService,
     private jwtService: JwtService,
+    private readonly prisma: PrismaService, // PrismaService for DB access
     // private configService: ConfigService, // Uncomment if using ConfigService
   ) {}
+
+  /**
+   * Retrieves the role of a user within a specific store.
+   * Throws ForbiddenException if the user is not a member of the store.
+   * @param userId - The ID of the user.
+   * @param storeId - The ID of the store.
+   * @returns The user's role in the store.
+   */
+  async getUserStoreRole(userId: number, storeId: number): Promise<Role> {
+    const membership = await this.prisma.userStore.findUnique({
+      where: { userId_storeId: { userId, storeId } },
+      select: { role: true }, // Optimization: Only select the role
+    });
+
+    if (!membership) {
+      // If no membership record exists, the user isn't part of the store.
+      throw new ForbiddenException(
+        `User (ID: ${userId}) is not a member of store (ID: ${storeId}). Access denied.`,
+      );
+    }
+    return membership.role;
+  }
+
+  /**
+   * Checks if a given role is included in the list of authorized roles.
+   * Throws ForbiddenException if the role is not authorized.
+   * @param currentRole - The role to check.
+   * @param authorizedRoles - An array of roles that grant permission.
+   * @throws {ForbiddenException} If currentRole is not in authorizedRoles.
+   */
+  checkPermission(currentRole: Role, authorizedRoles: Role[]): void {
+    if (!authorizedRoles.includes(currentRole)) {
+      throw new ForbiddenException(
+        `Access denied. Required roles: ${authorizedRoles.join(' or ')}. User role: ${currentRole}.`,
+      );
+    }
+    // If role is included, function completes silently (permission granted)
+  }
+
+  /**
+   * Convenience function combining getUserStoreRole and checkPermission.
+   * Verifies if a user has one of the required roles within a specific store.
+   * @param userId - The ID of the user.
+   * @param storeId - The ID of the store.
+   * @param authorizedRoles - An array of roles that grant permission.
+   * @throws {ForbiddenException} If the user is not a member or does not have the required role.
+   */
+  async checkStorePermission(
+    userId: number,
+    storeId: number,
+    authorizedRoles: Role[],
+  ): Promise<void> {
+    // Step 1: Get the user's role (throws if not a member)
+    const currentRole = await this.getUserStoreRole(userId, storeId);
+
+    // Step 2: Check if the fetched role has permission
+    this.checkPermission(currentRole, authorizedRoles);
+  }
 
   /**
    * Validates user credentials against the database.

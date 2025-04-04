@@ -7,13 +7,19 @@ import {
   Param,
   Delete,
   UseGuards,
-  Req, // Keep Req only if needed for userId (sub)
+  Req, // Keep for userId extraction
   ParseIntPipe,
   Logger,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation, // For better Swagger descriptions
+  ApiResponse, // For specific response types
+  ApiParam, // For parameter descriptions
+} from '@nestjs/swagger';
 
 import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
 import { CategoryService } from './category.service';
@@ -23,46 +29,69 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { SortCategoriesPayloadDto } from './dto/sort-categories-payload.dto';
 import { RequestWithUser } from 'src/auth/types';
 import { Category } from '@prisma/client';
-import { StoreId } from 'src/common/decorators/store-id.decorator'; // Import the decorator
+import { StoreId } from 'src/common/decorators/store-id.decorator';
 
-@ApiTags('category')
-@Controller('category')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
-// ... global ApiResponses ...
+@ApiTags('Categories') // Plural tag is common
+@ApiBearerAuth() // Indicates JWT is required for all routes in this controller
+@UseGuards(JwtAuthGuard) // Apply JWT guard to all routes
+@Controller('category') // Route prefix
+// Add common API responses if applicable (e.g., 401 Unauthorized)
+@ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized.' })
 export class CategoryController {
   private readonly logger = new Logger(CategoryController.name);
 
   constructor(private readonly categoryService: CategoryService) {}
 
-  // REMOVED: private getStoreIdFromRequest(req: RequestWithUser): number { ... }
-
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  // ... Api decorators ...
+  @ApiOperation({ summary: 'Create a new category' })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Category created successfully.',
+    type: BaseApiResponse<Category>, // Define specific response type
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid input data.',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'User lacks permission (Owner/Admin required).',
+  })
   async create(
-    @Req() req: RequestWithUser, // Still need req for userId (sub)
-    @StoreId() storeId: number, // Use the decorator to get storeId
+    @Req() req: RequestWithUser,
+    @StoreId() storeId: number, // Use custom decorator
     @Body() dto: CreateCategoryDto,
   ): Promise<BaseApiResponse<Category>> {
     const userId = req.user.sub;
-    // storeId is now validated and injected by the @StoreId() decorator
+    const method = this.create.name; // For logging context
     this.logger.log(
-      `User ${userId} creating category in Store ${storeId}. Name: ${dto.name}`,
+      `[${method}] User ${userId} creating category in Store ${storeId}. Name: ${dto.name}`,
     );
     const category = await this.categoryService.create(userId, storeId, dto);
     return BaseApiResponse.success(category, 'Category created successfully.');
   }
 
   @Get()
-  // ... Api decorators ...
+  @ApiOperation({ summary: 'Get all categories for the store' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Categories retrieved successfully.',
+    type: BaseApiResponse<Category[]>, // Type for array response
+  })
   async findAll(
-    @Req() req: RequestWithUser, // Still need req for userId (sub) if logging/auditing
-    @StoreId() storeId: number, // Use the decorator
+    @Req() req: RequestWithUser, // Keep req for logging user context
+    @StoreId() storeId: number,
+    // Optional: Add query param if needed in future
+    // @Query('includeItems') includeItems?: boolean
   ): Promise<BaseApiResponse<Category[]>> {
-    const includeItems = false;
-    this.logger.verbose(
-      `User ${req.user.sub} fetching categories for Store ${storeId}`,
+    const userId = req.user.sub;
+    const method = this.findAll.name;
+    // Simplified: includeItems is false unless explicitly requested via query
+    const includeItems = false; // Hardcoded for now, modify if query param is added
+
+    this.logger.log(
+      `[${method}] User ${userId} fetching categories for Store ${storeId}, includeItems: ${includeItems}`,
     );
     const categories = await this.categoryService.findAll(
       storeId,
@@ -75,14 +104,25 @@ export class CategoryController {
   }
 
   @Get(':id')
-  // ... Api decorators ...
+  @ApiOperation({ summary: 'Get a specific category by ID' })
+  @ApiParam({ name: 'id', description: 'ID of the category to retrieve' }) // Describe path param
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Category retrieved successfully.',
+    type: BaseApiResponse<Category>,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Category not found in this store.',
+  })
   async findOne(
-    // Removed Req as userId isn't strictly needed just to view within the store context
-    @StoreId() storeId: number, // Use decorator to ensure store context exists
+    @StoreId() storeId: number, // Ensures store context validity
     @Param('id', ParseIntPipe) categoryId: number,
+    // Removed @Req() as userId not strictly needed for this operation's logic
   ): Promise<BaseApiResponse<Category>> {
-    this.logger.verbose(
-      `Workspaceing category ID ${categoryId} within Store ${storeId} context.`,
+    const method = this.findOne.name;
+    this.logger.log(
+      `[${method}] Fetching category ID ${categoryId} within Store ${storeId} context.`,
     );
     const category = await this.categoryService.findOne(categoryId, storeId);
     return BaseApiResponse.success(
@@ -92,16 +132,35 @@ export class CategoryController {
   }
 
   @Patch(':id')
-  // ... Api decorators ...
+  @ApiOperation({ summary: 'Update a category name' })
+  @ApiParam({ name: 'id', description: 'ID of the category to update' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Category updated successfully.',
+    type: BaseApiResponse<Category>,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Category not found in this store.',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid input data.',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'User lacks permission (Owner/Admin required).',
+  })
   async update(
-    @Req() req: RequestWithUser, // Need req for userId (sub)
-    @StoreId() storeId: number, // Use decorator
+    @Req() req: RequestWithUser,
+    @StoreId() storeId: number,
     @Param('id', ParseIntPipe) categoryId: number,
     @Body() dto: UpdateCategoryDto,
   ): Promise<BaseApiResponse<Category>> {
     const userId = req.user.sub;
+    const method = this.update.name;
     this.logger.log(
-      `User ${userId} updating category ID ${categoryId} in Store ${storeId}.`,
+      `[${method}] User ${userId} updating category ID ${categoryId} in Store ${storeId}.`,
     );
     const updatedCategory = await this.categoryService.update(
       userId,
@@ -116,15 +175,31 @@ export class CategoryController {
   }
 
   @Delete(':id')
-  // ... Api decorators ...
+  @HttpCode(HttpStatus.OK) // Or 204 No Content, but OK with response is fine
+  @ApiOperation({ summary: 'Delete a category' })
+  @ApiParam({ name: 'id', description: 'ID of the category to delete' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Category deleted successfully.',
+    type: BaseApiResponse<{ id: number }>,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Category not found in this store.',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'User lacks permission (Owner/Admin required).',
+  })
   async remove(
-    @Req() req: RequestWithUser, // Need req for userId (sub)
-    @StoreId() storeId: number, // Use decorator
+    @Req() req: RequestWithUser,
+    @StoreId() storeId: number,
     @Param('id', ParseIntPipe) categoryId: number,
   ): Promise<BaseApiResponse<{ id: number }>> {
     const userId = req.user.sub;
+    const method = this.remove.name;
     this.logger.log(
-      `User ${userId} deleting category ID ${categoryId} from Store ${storeId}.`,
+      `[${method}] User ${userId} deleting category ID ${categoryId} from Store ${storeId}.`,
     );
     const deletedResult = await this.categoryService.remove(
       userId,
@@ -137,22 +212,39 @@ export class CategoryController {
     );
   }
 
-  @Patch('sort')
-  // ... Api decorators ...
+  @Patch('sort') // Use PATCH for reordering operation
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reorder categories and their menu items' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Categories and items reordered successfully.',
+    type: BaseApiResponse<null>, // Explicitly show data is null
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid payload data (e.g., mismatched IDs).',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'User lacks permission (Owner/Admin required).',
+  })
   async sortCategories(
-    @Req() req: RequestWithUser, // Need req for userId (sub)
-    @StoreId() storeId: number, // Use decorator
+    @Req() req: RequestWithUser,
+    @StoreId() storeId: number,
     @Body() payload: SortCategoriesPayloadDto,
   ): Promise<BaseApiResponse<null>> {
+    // Return type indicates null data
     const userId = req.user.sub;
+    const method = this.sortCategories.name;
     this.logger.log(
-      `User ${userId} sorting categories/items in Store ${storeId}.`,
+      `[${method}] User ${userId} sorting categories/items in Store ${storeId}.`,
     );
     const result = await this.categoryService.sortCategoriesAndMenuItems(
       userId,
       storeId,
       payload,
     );
+    // Return null for data field, message comes from service result
     return BaseApiResponse.success(null, result.message);
   }
 }

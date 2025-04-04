@@ -1,10 +1,13 @@
+import { AuthModule } from 'src/auth/auth.module';
+
 import { Module } from '@nestjs/common';
+
 import { PrismaService } from '../prisma.service';
-import { CategoryService } from './category.service';
 import { CategoryController } from './category.controller';
+import { CategoryService } from './category.service';
 
 @Module({
-  imports: [],
+  imports: [AuthModule],
   controllers: [CategoryController],
   providers: [PrismaService, CategoryService],
   exports: [CategoryService],

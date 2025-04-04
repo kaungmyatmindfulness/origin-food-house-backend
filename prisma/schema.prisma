@@ -76,6 +76,7 @@ model Category {
 
   menuItems MenuItem[]
 
+  @@unique([storeId, name])
   @@index([storeId, sortOrder])
 }
 
