@@ -59,7 +59,7 @@ export class UploadController {
   async uploadImage(
     @Req() req: any,
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<BaseApiResponse<any>> {
+  ): Promise<BaseApiResponse<unknown>> {
     const imageKey = await this.uploadService.uploadImage(file);
 
     return {

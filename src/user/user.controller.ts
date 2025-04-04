@@ -60,7 +60,7 @@ export class UserController {
   })
   async register(
     @Body() createUserDto: CreateUserDto,
-  ): Promise<BaseApiResponse<any>> {
+  ): Promise<BaseApiResponse<unknown>> {
     // The service returns the new user record
     const user = await this.userService.createUser(createUserDto);
     return {
@@ -92,7 +92,7 @@ export class UserController {
   })
   async addUserToStore(
     @Body() dto: AddUserToStoreDto,
-  ): Promise<BaseApiResponse<any>> {
+  ): Promise<BaseApiResponse<unknown>> {
     const userStore = await this.userService.addUserToStore(dto);
     return {
       status: 'success',

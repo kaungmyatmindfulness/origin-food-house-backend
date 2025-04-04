@@ -29,7 +29,6 @@ import { RequestWithUser } from 'src/auth/types/expressRequest.interface';
 export class MenuController {
   constructor(private menuService: MenuService) {}
 
-  // Public endpoint to get all menu items for a given store
   @Get()
   @ApiOperation({ summary: 'Get all menu items for a store (public read)' })
   @ApiQuery({
@@ -40,7 +39,7 @@ export class MenuController {
   })
   async getStoreMenuItems(
     @Query('storeId', ParseIntPipe) storeId: number,
-  ): Promise<BaseApiResponse<any>> {
+  ): Promise<BaseApiResponse<unknown>> {
     const items = await this.menuService.getStoreMenuItems(storeId);
     return {
       status: 'success',
@@ -50,12 +49,11 @@ export class MenuController {
     };
   }
 
-  // Public endpoint to get a single menu item by its ID
   @Get(':id')
   @ApiOperation({ summary: 'Get a single menu item by ID (public read)' })
   async getMenuItemById(
     @Param('id', ParseIntPipe) itemId: number,
-  ): Promise<BaseApiResponse<any>> {
+  ): Promise<BaseApiResponse<unknown>> {
     const item = await this.menuService.getMenuItemById(itemId);
     return {
       status: 'success',
@@ -65,7 +63,6 @@ export class MenuController {
     };
   }
 
-  // Protected endpoint for creating a menu item (requires OWNER or ADMIN role)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Post()
@@ -73,7 +70,7 @@ export class MenuController {
   async createMenuItem(
     @Req() req: RequestWithUser,
     @Body() dto: CreateMenuItemDto,
-  ): Promise<BaseApiResponse<any>> {
+  ): Promise<BaseApiResponse<unknown>> {
     const userId = req.user.id;
     const storeId = req.user.storeId;
     const newItem = await this.menuService.createMenuItem(userId, storeId, dto);
@@ -85,7 +82,6 @@ export class MenuController {
     };
   }
 
-  // Protected endpoint for updating a menu item (requires OWNER or ADMIN role)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Put(':id')
@@ -94,7 +90,7 @@ export class MenuController {
     @Req() req: RequestWithUser,
     @Param('id', ParseIntPipe) itemId: number,
     @Body() dto: UpdateMenuItemDto,
-  ): Promise<BaseApiResponse<any>> {
+  ): Promise<BaseApiResponse<unknown>> {
     const userId = req.user.id;
     const storeId = req.user.storeId;
     const updated = await this.menuService.updateMenuItem(
@@ -111,7 +107,6 @@ export class MenuController {
     };
   }
 
-  // Protected endpoint for deleting a menu item (requires OWNER or ADMIN role)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Delete(':id')
@@ -119,7 +114,7 @@ export class MenuController {
   async deleteMenuItem(
     @Req() req: RequestWithUser,
     @Param('id', ParseIntPipe) itemId: number,
-  ): Promise<BaseApiResponse<any>> {
+  ): Promise<BaseApiResponse<unknown>> {
     const userId = req.user.id;
     const storeId = req.user.storeId;
     const deleted = await this.menuService.deleteMenuItem(

@@ -7,8 +7,12 @@ import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 function extractJwtFromCookie(req: Request): string | null {
   const cookies = req.cookies as Record<string, string | undefined>;
-  const token = cookies['access_token'];
-  return token || null;
+  try {
+    const token = cookies['access_token'];
+    return token || null;
+  } catch {
+    return null;
+  }
 }
 /**
  * Combined extractor:

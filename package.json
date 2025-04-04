@@ -18,12 +18,12 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:generate": "prisma generate",
-    "prisma:studio": "prisma studio",
-    "prisma:reset": "prisma migrate reset --force",
-    "prisma:seed": "prisma db seed",
-    "prisma:drop": "prisma migrate reset --force && prisma db push --force",
+    "migrate:prisma": "prisma migrate dev",
+    "generate:prisma": "prisma generate",
+    "studio:prisma": "prisma studio",
+    "reset:prisma": "prisma migrate reset --force",
+    "seed:prisma": "prisma db seed",
+    "drop:prisma": "prisma migrate reset --force && prisma db push --force",
     "sync:postman": "node sync-postman.js"
   },
   "dependencies": {

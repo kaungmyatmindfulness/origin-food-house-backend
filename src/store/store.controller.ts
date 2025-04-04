@@ -29,7 +29,7 @@ export class StoreController {
   async createStore(
     @Req() req: RequestWithUser,
     @Body() dto: CreateStoreDto,
-  ): Promise<BaseApiResponse<any>> {
+  ): Promise<BaseApiResponse<unknown>> {
     const userId = req.user.id;
     const store = await this.storeService.createStore(userId, dto);
     return {
@@ -46,7 +46,7 @@ export class StoreController {
     @Req() req: RequestWithUser,
     @Param('id', ParseIntPipe) storeId: number,
     @Body() dto: UpdateStoreDto,
-  ): Promise<BaseApiResponse<any>> {
+  ): Promise<BaseApiResponse<unknown>> {
     const userId = req.user.id;
     const updated = await this.storeService.updateStore(userId, storeId, dto);
     return {
@@ -66,7 +66,7 @@ export class StoreController {
     @Req() req: RequestWithUser,
     @Param('id', ParseIntPipe) storeId: number,
     @Body() dto: InviteOrAssignRoleDto,
-  ): Promise<BaseApiResponse<any>> {
+  ): Promise<BaseApiResponse<unknown>> {
     const userId = req.user.id;
     const result = await this.storeService.inviteOrAssignRoleByEmail(
       userId,

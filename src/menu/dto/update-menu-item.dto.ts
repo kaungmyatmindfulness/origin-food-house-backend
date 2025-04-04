@@ -1,56 +1,118 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { VariationDto, SizeDto, AddOnOptionDto } from './create-menu-item.dto';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+
+class UpsertCategoryDto {
+  @ApiPropertyOptional({ example: 2 })
+  @IsOptional()
+  @IsNumber()
+  id?: number;
+
+  @ApiProperty({ example: 'Main Dishes' })
+  @IsString()
+  name: string;
+}
+
+class UpsertVariationDto {
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber()
+  id?: number;
+
+  @ApiProperty({ example: 'Extra Spicy' })
+  @IsString()
+  name: string;
+
+  @ApiProperty({ example: 1.5, description: 'Additional price' })
+  @IsNumber()
+  additionalPrice: number;
+}
+
+class UpsertSizeDto {
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber()
+  id?: number;
+
+  @ApiProperty({ example: 'Family Size' })
+  @IsString()
+  name: string;
+
+  @ApiProperty({ example: 3.0 })
+  @IsNumber()
+  additionalPrice: number;
+}
+
+class UpsertAddOnOptionDto {
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber()
+  id?: number;
+
+  @ApiProperty({ example: 'Extra Peanuts' })
+  @IsString()
+  name: string;
+
+  @ApiProperty({ example: 0.5 })
+  @IsNumber()
+  additionalPrice: number;
+}
 
 export class UpdateMenuItemDto {
-  @ApiPropertyOptional({
-    example: 'Kung Pao Chicken',
-    description: 'The name of the menu item (Chinese cuisine example)',
-  })
-  name?: string;
+  @ApiProperty({ example: 'Kung Pao Chicken' })
+  @IsString()
+  name: string;
 
-  @ApiPropertyOptional({
-    example:
-      'Spicy Sichuan chicken stir-fried with peanuts, chili peppers, and vegetables',
-    description: 'A detailed description of the dish',
-  })
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   description?: string;
 
-  @ApiPropertyOptional({
-    example: 8.99,
-    description: 'Base price of the dish if no extras are chosen',
-  })
-  basePrice?: number;
+  @ApiProperty({ example: 8.99 })
+  @IsNumber()
+  basePrice: number;
 
-  @ApiPropertyOptional({
-    example: 'uploads/kungpao123-original',
-    description: 'S3 key for the item’s new image (if changed)',
-  })
+  @ApiPropertyOptional({ example: 'uploads/xyz789-original' })
+  @IsOptional()
+  @IsString()
   imageKey?: string;
 
   @ApiPropertyOptional({
-    example: 3,
-    description: 'Optional category ID for the menu item',
+    type: UpsertCategoryDto,
+    description: 'If id => update existing, else create new category',
   })
-  categoryId?: number;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => UpsertCategoryDto)
+  category?: UpsertCategoryDto;
 
   @ApiPropertyOptional({
-    type: [VariationDto],
-    example: [{ name: 'Extra Spicy', additionalPrice: 1.5 }],
-    description: 'Possible variations (e.g. extra spicy) with additional cost',
+    type: [UpsertVariationDto],
+    description: 'Variations with optional id => update else create',
   })
-  variations?: VariationDto[];
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpsertVariationDto)
+  variations?: UpsertVariationDto[];
 
-  @ApiPropertyOptional({
-    type: [SizeDto],
-    example: [{ name: 'Family Size', additionalPrice: 3.0 }],
-    description: 'Available sizes (e.g. family size) with extra cost',
-  })
-  sizes?: SizeDto[];
+  @ApiPropertyOptional({ type: [UpsertSizeDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpsertSizeDto)
+  sizes?: UpsertSizeDto[];
 
-  @ApiPropertyOptional({
-    type: [AddOnOptionDto],
-    example: [{ name: 'Extra Peanuts', additionalPrice: 0.5 }],
-    description: 'Additional add-on options with additional cost',
-  })
-  addOnOptions?: AddOnOptionDto[];
+  @ApiPropertyOptional({ type: [UpsertAddOnOptionDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpsertAddOnOptionDto)
+  addOnOptions?: UpsertAddOnOptionDto[];
 }
