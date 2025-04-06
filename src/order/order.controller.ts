@@ -16,7 +16,7 @@ import { UpdateChunkStatusDto } from './dto/update-chunk-status.dto';
 import { BaseApiResponse } from 'src/common/dto/base-api-response.dto'; // Import base response
 import { Order, OrderChunk } from '@prisma/client'; // Import Prisma types for responses
 
-@ApiTags('orders')
+@ApiTags('Orders')
 @Controller('orders')
 export class OrderController {
   constructor(private orderService: OrderService) {}

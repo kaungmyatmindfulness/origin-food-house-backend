@@ -1,7 +1,7 @@
-import { Response as ExpressResponse, CookieOptions } from 'express'; // Import CookieOptions
+import { Response as ExpressResponse, CookieOptions } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
-import { EmailService } from 'src/email/email.service'; // Assuming path for EmailService
+import { EmailService } from 'src/email/email.service';
 
 import {
   BadRequestException,
@@ -10,15 +10,14 @@ import {
   Get,
   Post,
   Query,
-  Request, // Use NestJS @Request
+  Request,
   Res,
   UnauthorizedException,
   UseGuards,
-  Logger, // Added Logger
-  Inject, // For optional EmailService
-  Optional, // For optional EmailService
+  Logger,
+  Inject,
+  Optional,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config'; // Optional: For configuration
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -26,8 +25,7 @@ import {
   ApiQuery,
   ApiResponse,
   ApiTags,
-  ApiOkResponse, // Use more specific response decorators
-  ApiCreatedResponse,
+  ApiOkResponse,
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
 } from '@nestjs/swagger';
@@ -38,36 +36,29 @@ import { ChooseStoreDto } from './dto/choose-store.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { LocalAuthGuard } from './guards/local-auth.guard'; // Corrected path based on previous assumption
-import { RequestWithUser } from './types'; // Corrected path based on previous assumption
+import { LocalAuthGuard } from './guards/local-auth.guard';
+import { RequestWithUser } from './types';
 
-@ApiTags('auth')
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
-  // --- Cookie Settings (Ideally from ConfigService) ---
   private readonly cookieName = 'access_token';
   private readonly cookieOptions: CookieOptions;
 
   constructor(
     private authService: AuthService,
-    // Inject ConfigService if using it for environment variables
-    // private configService: ConfigService,
-    // Inject EmailService - make it optional if not implemented yet
+
     @Optional() @Inject(EmailService) private emailService?: EmailService,
   ) {
-    // Define cookie options (secure based on environment)
-    // const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
-    const isProduction = process.env.NODE_ENV === 'production'; // Simplified check
+    const isProduction = process.env.NODE_ENV === 'production';
     this.cookieOptions = {
       httpOnly: true,
-      secure: isProduction, // Use secure cookies in production
-      sameSite: 'strict', // Mitigate CSRF
-      // maxAge should ideally match JWT expiry, get value from AuthService constants if needed
-      maxAge: 1000 * 60 * 60 * 24, // Example: 1 day (Matches JWT_EXPIRATION_MS in AuthService)
-      // path: '/', // Usually defaults to /
-      // domain: isProduction ? 'yourdomain.com' : undefined, // Set domain in production if needed
+      secure: isProduction,
+      sameSite: 'strict',
+
+      maxAge: 1000 * 60 * 60 * 24,
     };
   }
 
@@ -75,7 +66,7 @@ export class AuthController {
    * Step 1: Login with email/password.
    * Validates credentials, generates a basic JWT (sub=userId), sets it in an HttpOnly cookie.
    */
-  @UseGuards(LocalAuthGuard) // Validates email/password, attaches user to req.user
+  @UseGuards(LocalAuthGuard)
   @Post('login')
   @ApiOperation({ summary: 'Login with email/password (Step 1)' })
   @ApiOkResponse({
@@ -94,25 +85,21 @@ export class AuthController {
     description: 'Invalid credentials or email not verified.',
   })
   login(
-    @Request() req: RequestWithUser, // req.user is populated by LocalAuthGuard (assumed { id: number, ... })
-    @Body() _: LoginDto, // DTO needed for validation/Swagger, but user comes from req
+    @Request() req: RequestWithUser,
+    @Body() _: LoginDto,
     @Res({ passthrough: true }) res: ExpressResponse,
   ): BaseApiResponse<{ access_token: string }> {
-    // LocalAuthGuard ensures req.user exists and is valid here
     const userId = req.user.sub;
 
     this.logger.log(`User ID ${userId} passed Step 1 login.`);
 
-    // Generate the basic token (contains only user ID)
     const accessToken = this.authService.generateAccessTokenNoStore({
       id: userId,
     });
 
-    // Set the token in an HttpOnly cookie
     res.cookie(this.cookieName, accessToken, this.cookieOptions);
     this.logger.log(`Basic access token cookie set for User ID ${userId}.`);
 
-    // Return the token in the response body as well (common practice)
     return BaseApiResponse.success(
       { access_token: accessToken },
       'Credentials valid, requires store selection.',
@@ -123,9 +110,9 @@ export class AuthController {
    * Step 2: Choose a store to finalize login.
    * Requires a valid basic JWT from Step 1. Generates a new JWT (sub, storeId, role), sets it in HttpOnly cookie.
    */
-  @UseGuards(JwtAuthGuard) // Ensures a valid JWT (basic or full) exists
+  @UseGuards(JwtAuthGuard)
   @Post('login/store')
-  @ApiBearerAuth() // Indicate that a bearer token (in cookie) is required
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Select a store to complete login (Step 2)' })
   @ApiOkResponse({
     description:
@@ -146,13 +133,12 @@ export class AuthController {
     description: 'User/Membership data not found (should be rare).',
   })
   async loginWithStore(
-    @Request() req: RequestWithUser, // req.user is populated by JwtAuthGuard (JWT payload)
+    @Request() req: RequestWithUser,
     @Body() body: ChooseStoreDto,
     @Res({ passthrough: true }) res: ExpressResponse,
   ): Promise<BaseApiResponse<{ access_token: string }>> {
-    const userId = req.user.sub; // Get user ID from JWT 'sub' claim
+    const userId = req.user.sub;
     if (!userId) {
-      // Should be caught by JwtAuthGuard, but safeguard anyway
       this.logger.error(
         'login/store endpoint hit without valid userId in JWT payload.',
       );
@@ -164,13 +150,11 @@ export class AuthController {
       `User ID ${userId} attempting Step 2 login for Store ID ${storeId}.`,
     );
 
-    // Generate the full token (contains user ID, store ID, role)
     const accessToken = await this.authService.generateAccessTokenWithStore(
       userId,
       storeId,
     );
 
-    // Set the new token in an HttpOnly cookie (overwrites previous one)
     res.cookie(this.cookieName, accessToken, this.cookieOptions);
     this.logger.log(
       `Full access token cookie set for User ID ${userId}, Store ID ${storeId}.`,
@@ -207,7 +191,6 @@ export class AuthController {
     );
     const user = await this.authService.verifyEmail(token);
     if (!user) {
-      // Service returns null for invalid/expired token
       throw new BadRequestException('Invalid or expired verification token.');
     }
     this.logger.log(`Email successfully verified for User ID: ${user.id}.`);
@@ -227,18 +210,17 @@ export class AuthController {
       'If the email exists, a reset token is generated and an email is queued.',
     type: BaseApiResponse,
   })
-  @ApiBadRequestResponse({ description: 'Invalid request body.' }) // For DTO validation
+  @ApiBadRequestResponse({ description: 'Invalid request body.' })
   @ApiResponse({
     status: 500,
     description: 'Failed to initiate password reset process.',
-  }) // If email sending setup fails internally
+  })
   async forgotPassword(
     @Body() body: ForgotPasswordDto,
   ): Promise<BaseApiResponse<null>> {
     this.logger.log(`Password reset requested for email: ${body.email}`);
     const result = await this.authService.forgotPassword(body.email);
 
-    // Check if resetInfo was generated (meaning user exists) and trigger email
     if (result.resetInfo && this.emailService) {
       try {
         await this.emailService.sendPasswordResetEmail(
@@ -253,20 +235,13 @@ export class AuthController {
           `Failed to send password reset email to ${result.resetInfo.email}`,
           error,
         );
-        // Do not expose email sending failure to the client, but log it.
-        // The generic success message is returned regardless, as per security best practice.
       }
     } else if (result.resetInfo && !this.emailService) {
       this.logger.warn(
         `Password reset info generated for ${body.email} but EmailService is not available.`,
       );
-      // Log the token/link in dev environments for testing if desired (use ConfigService)
-      // if (process.env.NODE_ENV === 'dev') {
-      //    this.logger.debug(`DEV ONLY: Reset token for ${body.email}: ${result.resetInfo.token}`);
-      // }
     }
 
-    // Always return the generic message for security
     return BaseApiResponse.success(null, result.message);
   }
 
@@ -292,7 +267,7 @@ export class AuthController {
     this.logger.log(
       `Password reset attempt for token: ${body.token.substring(0, 10)}...`,
     );
-    // AuthService handles token validation/expiry and password update
+
     const result = await this.authService.resetPassword(
       body.token,
       body.newPassword,
@@ -303,9 +278,9 @@ export class AuthController {
   /**
    * Change password for an authenticated (logged-in) user.
    */
-  @UseGuards(JwtAuthGuard) // Ensure user is logged in
+  @UseGuards(JwtAuthGuard)
   @Post('change-password')
-  @ApiBearerAuth() // Requires JWT
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Change password for logged-in user' })
   @ApiOkResponse({
     description: 'Password changed successfully.',
@@ -323,31 +298,17 @@ export class AuthController {
     description: 'Internal error during password change.',
   })
   async changePassword(
-    @Request() req: RequestWithUser, // Get userId from JWT
+    @Request() req: RequestWithUser,
     @Body() body: ChangePasswordDto,
   ): Promise<BaseApiResponse<null>> {
-    const userId = req.user.sub; // Get user ID from 'sub' claim
+    const userId = req.user.sub;
     this.logger.log(`Password change attempt for User ID: ${userId}`);
     const result = await this.authService.changePassword(
       userId,
       body.oldPassword,
       body.newPassword,
     );
-    // Consider clearing the cookie/forcing re-login after password change for security? Optional.
+
     return BaseApiResponse.success(null, result.message);
   }
-
-  // Optional: Add a logout endpoint
-  /*
-  @UseGuards(JwtAuthGuard)
-  @Post('logout')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Logout user by clearing the auth cookie' })
-  @ApiOkResponse({ description: 'Logged out successfully.' })
-  logout(@Res({ passthrough: true }) res: ExpressResponse): BaseApiResponse<null> {
-      res.clearCookie(this.cookieName, this.cookieOptions); // Use the same options used to set it
-      this.logger.log(`User logged out.`);
-      return BaseApiResponse.success(null, 'Logged out successfully.');
-  }
-  */
 }

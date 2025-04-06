@@ -32,7 +32,7 @@ import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
 import { RequestWithUser } from 'src/auth/types'; // Assuming correct path
 import { Store, UserStore } from '@prisma/client'; // Import Prisma types
 
-@ApiTags('stores')
+@ApiTags('Stores')
 @ApiBearerAuth() // All routes require JWT
 @UseGuards(JwtAuthGuard)
 @Controller('stores')

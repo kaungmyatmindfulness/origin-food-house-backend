@@ -2,6 +2,9 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
+import { UploadImageResponseDto } from 'src/common/upload/dto/upload-image-response.dto';
+import { ErrorDetail } from 'src/common/dto/error-detail.dto';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -28,7 +31,9 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
+  const document = SwaggerModule.createDocument(app, config, {
+    extraModels: [BaseApiResponse, ErrorDetail, UploadImageResponseDto],
+  });
   SwaggerModule.setup('api-docs', app, document, {
     jsonDocumentUrl: '/api-docs-json',
   });

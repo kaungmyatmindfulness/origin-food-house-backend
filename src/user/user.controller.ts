@@ -31,14 +31,14 @@ import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
 import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
 import { RequestWithUser } from 'src/auth/types';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { Prisma, Role, UserStore, Store } from '@prisma/client'; // Keep Prisma types needed
+import { Prisma, UserStore } from '@prisma/client'; // Keep Prisma types needed
 
 // ** Import specific types **
 import { UserPublicPayload } from './types/user-payload.types';
 import { UserProfileResponse } from './types/user-profile.response';
 
-@ApiTags('user')
-@Controller('user')
+@ApiTags('Users')
+@Controller('users')
 export class UserController {
   private readonly logger = new Logger(UserController.name);
 
@@ -161,11 +161,9 @@ export class UserController {
   ): Promise<BaseApiResponse<UserProfileResponse>> {
     const userId = req.user.sub;
     const storeId = 'storeId' in req.user ? req.user.storeId : undefined;
-    console.log('📝 -> UserController -> storeId:', storeId);
     this.logger.log(
       `Request for profile of User ID: ${userId}, Current Store Context: ${storeId ?? 'None'}`,
     );
-    console.log('📝 -> UserController -> userId:', userId);
     const userProfile = await this.userService.findUserProfile(userId, storeId);
     return BaseApiResponse.success(
       userProfile,

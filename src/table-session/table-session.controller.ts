@@ -2,7 +2,7 @@ import { Controller, Post, Get, Patch, Param, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { TableSessionService } from './table-session.service';
 
-@ApiTags('table-sessions')
+@ApiTags('Table-sessions')
 @Controller('table-sessions')
 export class TableSessionController {
   constructor(private tableSessionService: TableSessionService) {}

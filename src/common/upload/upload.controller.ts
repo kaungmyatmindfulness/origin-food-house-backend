@@ -3,8 +3,13 @@ import {
   Post,
   UseInterceptors,
   UploadedFile,
-  Req,
   UseGuards,
+  ParseFilePipe,
+  FileTypeValidator,
+  MaxFileSizeValidator,
+  Logger,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -14,23 +19,40 @@ import {
   ApiResponse,
   ApiConsumes,
   ApiBody,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UploadService } from './upload.service';
 import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
+import { Express } from 'express';
+import { UploadImageResponseDto } from './dto/upload-image-response.dto';
 
-@ApiTags('upload')
+import { imageFileFilter } from 'src/common/utils/file-filter.utils';
+
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+
+@ApiTags('Upload')
 @Controller('upload')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+@ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized.' })
 export class UploadController {
-  constructor(private uploadService: UploadService) {}
+  private readonly logger = new Logger(UploadController.name);
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @Post()
-  @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Generic upload endpoint returning S3 keys' })
+  constructor(private readonly uploadService: UploadService) {}
+
+  @Post('image')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_IMAGE_SIZE_BYTES },
+      fileFilter: imageFileFilter,
+    }),
+  )
+  @ApiOperation({ summary: 'Upload an image file' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
+    description: 'Image file to upload (jpg, jpeg, png, webp)',
     required: true,
     schema: {
       type: 'object',
@@ -43,30 +65,53 @@ export class UploadController {
     },
   })
   @ApiResponse({
-    status: 200,
-    description: 'Image was uploaded successfully.',
+    status: HttpStatus.OK,
+    description: 'Image uploaded successfully, returns the image URL.',
+    // Specify the type using the generic BaseApiResponse and the specific data DTO
     schema: {
-      example: {
-        status: 'success',
-        data: {
-          imageKey: 'uploads/81eaa567-d441-4d16-8f56-74d708a7b622',
+      allOf: [
+        { $ref: getSchemaPath(BaseApiResponse) }, // Reference the base structure
+        {
+          // Specify the generic type T as UploadImageResponseDto
+          properties: {
+            data: { $ref: getSchemaPath(UploadImageResponseDto) },
+            errors: { type: 'array', nullable: true, example: null }, // Explicitly show errors as null
+            status: { type: 'string', example: 'success' },
+            message: { type: 'string', example: 'Image uploaded successfully' },
+          },
         },
-        message: 'Image uploaded successfully',
-        errors: null,
-      },
+      ],
     },
   })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid file type, size, or no file uploaded.',
+  })
+  @ApiResponse({
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    description: 'Image processing or upload failed.',
+  })
   async uploadImage(
-    @Req() req: any,
-    @UploadedFile() file: Express.Multer.File,
-  ): Promise<BaseApiResponse<unknown>> {
-    const imageKey = await this.uploadService.uploadImage(file);
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: MAX_IMAGE_SIZE_BYTES }),
+          new FileTypeValidator({ fileType: '.(png|jpeg|jpg|webp)' }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ): Promise<BaseApiResponse<UploadImageResponseDto>> {
+    const method = this.uploadImage.name;
+    this.logger.log(
+      `[${method}] Received image upload request: ${file.originalname}, size: ${file.size}, type: ${file.mimetype}`,
+    );
 
-    return {
-      status: 'success',
-      data: { imageKey },
-      message: 'Image uploaded successfully',
-      errors: null,
-    };
+    const mediumImageUrl = await this.uploadService.uploadImage(file);
+
+    return BaseApiResponse.success(
+      { imageUrl: mediumImageUrl },
+      'Image uploaded successfully',
+    );
   }
 }
