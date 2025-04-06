@@ -21,7 +21,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 
-import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
+import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -47,7 +47,7 @@ export class CategoryController {
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Category created successfully.',
-    type: BaseApiResponse<Category>,
+    type: StandardApiResponse<Category>,
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -61,14 +61,17 @@ export class CategoryController {
     @Req() req: RequestWithUser,
     @StoreId() storeId: number,
     @Body() dto: CreateCategoryDto,
-  ): Promise<BaseApiResponse<Category>> {
+  ): Promise<StandardApiResponse<Category>> {
     const userId = req.user.sub;
     const method = this.create.name;
     this.logger.log(
       `[${method}] User ${userId} creating category in Store ${storeId}. Name: ${dto.name}`,
     );
     const category = await this.categoryService.create(userId, storeId, dto);
-    return BaseApiResponse.success(category, 'Category created successfully.');
+    return StandardApiResponse.success(
+      category,
+      'Category created successfully.',
+    );
   }
 
   @Get()
@@ -76,12 +79,12 @@ export class CategoryController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Categories retrieved successfully.',
-    type: BaseApiResponse<Category[]>,
+    type: StandardApiResponse<Category[]>,
   })
   async findAll(
     @Req() req: RequestWithUser,
     @StoreId() storeId: number,
-  ): Promise<BaseApiResponse<Category[]>> {
+  ): Promise<StandardApiResponse<Category[]>> {
     const userId = req.user.sub;
     const method = this.findAll.name;
 
@@ -94,7 +97,7 @@ export class CategoryController {
       storeId,
       includeItems,
     );
-    return BaseApiResponse.success(
+    return StandardApiResponse.success(
       categories,
       'Categories retrieved successfully.',
     );
@@ -106,7 +109,7 @@ export class CategoryController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Category retrieved successfully.',
-    type: BaseApiResponse<Category>,
+    type: StandardApiResponse<Category>,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -115,13 +118,13 @@ export class CategoryController {
   async findOne(
     @StoreId() storeId: number,
     @Param('id', ParseIntPipe) categoryId: number,
-  ): Promise<BaseApiResponse<Category>> {
+  ): Promise<StandardApiResponse<Category>> {
     const method = this.findOne.name;
     this.logger.log(
       `[${method}] Fetching category ID ${categoryId} within Store ${storeId} context.`,
     );
     const category = await this.categoryService.findOne(categoryId, storeId);
-    return BaseApiResponse.success(
+    return StandardApiResponse.success(
       category,
       'Category retrieved successfully.',
     );
@@ -133,7 +136,7 @@ export class CategoryController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Category updated successfully.',
-    type: BaseApiResponse<Category>,
+    type: StandardApiResponse<Category>,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -152,7 +155,7 @@ export class CategoryController {
     @StoreId() storeId: number,
     @Param('id', ParseIntPipe) categoryId: number,
     @Body() dto: UpdateCategoryDto,
-  ): Promise<BaseApiResponse<Category>> {
+  ): Promise<StandardApiResponse<Category>> {
     const userId = req.user.sub;
     const method = this.update.name;
     this.logger.log(
@@ -164,7 +167,7 @@ export class CategoryController {
       categoryId,
       dto,
     );
-    return BaseApiResponse.success(
+    return StandardApiResponse.success(
       updatedCategory,
       'Category updated successfully.',
     );
@@ -177,7 +180,7 @@ export class CategoryController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Category deleted successfully.',
-    type: BaseApiResponse<{ id: number }>,
+    type: StandardApiResponse<{ id: number }>,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -191,7 +194,7 @@ export class CategoryController {
     @Req() req: RequestWithUser,
     @StoreId() storeId: number,
     @Param('id', ParseIntPipe) categoryId: number,
-  ): Promise<BaseApiResponse<{ id: number }>> {
+  ): Promise<StandardApiResponse<{ id: number }>> {
     const userId = req.user.sub;
     const method = this.remove.name;
     this.logger.log(
@@ -202,7 +205,7 @@ export class CategoryController {
       storeId,
       categoryId,
     );
-    return BaseApiResponse.success(
+    return StandardApiResponse.success(
       deletedResult,
       'Category deleted successfully.',
     );
@@ -214,7 +217,7 @@ export class CategoryController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Categories and items reordered successfully.',
-    type: BaseApiResponse<null>,
+    type: StandardApiResponse<null>,
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -228,7 +231,7 @@ export class CategoryController {
     @Req() req: RequestWithUser,
     @StoreId() storeId: number,
     @Body() payload: SortCategoriesPayloadDto,
-  ): Promise<BaseApiResponse<null>> {
+  ): Promise<StandardApiResponse<null>> {
     const userId = req.user.sub;
     const method = this.sortCategories.name;
     this.logger.log(
@@ -240,6 +243,6 @@ export class CategoryController {
       payload,
     );
 
-    return BaseApiResponse.success(null, result.message);
+    return StandardApiResponse.success(null, result.message);
   }
 }

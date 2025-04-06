@@ -28,7 +28,7 @@ import { StoreService } from './store.service';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { InviteOrAssignRoleDto } from './dto/invite-or-assign-role.dto';
-import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
+import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
 import { RequestWithUser } from 'src/auth/types'; // Assuming correct path
 import { Store, UserStore } from '@prisma/client'; // Import Prisma types
 
@@ -49,13 +49,13 @@ export class StoreController {
   @ApiOperation({ summary: 'Create a store (creator becomes OWNER)' })
   @ApiCreatedResponse({
     description: 'Store created successfully.',
-    type: BaseApiResponse,
+    type: StandardApiResponse,
   }) // Use specific type if creating Response DTO
   @ApiBadRequestResponse({ description: 'Invalid input data.' })
   async createStore(
     @Req() req: RequestWithUser,
     @Body() dto: CreateStoreDto,
-  ): Promise<BaseApiResponse<Store>> {
+  ): Promise<StandardApiResponse<Store>> {
     // Specific return type
     const userId = req.user.sub; // Get user ID from JWT 'sub' claim
     this.logger.log(
@@ -65,8 +65,8 @@ export class StoreController {
     this.logger.log(
       `Store '${store.name}' (ID: ${store.id}) created successfully by User ${userId}.`,
     );
-    // Use BaseApiResponse helper
-    return BaseApiResponse.success(
+    // Use StandardApiResponse helper
+    return StandardApiResponse.success(
       store,
       'Store created successfully. You have been assigned as the OWNER.',
     );
@@ -78,7 +78,7 @@ export class StoreController {
   @ApiOperation({ summary: 'Update a store details (OWNER or ADMIN only)' })
   @ApiOkResponse({
     description: 'Store updated successfully.',
-    type: BaseApiResponse,
+    type: StandardApiResponse,
   })
   @ApiBadRequestResponse({ description: 'Invalid input data.' })
   @ApiForbiddenResponse({
@@ -89,7 +89,7 @@ export class StoreController {
     @Req() req: RequestWithUser,
     @Param('id', ParseIntPipe) storeId: number,
     @Body() dto: UpdateStoreDto,
-  ): Promise<BaseApiResponse<Store>> {
+  ): Promise<StandardApiResponse<Store>> {
     // Specific return type
     const userId = req.user.sub;
     this.logger.log(`User ${userId} attempting to update Store ID: ${storeId}`);
@@ -102,7 +102,10 @@ export class StoreController {
     this.logger.log(
       `Store ID ${storeId} updated successfully by User ${userId}.`,
     );
-    return BaseApiResponse.success(updatedStore, 'Store updated successfully.');
+    return StandardApiResponse.success(
+      updatedStore,
+      'Store updated successfully.',
+    );
   }
 
   @Post(':id/invite-assign-role') // Renamed slightly for clarity
@@ -114,7 +117,7 @@ export class StoreController {
   })
   @ApiOkResponse({
     description: 'User role assigned/updated successfully.',
-    type: BaseApiResponse,
+    type: StandardApiResponse,
   }) // Type depends on what service returns
   @ApiBadRequestResponse({
     description: 'Invalid input data (e.g., invalid email, invalid role).',
@@ -130,7 +133,7 @@ export class StoreController {
     @Body() dto: InviteOrAssignRoleDto,
     // Specify expected return type based on service implementation
     // Could be UserStore, or a message object, or combined
-  ): Promise<BaseApiResponse<UserStore | { message: string }>> {
+  ): Promise<StandardApiResponse<UserStore | { message: string }>> {
     const requestingUserId = req.user.sub;
     // We assume the JWT might or might not have the target storeId if admin manages multiple stores
     // Permissions must be checked within the service based on requestingUserId and target storeId
@@ -149,6 +152,6 @@ export class StoreController {
     this.logger.log(
       `Role assignment result for email ${dto.email} in Store ID ${storeId}: ${message}`,
     );
-    return BaseApiResponse.success(result, message);
+    return StandardApiResponse.success(result, message);
   }
 }

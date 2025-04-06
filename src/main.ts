@@ -2,9 +2,8 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
-import { UploadImageResponseDto } from 'src/common/upload/dto/upload-image-response.dto';
-import { ErrorDetail } from 'src/common/dto/error-detail.dto';
+import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
+import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -32,7 +31,7 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config, {
-    extraModels: [BaseApiResponse, ErrorDetail, UploadImageResponseDto],
+    extraModels: [StandardApiResponse, StandardApiErrorDetails],
   });
   SwaggerModule.setup('api-docs', app, document, {
     jsonDocumentUrl: '/api-docs-json',

@@ -13,7 +13,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { OrderService } from './order.service';
 import { CreateOrderChunkDto } from './dto/create-order-chunk.dto';
 import { UpdateChunkStatusDto } from './dto/update-chunk-status.dto';
-import { BaseApiResponse } from 'src/common/dto/base-api-response.dto'; // Import base response
+import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto'; // Import base response
 import { Order, OrderChunk } from '@prisma/client'; // Import Prisma types for responses
 
 @ApiTags('Orders')
@@ -36,7 +36,7 @@ export class OrderController {
   @ApiResponse({
     status: 201, // Correct status code for creation
     description: 'New order chunk created successfully',
-    type: BaseApiResponse<OrderChunk>, // Use generic type with OrderChunk
+    type: StandardApiResponse<OrderChunk>, // Use generic type with OrderChunk
     // The schema example below needs manual update if exact structure is needed in Swagger UI
   })
   /* Example of how to manually define the response schema for Swagger if needed
@@ -45,7 +45,7 @@ export class OrderController {
     description: 'New order chunk created successfully',
      schema: {
        allOf: [
-         { $ref: getSchemaPath(BaseApiResponse) },
+         { $ref: getSchemaPath(StandardApiResponse) },
          {
            properties: {
              data: {
@@ -101,14 +101,14 @@ export class OrderController {
   async addChunk(
     @Param('sessionId', ParseIntPipe) sessionId: number, // Ensure ID is parsed as integer
     @Body() createOrderChunkDto: CreateOrderChunkDto,
-  ): Promise<BaseApiResponse<OrderChunk>> {
+  ): Promise<StandardApiResponse<OrderChunk>> {
     // Use correct return type
     const chunk = await this.orderService.addChunk(
       sessionId,
       createOrderChunkDto,
     );
-    // Use the BaseApiResponse static helper for success
-    return BaseApiResponse.success(chunk, 'New order chunk created');
+    // Use the StandardApiResponse static helper for success
+    return StandardApiResponse.success(chunk, 'New order chunk created');
   }
 
   @Patch('chunk/:chunkId/status')
@@ -124,7 +124,7 @@ export class OrderController {
   @ApiResponse({
     status: 200,
     description: 'Order chunk status updated successfully',
-    type: BaseApiResponse<OrderChunk>, // Use generic type
+    type: StandardApiResponse<OrderChunk>, // Use generic type
   })
   @ApiResponse({
     status: 400,
@@ -134,13 +134,13 @@ export class OrderController {
   async updateChunkStatus(
     @Param('chunkId', ParseIntPipe) chunkId: number, // Parse ID
     @Body() updateChunkStatusDto: UpdateChunkStatusDto,
-  ): Promise<BaseApiResponse<OrderChunk>> {
+  ): Promise<StandardApiResponse<OrderChunk>> {
     // Use correct return type
     const updatedChunk = await this.orderService.updateChunkStatus(
       chunkId,
       updateChunkStatusDto.status,
     );
-    return BaseApiResponse.success(updatedChunk, 'Chunk status updated');
+    return StandardApiResponse.success(updatedChunk, 'Chunk status updated');
   }
 
   @Post('session/:sessionId/pay')
@@ -158,7 +158,7 @@ export class OrderController {
   @ApiResponse({
     status: 200,
     description: 'Order paid and session closed successfully',
-    type: BaseApiResponse<Order>, // Use generic type with Order
+    type: StandardApiResponse<Order>, // Use generic type with Order
   })
   @ApiResponse({
     status: 403,
@@ -170,9 +170,9 @@ export class OrderController {
   })
   async payOrder(
     @Param('sessionId', ParseIntPipe) sessionId: number, // Parse ID
-  ): Promise<BaseApiResponse<Order>> {
+  ): Promise<StandardApiResponse<Order>> {
     // Use correct return type
     const paidOrder = await this.orderService.payOrder(sessionId);
-    return BaseApiResponse.success(paidOrder, 'Order paid, session closed');
+    return StandardApiResponse.success(paidOrder, 'Order paid, session closed');
   }
 }

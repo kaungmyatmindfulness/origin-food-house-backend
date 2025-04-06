@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ErrorDetail } from 'src/common/dto/error-detail.dto'; // Assuming path is correct
+import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto'; // Assuming path is correct
 import { Type } from 'class-transformer'; // Needed for Swagger array type recognition
 import { ValidateNested } from 'class-validator'; // If you need validation on the array
 
-export class BaseApiResponse<T> {
+export class StandardApiResponse<T> {
   @ApiProperty({ example: 'success', enum: ['success', 'error'] }) // Use enum for clarity
   status: 'success' | 'error';
 
@@ -27,20 +27,20 @@ export class BaseApiResponse<T> {
   @ApiProperty({
     required: false,
     nullable: true,
-    type: [ErrorDetail], // Specify array type for Swagger
+    type: [StandardApiErrorDetails], // Specify array type for Swagger
     description:
       'Array of error details when status is "error". Usually empty on success.',
   })
-  @ValidateNested({ each: true }) // Optional: Validate each ErrorDetail if needed
-  @Type(() => ErrorDetail) // Required for class-transformer if using ValidationPipe
-  errors: ErrorDetail[] | null;
+  @ValidateNested({ each: true }) // Optional: Validate each StandardApiErrorDetails if needed
+  @Type(() => StandardApiErrorDetails) // Required for class-transformer if using ValidationPipe
+  errors: StandardApiErrorDetails[] | null;
 
   constructor(
     data: T | null,
     message: string | null = null,
     status: 'success' | 'error' = 'success',
     // Accept single or multiple errors for convenience
-    errorOrErrors?: ErrorDetail | ErrorDetail[] | null,
+    errorOrErrors?: StandardApiErrorDetails | StandardApiErrorDetails[] | null,
   ) {
     this.status = status;
     this.data = data;
@@ -74,15 +74,15 @@ export class BaseApiResponse<T> {
   static success<T>(
     data: T,
     message: string | null = null,
-  ): BaseApiResponse<T> {
-    return new BaseApiResponse(data, message, 'success', null);
+  ): StandardApiResponse<T> {
+    return new StandardApiResponse(data, message, 'success', null);
   }
 
   // Convenience static method for error responses
   static error(
-    errors: ErrorDetail | ErrorDetail[],
+    errors: StandardApiErrorDetails | StandardApiErrorDetails[],
     message: string | null = null,
-  ): BaseApiResponse<null> {
-    return new BaseApiResponse(null, message, 'error', errors);
+  ): StandardApiResponse<null> {
+    return new StandardApiResponse(null, message, 'error', errors);
   }
 }

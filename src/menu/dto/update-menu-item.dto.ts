@@ -1,4 +1,3 @@
-// src/menu/dto/update-menu-item.dto.ts
 import {
   IsString,
   IsNumber,
@@ -7,7 +6,7 @@ import {
   ValidateNested,
   Min,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { UpsertCategoryDto } from './upsert-category.dto';
 import { UpsertCustomizationGroupDto } from './upsert-customization-group.dto';
@@ -15,7 +14,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 
 export class UpdateMenuItemDto {
   @ApiPropertyOptional({ example: 'Pad Krapow Moo Kai Dao' })
-  @IsOptional() // Make fields optional for partial updates
+  @IsOptional()
   @IsString()
   name?: string;
 
@@ -35,7 +34,7 @@ export class UpdateMenuItemDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
-  basePrice?: number | Decimal; // Accept number
+  basePrice?: number | Decimal;
 
   @ApiPropertyOptional({
     example: 'images/krapow-pork-egg.jpg',

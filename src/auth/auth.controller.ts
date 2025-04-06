@@ -1,6 +1,6 @@
 import { Response as ExpressResponse, CookieOptions } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
+import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
 import { EmailService } from 'src/email/email.service';
 
 import {
@@ -88,7 +88,7 @@ export class AuthController {
     @Request() req: RequestWithUser,
     @Body() _: LoginDto,
     @Res({ passthrough: true }) res: ExpressResponse,
-  ): BaseApiResponse<{ access_token: string }> {
+  ): StandardApiResponse<{ access_token: string }> {
     const userId = req.user.sub;
 
     this.logger.log(`User ID ${userId} passed Step 1 login.`);
@@ -100,7 +100,7 @@ export class AuthController {
     res.cookie(this.cookieName, accessToken, this.cookieOptions);
     this.logger.log(`Basic access token cookie set for User ID ${userId}.`);
 
-    return BaseApiResponse.success(
+    return StandardApiResponse.success(
       { access_token: accessToken },
       'Credentials valid, requires store selection.',
     );
@@ -117,14 +117,7 @@ export class AuthController {
   @ApiOkResponse({
     description:
       'Store selected. Full JWT set in HttpOnly cookie. Token contains { sub, storeId, role }.',
-    schema: {
-      example: {
-        status: 'success',
-        data: { access_token: 'eyJhbGciOiJIUzI1NiIsInR...' },
-        message: 'Store selected, full token generated.',
-        errors: null,
-      },
-    },
+    type: StandardApiResponse,
   })
   @ApiUnauthorizedResponse({
     description: 'Invalid/Expired Token or User not member of store.',
@@ -136,7 +129,7 @@ export class AuthController {
     @Request() req: RequestWithUser,
     @Body() body: ChooseStoreDto,
     @Res({ passthrough: true }) res: ExpressResponse,
-  ): Promise<BaseApiResponse<{ access_token: string }>> {
+  ): Promise<StandardApiResponse<{ access_token: string }>> {
     const userId = req.user.sub;
     if (!userId) {
       this.logger.error(
@@ -160,7 +153,7 @@ export class AuthController {
       `Full access token cookie set for User ID ${userId}, Store ID ${storeId}.`,
     );
 
-    return BaseApiResponse.success(
+    return StandardApiResponse.success(
       { access_token: accessToken },
       'Store selected, full token generated.',
     );
@@ -179,10 +172,12 @@ export class AuthController {
   })
   @ApiOkResponse({
     description: 'Email verified successfully.',
-    type: BaseApiResponse,
+    type: StandardApiResponse,
   })
   @ApiBadRequestResponse({ description: 'Missing, invalid, or expired token.' })
-  async verify(@Query('token') token: string): Promise<BaseApiResponse<null>> {
+  async verify(
+    @Query('token') token: string,
+  ): Promise<StandardApiResponse<null>> {
     if (!token) {
       throw new BadRequestException('Verification token is required.');
     }
@@ -194,7 +189,7 @@ export class AuthController {
       throw new BadRequestException('Invalid or expired verification token.');
     }
     this.logger.log(`Email successfully verified for User ID: ${user.id}.`);
-    return BaseApiResponse.success(
+    return StandardApiResponse.success(
       null,
       'Email verified successfully. You can now log in.',
     );
@@ -208,7 +203,7 @@ export class AuthController {
   @ApiOkResponse({
     description:
       'If the email exists, a reset token is generated and an email is queued.',
-    type: BaseApiResponse,
+    type: StandardApiResponse,
   })
   @ApiBadRequestResponse({ description: 'Invalid request body.' })
   @ApiResponse({
@@ -217,7 +212,7 @@ export class AuthController {
   })
   async forgotPassword(
     @Body() body: ForgotPasswordDto,
-  ): Promise<BaseApiResponse<null>> {
+  ): Promise<StandardApiResponse<null>> {
     this.logger.log(`Password reset requested for email: ${body.email}`);
     const result = await this.authService.forgotPassword(body.email);
 
@@ -242,7 +237,7 @@ export class AuthController {
       );
     }
 
-    return BaseApiResponse.success(null, result.message);
+    return StandardApiResponse.success(null, result.message);
   }
 
   /**
@@ -252,7 +247,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Reset password using reset token from email' })
   @ApiOkResponse({
     description: 'Password reset successful.',
-    type: BaseApiResponse,
+    type: StandardApiResponse,
   })
   @ApiBadRequestResponse({
     description: 'Invalid/expired token or validation errors.',
@@ -263,7 +258,7 @@ export class AuthController {
   })
   async resetPassword(
     @Body() body: ResetPasswordDto,
-  ): Promise<BaseApiResponse<null>> {
+  ): Promise<StandardApiResponse<null>> {
     this.logger.log(
       `Password reset attempt for token: ${body.token.substring(0, 10)}...`,
     );
@@ -272,7 +267,7 @@ export class AuthController {
       body.token,
       body.newPassword,
     );
-    return BaseApiResponse.success(null, result.message);
+    return StandardApiResponse.success(null, result.message);
   }
 
   /**
@@ -284,7 +279,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Change password for logged-in user' })
   @ApiOkResponse({
     description: 'Password changed successfully.',
-    type: BaseApiResponse,
+    type: StandardApiResponse,
   })
   @ApiBadRequestResponse({
     description: 'Validation errors (e.g., new password same as old).',
@@ -300,7 +295,7 @@ export class AuthController {
   async changePassword(
     @Request() req: RequestWithUser,
     @Body() body: ChangePasswordDto,
-  ): Promise<BaseApiResponse<null>> {
+  ): Promise<StandardApiResponse<null>> {
     const userId = req.user.sub;
     this.logger.log(`Password change attempt for User ID: ${userId}`);
     const result = await this.authService.changePassword(
@@ -309,6 +304,6 @@ export class AuthController {
       body.newPassword,
     );
 
-    return BaseApiResponse.success(null, result.message);
+    return StandardApiResponse.success(null, result.message);
   }
 }

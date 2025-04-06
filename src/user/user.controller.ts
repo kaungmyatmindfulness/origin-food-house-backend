@@ -28,7 +28,7 @@ import {
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
-import { BaseApiResponse } from 'src/common/dto/base-api-response.dto';
+import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
 import { RequestWithUser } from 'src/auth/types';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { Prisma, UserStore } from '@prisma/client'; // Keep Prisma types needed
@@ -49,7 +49,7 @@ export class UserController {
   @ApiOperation({ summary: 'Register a new user (sends verification email)' })
   @ApiCreatedResponse({
     description: 'User registered successfully. Verification email sent.',
-    type: BaseApiResponse, // Consider creating specific Response DTOs for Swagger accuracy
+    type: StandardApiResponse, // Consider creating specific Response DTOs for Swagger accuracy
   })
   @ApiBadRequestResponse({
     description:
@@ -61,11 +61,11 @@ export class UserController {
   })
   async register(
     @Body() createUserDto: CreateUserDto,
-  ): Promise<BaseApiResponse<UserPublicPayload>> {
+  ): Promise<StandardApiResponse<UserPublicPayload>> {
     // ** Corrected return type **
     this.logger.log(`Registration attempt for email: ${createUserDto.email}`);
     const user = await this.userService.createUser(createUserDto);
-    return BaseApiResponse.success(
+    return StandardApiResponse.success(
       user, // user object matches UserPublicPayload now
       'User registered successfully. Please check your email to verify your account.',
     );
@@ -82,7 +82,7 @@ export class UserController {
   })
   @ApiOkResponse({
     description: 'User assigned/updated in store successfully.',
-    type: BaseApiResponse, // Consider specific Response DTO
+    type: StandardApiResponse, // Consider specific Response DTO
   })
   @ApiBadRequestResponse({
     description: 'Validation error (e.g., invalid role, missing fields)',
@@ -93,13 +93,13 @@ export class UserController {
   })
   async addUserToStore(
     @Body() dto: AddUserToStoreDto,
-  ): Promise<BaseApiResponse<UserStore>> {
+  ): Promise<StandardApiResponse<UserStore>> {
     // ... (authorization TODO remains) ...
     this.logger.log(
       `Request to add/update User ID ${dto.userId} in Store ID ${dto.storeId}`,
     );
     const userStore = await this.userService.addUserToStore(dto);
-    return BaseApiResponse.success(
+    return StandardApiResponse.success(
       userStore,
       'User role in store updated successfully.',
     );
@@ -118,7 +118,7 @@ export class UserController {
   })
   @ApiOkResponse({
     description: 'List of user store memberships retrieved.',
-    type: BaseApiResponse, // Consider specific Response DTO
+    type: StandardApiResponse, // Consider specific Response DTO
   })
   @ApiForbiddenResponse({
     description: 'User does not have permission to view this.',
@@ -128,7 +128,9 @@ export class UserController {
     @Param('id', ParseIntPipe) userId: number,
     @Req() req: RequestWithUser,
   ): Promise<
-    BaseApiResponse<Array<UserStore & { store: Prisma.StoreGetPayload<true> }>> // Use Prisma type directly
+    StandardApiResponse<
+      Array<UserStore & { store: Prisma.StoreGetPayload<true> }>
+    > // Use Prisma type directly
   > {
     // ... (authorization TODO remains) ...
     this.logger.log(
@@ -141,7 +143,7 @@ export class UserController {
         throw new NotFoundException(`User with ID ${userId} not found.`);
       }
     }
-    return BaseApiResponse.success(
+    return StandardApiResponse.success(
       userStores,
       'User stores retrieved successfully.',
     );
@@ -153,19 +155,19 @@ export class UserController {
   @ApiOperation({ summary: 'Get current logged-in user profile' })
   @ApiOkResponse({
     description: 'Current user profile retrieved successfully.',
-    type: BaseApiResponse, // Consider specific Response DTO using UserProfileResponse
+    type: StandardApiResponse, // Consider specific Response DTO using UserProfileResponse
   })
   @ApiNotFoundResponse({ description: 'User associated with token not found.' })
   async getCurrentUser(
     @Req() req: RequestWithUser,
-  ): Promise<BaseApiResponse<UserProfileResponse>> {
+  ): Promise<StandardApiResponse<UserProfileResponse>> {
     const userId = req.user.sub;
     const storeId = 'storeId' in req.user ? req.user.storeId : undefined;
     this.logger.log(
       `Request for profile of User ID: ${userId}, Current Store Context: ${storeId ?? 'None'}`,
     );
     const userProfile = await this.userService.findUserProfile(userId, storeId);
-    return BaseApiResponse.success(
+    return StandardApiResponse.success(
       userProfile,
       'Profile retrieved successfully.',
     );

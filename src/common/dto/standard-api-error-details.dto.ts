@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class ErrorDetail {
+export class StandardApiErrorDetails {
   @ApiProperty({
     description:
       'Machine-readable error code (e.g., validation, auth, system error).',
