@@ -11,6 +11,8 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  Query,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -23,6 +25,7 @@ import {
   ApiNotFoundResponse,
   ApiForbiddenResponse,
   ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 
 import { UserService } from './user.service';
@@ -31,11 +34,11 @@ import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
 import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
 import { RequestWithUser } from 'src/auth/types';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { Prisma, UserStore } from '@prisma/client'; // Keep Prisma types needed
+import { Prisma, UserStore } from '@prisma/client';
 
-// ** Import specific types **
 import { UserPublicPayload } from './types/user-payload.types';
-import { UserProfileResponse } from './types/user-profile.response';
+import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
+import { UserProfileResponseDto } from 'src/user/dto/user-profile-response.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -49,7 +52,7 @@ export class UserController {
   @ApiOperation({ summary: 'Register a new user (sends verification email)' })
   @ApiCreatedResponse({
     description: 'User registered successfully. Verification email sent.',
-    type: StandardApiResponse, // Consider creating specific Response DTOs for Swagger accuracy
+    type: StandardApiResponse,
   })
   @ApiBadRequestResponse({
     description:
@@ -62,16 +65,13 @@ export class UserController {
   async register(
     @Body() createUserDto: CreateUserDto,
   ): Promise<StandardApiResponse<UserPublicPayload>> {
-    // ** Corrected return type **
     this.logger.log(`Registration attempt for email: ${createUserDto.email}`);
     const user = await this.userService.createUser(createUserDto);
     return StandardApiResponse.success(
-      user, // user object matches UserPublicPayload now
+      user,
       'User registered successfully. Please check your email to verify your account.',
     );
   }
-
-  // --- Authorization Required Beyond This Point ---
 
   @UseGuards(JwtAuthGuard)
   @Post('add-to-store')
@@ -82,7 +82,7 @@ export class UserController {
   })
   @ApiOkResponse({
     description: 'User assigned/updated in store successfully.',
-    type: StandardApiResponse, // Consider specific Response DTO
+    type: StandardApiResponse,
   })
   @ApiBadRequestResponse({
     description: 'Validation error (e.g., invalid role, missing fields)',
@@ -94,7 +94,6 @@ export class UserController {
   async addUserToStore(
     @Body() dto: AddUserToStoreDto,
   ): Promise<StandardApiResponse<UserStore>> {
-    // ... (authorization TODO remains) ...
     this.logger.log(
       `Request to add/update User ID ${dto.userId} in Store ID ${dto.storeId}`,
     );
@@ -118,7 +117,7 @@ export class UserController {
   })
   @ApiOkResponse({
     description: 'List of user store memberships retrieved.',
-    type: StandardApiResponse, // Consider specific Response DTO
+    type: StandardApiResponse,
   })
   @ApiForbiddenResponse({
     description: 'User does not have permission to view this.',
@@ -130,15 +129,14 @@ export class UserController {
   ): Promise<
     StandardApiResponse<
       Array<UserStore & { store: Prisma.StoreGetPayload<true> }>
-    > // Use Prisma type directly
+    >
   > {
-    // ... (authorization TODO remains) ...
     this.logger.log(
       `Request for stores of User ID: ${userId} by User ID: ${req.user.sub}`,
     );
     const userStores = await this.userService.getUserStores(userId);
     if (!userStores || userStores.length === 0) {
-      const userExists = await this.userService.findById(userId); // findById now returns public payload or null
+      const userExists = await this.userService.findById(userId);
       if (!userExists) {
         throw new NotFoundException(`User with ID ${userId} not found.`);
       }
@@ -149,24 +147,53 @@ export class UserController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('me')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get current logged-in user profile' })
-  @ApiOkResponse({
-    description: 'Current user profile retrieved successfully.',
-    type: StandardApiResponse, // Consider specific Response DTO using UserProfileResponse
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Get current logged-in user profile, optionally scoped to a store',
   })
-  @ApiNotFoundResponse({ description: 'User associated with token not found.' })
+  @ApiSuccessResponse(
+    UserProfileResponseDto,
+    'Current user profile retrieved successfully.',
+  )
+  @ApiQuery({
+    name: 'storeId',
+    required: false,
+    type: Number,
+    description:
+      'Optional: ID of the store to get user context (e.g., role) for.',
+    example: 1,
+  })
   async getCurrentUser(
     @Req() req: RequestWithUser,
-  ): Promise<StandardApiResponse<UserProfileResponse>> {
+    @Query('storeId') storeIdStr?: string,
+  ): Promise<StandardApiResponse<UserProfileResponseDto>> {
+    console.log('📝 -> UserController -> req:', req.user);
     const userId = req.user.sub;
-    const storeId = 'storeId' in req.user ? req.user.storeId : undefined;
-    this.logger.log(
-      `Request for profile of User ID: ${userId}, Current Store Context: ${storeId ?? 'None'}`,
-    );
+    const method = this.getCurrentUser.name;
+    let storeId: number | undefined = undefined;
+
+    if (storeIdStr !== undefined) {
+      storeId = parseInt(storeIdStr, 10);
+      if (isNaN(storeId)) {
+        this.logger.warn(
+          `[${method}] Invalid storeId query parameter received: "${storeIdStr}"`,
+        );
+        throw new BadRequestException(
+          'Invalid storeId query parameter: Must be a number.',
+        );
+      }
+      this.logger.log(
+        `[${method}] Request for profile of User ID: ${userId} with Store Context ID: ${storeId} from query`,
+      );
+    } else {
+      this.logger.log(
+        `[${method}] Request for profile of User ID: ${userId} without specific store context from query`,
+      );
+    }
+
     const userProfile = await this.userService.findUserProfile(userId, storeId);
+
     return StandardApiResponse.success(
       userProfile,
       'Profile retrieved successfully.',

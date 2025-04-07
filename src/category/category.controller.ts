@@ -31,7 +31,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
 import { RequestWithUser } from 'src/auth/types';
 import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
-import { StoreId } from 'src/common/decorators/store-id.decorator';
 
 import { CategoryResponseDto } from './dto/category-response.dto';
 import { CategoryBasicResponseDto } from './dto/category-basic-response.dto';
@@ -80,7 +79,7 @@ export class CategoryController {
   })
   async create(
     @Req() req: RequestWithUser,
-    @StoreId() storeId: number,
+    @Query('storeId', ParseIntPipe) storeId: number,
     @Body() dto: CreateCategoryDto,
   ): Promise<StandardApiResponse<CategoryBasicResponseDto>> {
     const userId = req.user.sub;
@@ -196,7 +195,7 @@ export class CategoryController {
   })
   async update(
     @Req() req: RequestWithUser,
-    @StoreId() storeId: number,
+    @Query('storeId', ParseIntPipe) storeId: number,
     @Param('id', ParseIntPipe) categoryId: number,
     @Body() dto: UpdateCategoryDto,
   ): Promise<StandardApiResponse<CategoryBasicResponseDto>> {
@@ -239,7 +238,7 @@ export class CategoryController {
   })
   async remove(
     @Req() req: RequestWithUser,
-    @StoreId() storeId: number,
+    @Query('storeId', ParseIntPipe) storeId: number,
     @Param('id', ParseIntPipe) categoryId: number,
   ): Promise<StandardApiResponse<CategoryDeletedResponseDto>> {
     const userId = req.user.sub;
@@ -295,7 +294,7 @@ export class CategoryController {
   })
   async sortCategories(
     @Req() req: RequestWithUser,
-    @StoreId() storeId: number,
+    @Query('storeId', ParseIntPipe) storeId: number,
     @Body() payload: SortCategoriesPayloadDto,
   ): Promise<StandardApiResponse<null>> {
     const userId = req.user.sub;
