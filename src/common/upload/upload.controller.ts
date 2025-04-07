@@ -30,7 +30,7 @@ import { UploadImageResponseDto } from './dto/upload-image-response.dto';
 import { imageFileFilter } from 'src/common/utils/file-filter.utils';
 import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
 
-const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB;
 
 @ApiTags('Upload')
 @Controller('upload')

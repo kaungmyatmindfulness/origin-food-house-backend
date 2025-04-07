@@ -4,7 +4,7 @@ import {
   ForbiddenException,
   BadRequestException,
   InternalServerErrorException,
-  Logger, // Import Logger
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { AuthService } from '../auth/auth.service';
@@ -31,7 +31,6 @@ type ExistingCustomizationGroup = PrismaCustomizationGroup & {
 
 @Injectable()
 export class MenuService {
-  // Instantiate the logger with the service context
   private readonly logger = new Logger(MenuService.name);
 
   constructor(
@@ -315,7 +314,6 @@ export class MenuService {
         });
 
         if (!item) {
-          // Use logger.warn as this might be expected (e.g., idempotent requests)
           this.logger.warn(
             `[Transaction] Attempted to delete non-existent menu item (ID: ${itemId}). Assuming success.`,
           );
@@ -356,10 +354,6 @@ export class MenuService {
       throw new InternalServerErrorException('Failed to delete menu item.');
     }
   }
-
-  // =======================================================================
-  // Private Helper Methods
-  // =======================================================================
 
   /**
    * Creates customization groups and their options for a menu item.

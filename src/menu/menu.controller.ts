@@ -1,6 +1,5 @@
 import { RequestWithUser } from 'src/auth/types';
 import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
-import { StoreId } from 'src/common/decorators/store-id.decorator';
 import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
 import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
 import { MenuItemDeletedResponseDto } from 'src/menu/dto/menu-item-deleted-response.dto';
@@ -104,7 +103,7 @@ export class MenuController {
   })
   async createMenuItem(
     @Req() req: RequestWithUser,
-    @StoreId() storeId: number,
+    @Query('storeId', ParseIntPipe) storeId: number,
     @Body() dto: CreateMenuItemDto,
   ): Promise<StandardApiResponse<MenuItemModel>> {
     const method = this.createMenuItem.name;
@@ -129,7 +128,7 @@ export class MenuController {
   })
   async updateMenuItem(
     @Req() req: RequestWithUser,
-    @StoreId() storeId: number,
+    @Query('storeId', ParseIntPipe) storeId: number,
     @Param('id', ParseIntPipe) itemId: number,
     @Body() dto: UpdateMenuItemDto,
   ): Promise<StandardApiResponse<MenuItemModel>> {
@@ -161,7 +160,7 @@ export class MenuController {
   )
   async deleteMenuItem(
     @Req() req: RequestWithUser,
-    @StoreId() storeId: number,
+    @Query('storeId', ParseIntPipe) storeId: number,
     @Param('id', ParseIntPipe) itemId: number,
   ): Promise<StandardApiResponse<unknown>> {
     const method = this.deleteMenuItem.name;

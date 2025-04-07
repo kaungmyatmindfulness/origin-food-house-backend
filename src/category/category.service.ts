@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { AuthService } from '../auth/auth.service'; // Import AuthService
+import { AuthService } from '../auth/auth.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { SortCategoriesPayloadDto } from './dto/sort-categories-payload.dto';
@@ -17,13 +17,10 @@ import { Prisma, Category, Role } from '@prisma/client';
 export class CategoryService {
   private readonly logger = new Logger(CategoryService.name);
 
-  // Inject AuthService alongside PrismaService
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
   ) {}
-
-  // checkOwnerOrAdmin is removed - use AuthService.checkStorePermission
 
   /**
    * Creates a new category within the specified store. Requires Owner/Admin role.
@@ -42,14 +39,13 @@ export class CategoryService {
     this.logger.log(
       `User ${userId} attempting to create category '${dto.name}' in Store ${storeId}.`,
     );
-    // Use AuthService for permission check
+
     await this.authService.checkStorePermission(userId, storeId, [
       Role.OWNER,
       Role.ADMIN,
     ]);
 
     try {
-      // Get max sortOrder first
       const maxSortResult = await this.prisma.category.aggregate({
         _max: { sortOrder: true },
         where: { storeId },
@@ -71,7 +67,6 @@ export class CategoryService {
       );
       return category;
     } catch (error) {
-      // Handle potential unique constraint errors if needed, though unlikely with sortOrder logic
       this.logger.error(
         `Failed to create category '${dto.name}' in Store ${storeId}.`,
         error,
@@ -121,11 +116,10 @@ export class CategoryService {
       `Finding category ID ${categoryId} within Store ${storeId}.`,
     );
     try {
-      // Optimized: Combine fetch and store ownership check
       const category = await this.prisma.category.findFirst({
         where: {
           id: categoryId,
-          storeId: storeId, // Check store ownership directly in the query
+          storeId: storeId,
         },
       });
 
@@ -140,7 +134,7 @@ export class CategoryService {
       return category;
     } catch (error) {
       if (error instanceof NotFoundException) {
-        throw error; // Re-throw NotFoundException directly
+        throw error;
       }
       this.logger.error(
         `Failed to find category ID ${categoryId} for Store ${storeId}.`,
@@ -173,11 +167,9 @@ export class CategoryService {
       Role.ADMIN,
     ]);
 
-    // findOne already verifies ownership and existence
     await this.findOne(categoryId, storeId);
 
     try {
-      // Since findOne succeeded, we know the category exists and belongs to the store.
       const updatedCategory = await this.prisma.category.update({
         where: { id: categoryId },
         data: {
@@ -187,7 +179,6 @@ export class CategoryService {
       this.logger.log(`Category ID ${categoryId} updated successfully.`);
       return updatedCategory;
     } catch (error) {
-      // Handle potential errors like unique constraint violations if name must be unique
       this.logger.error(
         `Failed to update category ID ${categoryId} in Store ${storeId}.`,
         error,
@@ -218,12 +209,9 @@ export class CategoryService {
       Role.ADMIN,
     ]);
 
-    // findOne verifies ownership and existence
     await this.findOne(categoryId, storeId);
 
     try {
-      // Since findOne succeeded, proceed with deletion.
-      // Check your schema for MenuItem's onDelete behavior regarding categoryId!
       await this.prisma.category.delete({
         where: { id: categoryId },
       });
@@ -232,12 +220,11 @@ export class CategoryService {
       );
       return { id: categoryId };
     } catch (error) {
-      // Handle potential errors, e.g., foreign key constraints if onDelete is RESTRICT
       this.logger.error(
         `Failed to delete category ID ${categoryId} from Store ${storeId}.`,
         error,
       );
-      // Consider throwing a more specific error if it's a constraint violation (e.g., BadRequest)
+
       throw new InternalServerErrorException('Could not delete category.');
     }
   }
@@ -264,7 +251,6 @@ export class CategoryService {
     ]);
 
     try {
-      // Optimization: Fetch valid IDs upfront to avoid DB hits inside loops
       this.logger.verbose(
         `Prefetching valid category/item IDs for store ${storeId}`,
       );
@@ -276,7 +262,6 @@ export class CategoryService {
         },
       });
 
-      // This check is important if the storeId could somehow be invalid despite auth check
       if (!validStoreEntities) {
         this.logger.error(`Store ${storeId} not found during sort operation.`);
         throw new NotFoundException(`Store with ID ${storeId} not found.`);
@@ -294,7 +279,6 @@ export class CategoryService {
 
       const updateOperations: Prisma.PrismaPromise<unknown>[] = [];
 
-      // Validate payload and prepare update operations
       for (const cat of payload.categories) {
         if (!validCategoryIds.has(cat.id)) {
           this.logger.error(
@@ -325,8 +309,7 @@ export class CategoryService {
           updateOperations.push(
             this.prisma.menuItem.update({
               where: { id: item.id },
-              data: { sortOrder: item.sortOrder }, // Update item sort order
-              // Consider adding categoryId: cat.id here if you allow items to move between categories during sort
+              data: { sortOrder: item.sortOrder },
             }),
           );
         }
@@ -340,7 +323,7 @@ export class CategoryService {
       this.logger.log(
         `Executing ${updateOperations.length} sort update operations for Store ${storeId} in a transaction.`,
       );
-      // Run all updates atomically
+
       await this.prisma.$transaction(updateOperations);
 
       this.logger.log(
@@ -353,7 +336,7 @@ export class CategoryService {
         error instanceof BadRequestException ||
         error instanceof NotFoundException
       ) {
-        throw error; // Re-throw known validation/permission errors
+        throw error;
       }
       this.logger.error(
         `Failed to sort categories/items for Store ${storeId}.`,
