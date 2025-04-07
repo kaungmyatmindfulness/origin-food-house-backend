@@ -18,8 +18,6 @@ async function bootstrap() {
     });
   }
 
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
-
   const config = new DocumentBuilder()
     .setTitle('Restaurant API')
     .setDescription('API documentation for the Restaurant POS system')

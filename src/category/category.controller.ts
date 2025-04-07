@@ -129,7 +129,7 @@ export class CategoryController {
       includeItems,
     );
     return StandardApiResponse.success(
-      categories as any,
+      categories as CategoryResponseDto[],
       'Categories retrieved successfully.',
     );
   }
