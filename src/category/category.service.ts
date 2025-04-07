@@ -87,13 +87,14 @@ export class CategoryService {
       `Finding all categories for Store ${storeId}, includeItems: ${includeItems}.`,
     );
     try {
-      return await this.prisma.category.findMany({
+      const categories = await this.prisma.category.findMany({
         where: { storeId },
         include: {
           menuItems: includeItems ? { orderBy: { sortOrder: 'asc' } } : false,
         },
         orderBy: { sortOrder: 'asc' },
       });
+      return categories;
     } catch (error) {
       this.logger.error(
         `Failed to find categories for Store ${storeId}.`,

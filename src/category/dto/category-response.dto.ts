@@ -1,7 +1,6 @@
-// src/menu/dto/category-response.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-// Import the NESTED version of the MenuItem DTO
+
 import { MenuItemNestedResponseDto } from './menu-item-nested-response.dto';
 
 /**
@@ -35,12 +34,11 @@ export class CategoryResponseDto {
   @ApiProperty({ description: 'Timestamp when the category was last updated.' })
   updatedAt: Date;
 
-  // --- Include the nested menu items ---
   @ApiProperty({
     description:
       'Menu items belonging to this category, ordered by their sortOrder.',
-    type: () => [MenuItemNestedResponseDto], // Use the nested DTO here
+    type: () => [MenuItemNestedResponseDto],
   })
-  @Type(() => MenuItemNestedResponseDto) // For class-transformer
+  @Type(() => MenuItemNestedResponseDto)
   menuItems: MenuItemNestedResponseDto[];
 }
