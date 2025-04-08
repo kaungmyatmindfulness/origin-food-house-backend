@@ -1,44 +1,44 @@
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { RequestWithUser } from 'src/auth/types';
+import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
+import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
+import { GetProfileQueryDto } from 'src/user/dto/get-profile-query.dto';
+import { UserProfileResponseDto } from 'src/user/dto/user-profile-response.dto';
+
 import {
-  Controller,
-  Post,
   Body,
+  Controller,
   Get,
-  Param,
-  Req,
-  UseGuards,
-  ParseIntPipe,
-  Logger,
   HttpCode,
   HttpStatus,
+  Logger,
   NotFoundException,
+  Param,
+  ParseIntPipe,
+  Post,
   Query,
-  BadRequestException,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiCreatedResponse,
   ApiBadRequestResponse,
-  ApiNotFoundResponse,
+  ApiBearerAuth,
+  ApiCreatedResponse,
   ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
   ApiParam,
   ApiQuery,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
-
-import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
-import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
-import { RequestWithUser } from 'src/auth/types';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { Prisma, UserStore } from '@prisma/client';
 
+import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UserPublicPayload } from './types/user-payload.types';
-import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
-import { UserProfileResponseDto } from 'src/user/dto/user-profile-response.dto';
+import { UserService } from './user.service';
 
 @ApiTags('Users')
 @Controller('users')
@@ -166,23 +166,14 @@ export class UserController {
   })
   async getCurrentUser(
     @Req() req: RequestWithUser,
-    @Query('storeId') storeIdStr?: string,
+    @Query() query: GetProfileQueryDto,
   ): Promise<StandardApiResponse<UserProfileResponseDto>> {
     console.log('📝 -> UserController -> req:', req.user);
     const userId = req.user.sub;
+    const storeId = query.storeId;
     const method = this.getCurrentUser.name;
-    let storeId: number | undefined = undefined;
 
-    if (storeIdStr !== undefined) {
-      storeId = parseInt(storeIdStr, 10);
-      if (isNaN(storeId)) {
-        this.logger.warn(
-          `[${method}] Invalid storeId query parameter received: "${storeIdStr}"`,
-        );
-        throw new BadRequestException(
-          'Invalid storeId query parameter: Must be a number.',
-        );
-      }
+    if (storeId) {
       this.logger.log(
         `[${method}] Request for profile of User ID: ${userId} with Store Context ID: ${storeId} from query`,
       );
