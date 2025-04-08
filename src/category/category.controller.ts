@@ -195,8 +195,8 @@ export class CategoryController {
   })
   async update(
     @Req() req: RequestWithUser,
-    @Query('storeId', ParseIntPipe) storeId: number,
     @Param('id', ParseIntPipe) categoryId: number,
+    @Query('storeId', ParseIntPipe) storeId: number,
     @Body() dto: UpdateCategoryDto,
   ): Promise<StandardApiResponse<CategoryBasicResponseDto>> {
     const userId = req.user.sub;

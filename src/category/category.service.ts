@@ -170,6 +170,20 @@ export class CategoryService {
 
     await this.findOne(categoryId, storeId);
 
+    const existingCategory = await this.prisma.category.findUnique({
+      where: {
+        id: categoryId,
+        storeId: storeId,
+        name: dto.name,
+      },
+    });
+
+    if (existingCategory) {
+      throw new BadRequestException(
+        'Category name must be unique within the store.',
+      );
+    }
+
     try {
       const updatedCategory = await this.prisma.category.update({
         where: { id: categoryId },
