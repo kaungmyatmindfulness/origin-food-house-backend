@@ -8,7 +8,7 @@ import { StoreModule } from 'src/store/store.module';
 import { TableSessionModule } from 'src/table-session/table-session.module';
 import { UserModule } from 'src/user/user.module';
 
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -17,6 +17,7 @@ import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 import { APP_GUARD } from '@nestjs/core';
 import { CategoryModule } from 'src/category/category.module';
+import { LoggerMiddleware } from 'src/common/middleware/logger.middleware';
 
 @Module({
   imports: [
@@ -53,4 +54,8 @@ import { CategoryModule } from 'src/category/category.module';
   ],
   exports: [PrismaService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*');
+  }
+}

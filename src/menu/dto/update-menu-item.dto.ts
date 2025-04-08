@@ -42,7 +42,7 @@ export class UpdateMenuItemDto {
   })
   @IsOptional()
   @IsString()
-  imageKey?: string;
+  imageUrl?: string;
 
   @ApiPropertyOptional({
     type: UpsertCategoryDto,

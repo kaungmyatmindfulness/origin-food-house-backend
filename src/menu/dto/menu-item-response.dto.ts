@@ -29,7 +29,7 @@ export class MenuItemResponseDto {
     example: null, // Or 'uploads/uuid' if present
     nullable: true,
   })
-  imageKey: string | null;
+  imageUrl: string | null;
 
   @ApiProperty({ example: 6 })
   categoryId: number;

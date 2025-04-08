@@ -19,7 +19,7 @@ export class MenuItemNestedResponseDto {
   basePrice: string | null;
 
   @ApiPropertyOptional({ example: null, nullable: true })
-  imageKey: string | null;
+  imageUrl: string | null;
 
   @ApiProperty({ example: 2 })
   sortOrder: number;

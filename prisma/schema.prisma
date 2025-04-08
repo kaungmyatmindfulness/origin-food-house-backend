@@ -84,8 +84,8 @@ model MenuItem {
   id          Int      @id @default(autoincrement())
   name        String
   description String?
-  basePrice   Decimal? @db.Decimal(10, 2)
-  imageKey    String?
+  basePrice   Decimal  @db.Decimal(10, 2)
+  imageUrl    String?
   categoryId  Int
   storeId     Int
   sortOrder   Int      @default(0)

@@ -158,12 +158,12 @@ export class UnusedImageCleanupService {
     const usedKeys = new Set<string>();
 
     // Query MenuItem table
-    const menuItemImageKeys = await this.prisma.menuItem.findMany({
-      where: { imageKey: { not: null } }, // Only fetch non-null keys
-      select: { imageKey: true },
+    const menuItemImageUrls = await this.prisma.menuItem.findMany({
+      where: { imageUrl: { not: null } }, // Only fetch non-null keys
+      select: { imageUrl: true },
     });
-    menuItemImageKeys.forEach((item) => {
-      const baseId = this.getBaseIdentifierFromDbKey(item.imageKey);
+    menuItemImageUrls.forEach((item) => {
+      const baseId = this.getBaseIdentifierFromDbKey(item.imageUrl);
       if (baseId) usedKeys.add(baseId);
     });
 

@@ -73,7 +73,6 @@ export class MenuService {
    * NOTE: Currently assumes public read access if the ID is known.
    */
   async getMenuItemById(itemId: number): Promise<MenuItem> {
-    this.logger.log(`Workspaceing menu item by ID: ${itemId}`);
     const item = await this.prisma.menuItem.findUnique({
       where: { id: itemId },
       include: this.menuItemInclude,
@@ -109,21 +108,12 @@ export class MenuService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
-        this.logger.debug(
-          `[Transaction] Upserting category for store ${storeId}`,
-        );
         const categoryId = await this.upsertCategory(tx, dto.category, storeId);
-
-        this.logger.debug(
-          `[Transaction] Calculating sort order for category ${categoryId}`,
-        );
         const maxSort = await tx.menuItem.aggregate({
           where: { storeId, categoryId },
           _max: { sortOrder: true },
         });
         const newSortOrder = (maxSort._max.sortOrder ?? -1) + 1;
-
-        this.logger.debug(`[Transaction] Creating menu item "${dto.name}"`);
         const menuItem = await tx.menuItem.create({
           data: {
             storeId,
@@ -131,7 +121,7 @@ export class MenuService {
             name: dto.name,
             description: dto.description,
             basePrice: dto.basePrice,
-            imageKey: dto.imageKey,
+            imageUrl: dto.imageUrl,
             sortOrder: newSortOrder,
           },
           select: { id: true },
@@ -240,7 +230,7 @@ export class MenuService {
             name: dto.name,
             description: dto.description,
             basePrice: dto.basePrice,
-            imageKey: dto.imageKey,
+            imageUrl: dto.imageUrl,
             categoryId:
               newCategoryId !== existingMenuItem.categoryId
                 ? newCategoryId
@@ -375,9 +365,6 @@ export class MenuService {
         continue;
       }
 
-      this.logger.debug(
-        `[createCustomizations] Creating group "${groupDto.name}" for item ${menuItemId}`,
-      );
       const group = await tx.customizationGroup.create({
         data: {
           menuItemId: menuItemId,
@@ -388,11 +375,6 @@ export class MenuService {
         },
         select: { id: true },
       });
-      this.logger.debug(`[createCustomizations] Created group ID: ${group.id}`);
-
-      this.logger.debug(
-        `[createCustomizations] Creating ${groupDto.options.length} options for group ${group.id}`,
-      );
       await tx.customizationOption.createMany({
         data: groupDto.options.map((optionDto) => ({
           customizationGroupId: group.id,
@@ -413,19 +395,12 @@ export class MenuService {
     catDto: UpsertCategoryDto,
     storeId: number,
   ): Promise<number> {
-    this.logger.debug(
-      `[upsertCategory] Processing category DTO for store ${storeId}`,
-      catDto.id ? `with ID ${catDto.id}` : `with name "${catDto.name}"`,
-    );
     if (catDto.id) {
       if (!catDto.name) {
         throw new BadRequestException(
           'Category name is required when updating by ID.',
         );
       }
-      this.logger.debug(
-        `[upsertCategory] Attempting to update category ${catDto.id} in store ${storeId}`,
-      );
       const result = await tx.category.updateMany({
         where: { id: catDto.id, storeId: storeId },
         data: { name: catDto.name },
@@ -439,9 +414,6 @@ export class MenuService {
           `Category with ID ${catDto.id} not found in store ID ${storeId}, or update failed.`,
         );
       }
-      this.logger.debug(
-        `[upsertCategory] Successfully updated category ${catDto.id}`,
-      );
       return catDto.id;
     } else {
       if (!catDto.name) {
@@ -450,31 +422,19 @@ export class MenuService {
         );
       }
 
-      this.logger.debug(
-        `[upsertCategory] Searching for existing category "${catDto.name}" in store ${storeId}`,
-      );
       const existingCategory = await tx.category.findUnique({
         where: { storeId_name: { storeId, name: catDto.name } },
         select: { id: true },
       });
 
       if (existingCategory) {
-        this.logger.debug(
-          `[upsertCategory] Found existing category ID: ${existingCategory.id}`,
-        );
         return existingCategory.id;
       } else {
-        this.logger.debug(
-          `[upsertCategory] Category "${catDto.name}" not found, creating new one in store ${storeId}`,
-        );
         const maxSort = await tx.category.aggregate({
           where: { storeId },
           _max: { sortOrder: true },
         });
         const newSortOrder = (maxSort._max.sortOrder ?? -1) + 1;
-        this.logger.debug(
-          `[upsertCategory] New category sort order: ${newSortOrder}`,
-        );
 
         const newCat = await tx.category.create({
           data: {

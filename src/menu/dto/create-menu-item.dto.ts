@@ -1,17 +1,17 @@
-// src/menu/dto/create-menu-item.dto.ts
 import {
   IsString,
-  IsNumber,
   IsOptional,
   IsArray,
   ValidateNested,
+  IsNumberString,
   Min,
+  Validate,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { UpsertCategoryDto } from './upsert-category.dto';
 import { UpsertCustomizationGroupDto } from './upsert-customization-group.dto';
-import { Decimal } from '@prisma/client/runtime/library';
+import { IsPositiveNumericString } from 'src/common/decorators/is-positive-numeric-string.decorator';
 
 export class CreateMenuItemDto {
   @ApiProperty({ example: 'Pad Krapow Moo' })
@@ -30,9 +30,11 @@ export class CreateMenuItemDto {
     type: Number,
     description: 'Base price before customizations',
   })
-  @IsNumber()
-  @Min(0)
-  basePrice: number | Decimal; // Accept number
+  @IsPositiveNumericString({
+    message:
+      'Base price must be a numeric string representing a value of 0.01 or greater',
+  })
+  basePrice: string;
 
   @ApiPropertyOptional({
     example: 'images/krapow-pork.jpg',
@@ -40,7 +42,7 @@ export class CreateMenuItemDto {
   })
   @IsOptional()
   @IsString()
-  imageKey?: string;
+  imageUrl?: string;
 
   @ApiProperty({
     type: UpsertCategoryDto,
@@ -49,7 +51,7 @@ export class CreateMenuItemDto {
   })
   @ValidateNested()
   @Type(() => UpsertCategoryDto)
-  category: UpsertCategoryDto; // Make category mandatory for creation
+  category: UpsertCategoryDto;
 
   @ApiPropertyOptional({
     type: [UpsertCustomizationGroupDto],

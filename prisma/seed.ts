@@ -117,6 +117,7 @@ async function main() {
             name: faker.commerce.productName(),
             description: faker.commerce.productDescription(),
             basePrice: faker.commerce.price({ min: 5, max: 50, dec: 2 }),
+            imageUrl: `https://picsum.photos/seed/${faker.string.uuid()}/600/450`,
             categoryId: category.id,
             storeId: category.storeId,
             sortOrder: faker.number.int({ min: 1, max: 100 }),

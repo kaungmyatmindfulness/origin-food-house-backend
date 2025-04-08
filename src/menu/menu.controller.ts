@@ -36,7 +36,7 @@ import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 import { MenuService } from './menu.service';
 
 @ApiTags('Menu')
-@Controller('menus')
+@Controller('menu-items')
 @ApiExtraModels(
   MenuItemDeletedResponseDto,
   MenuItemResponseDto,

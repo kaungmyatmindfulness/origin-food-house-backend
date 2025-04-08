@@ -11,6 +11,6 @@ ALTER TABLE "MenuItem" DROP COLUMN "imageUrl",
 DROP COLUMN "price",
 ADD COLUMN     "addOnOptions" JSONB,
 ADD COLUMN     "basePrice" DOUBLE PRECISION NOT NULL,
-ADD COLUMN     "imageKey" TEXT,
+ADD COLUMN     "imageUrl" TEXT,
 ADD COLUMN     "sizes" JSONB,
 ADD COLUMN     "variations" JSONB;
