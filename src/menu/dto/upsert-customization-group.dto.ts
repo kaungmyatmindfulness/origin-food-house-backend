@@ -1,4 +1,3 @@
-// src/menu/dto/upsert-customization-group.dto.ts
 import {
   IsString,
   IsNumber,
@@ -7,7 +6,6 @@ import {
   ValidateNested,
   IsBoolean,
   Min,
-  Max,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';

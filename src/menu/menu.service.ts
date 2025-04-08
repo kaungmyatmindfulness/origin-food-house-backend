@@ -18,7 +18,6 @@ import {
 } from '@prisma/client';
 import { UpsertCategoryDto } from './dto/upsert-category.dto';
 import { UpsertCustomizationGroupDto } from './dto/upsert-customization-group.dto';
-import { Decimal } from '@prisma/client/runtime/library';
 
 /**
  * Type alias representing a CustomizationGroup fetched from the database,
@@ -571,7 +570,7 @@ export class MenuService {
       | Array<{
           id?: number;
           name: string;
-          additionalPrice?: number | Decimal | null;
+          additionalPrice?: string;
         }>
       | null
       | undefined,

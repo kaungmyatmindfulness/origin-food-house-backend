@@ -1,7 +1,6 @@
-// src/menu/dto/upsert-customization-option.dto.ts
-import { IsString, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Decimal } from '@prisma/client/runtime/library'; // Or appropriate import if using custom Decimal type
+import { IsPositiveNumericString } from 'src/common/decorators/is-positive-numeric-string.decorator';
 
 export class UpsertCustomizationOptionDto {
   @ApiPropertyOptional({
@@ -16,13 +15,14 @@ export class UpsertCustomizationOptionDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({
-    example: 2.5,
+  @ApiProperty({
+    example: 9.5,
     type: Number,
-    description:
-      'Additional price for this option. Can be negative for discounts.',
+    description: 'Base price before customizations',
   })
-  @IsOptional()
-  @IsNumber()
-  additionalPrice?: number | Decimal; // Accept number, Prisma handles Decimal
+  @IsPositiveNumericString({
+    message:
+      'Base price must be a numeric string representing a value of 0.01 or greater',
+  })
+  additionalPrice: string;
 }
