@@ -18,6 +18,14 @@ import { CategoryResponseDto } from 'src/category/dto/category-response.dto';
 export class CategoryService {
   private readonly logger = new Logger(CategoryService.name);
 
+  private readonly categoryWithItemsInclude =
+    Prisma.validator<Prisma.CategoryInclude>()({
+      menuItems: {
+        where: { deletedAt: null },
+        orderBy: { sortOrder: 'asc' },
+      },
+    });
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
@@ -47,9 +55,23 @@ export class CategoryService {
     ]);
 
     try {
+      const existingActiveCategory = await this.prisma.category.findFirst({
+        where: {
+          storeId: storeId,
+          name: dto.name,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      if (existingActiveCategory) {
+        throw new BadRequestException(
+          `An active category with name "${dto.name}" already exists.`,
+        );
+      }
+
       const maxSortResult = await this.prisma.category.aggregate({
         _max: { sortOrder: true },
-        where: { storeId },
+        where: { storeId, deletedAt: null },
       });
       const newSortOrder = (maxSortResult._max.sortOrder ?? -1) + 1;
       this.logger.verbose(
@@ -57,19 +79,26 @@ export class CategoryService {
       );
 
       const category = await this.prisma.category.create({
-        data: {
-          name: dto.name,
-          storeId,
-          sortOrder: newSortOrder,
-        },
+        data: { name: dto.name, storeId, sortOrder: newSortOrder },
       });
+
       this.logger.log(
         `Category '${category.name}' (ID: ${category.id}) created successfully in Store ${storeId}.`,
       );
       return category;
     } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new BadRequestException(
+          `Category name "${dto.name}" could not be created due to a conflict.`,
+        );
+      }
       this.logger.error(
-        `Failed to create category '${dto.name}' in Store ${storeId}.`,
+        `Failed to create category '${dto.name}' in Store ${storeId}`,
         error,
       );
       throw new InternalServerErrorException('Could not create category.');
@@ -92,11 +121,14 @@ export class CategoryService {
     );
     try {
       const categories = await this.prisma.category.findMany({
-        where: { storeId },
+        where: {
+          storeId: storeId,
+          deletedAt: null,
+        },
         include: {
           menuItems: includeItems
-            ? { where: { deletedAt: null }, orderBy: { sortOrder: 'asc' } }
-            : false,
+            ? this.categoryWithItemsInclude.menuItems
+            : undefined,
         },
         orderBy: { sortOrder: 'asc' },
       });
@@ -123,28 +155,29 @@ export class CategoryService {
       `Finding category ID ${categoryId} within Store ${storeId}.`,
     );
     try {
-      const category = await this.prisma.category.findFirst({
+      const category = await this.prisma.category.findFirstOrThrow({
         where: {
           id: categoryId,
           storeId: storeId,
+          deletedAt: null,
         },
       });
 
-      if (!category) {
-        this.logger.warn(
-          `Category ID ${categoryId} not found within Store ${storeId}.`,
-        );
-        throw new NotFoundException(
-          `Category with ID ${categoryId} not found in your store.`,
-        );
-      }
       return category;
     } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        this.logger.warn(
+          `Active category ID ${categoryId} not found in Store ${storeId}.`,
+        );
+        throw new NotFoundException(
+          `Active category with ID ${categoryId} not found in your store.`,
+        );
       }
       this.logger.error(
-        `Failed to find category ID ${categoryId} for Store ${storeId}.`,
+        `Failed to find category ID ${categoryId} in Store ${storeId}.`,
         error,
       );
       throw new InternalServerErrorException('Could not retrieve category.');
@@ -174,20 +207,25 @@ export class CategoryService {
       Role.ADMIN,
     ]);
 
-    await this.findOne(categoryId, storeId);
+    // 1. Ensure the category being updated exists and is active
+    await this.findOne(categoryId, storeId); // This already includes deletedAt: null check
 
-    const existingCategory = await this.prisma.category.findUnique({
-      where: {
-        id: categoryId,
-        storeId: storeId,
-        name: dto.name,
-      },
-    });
-
-    if (existingCategory) {
-      throw new BadRequestException(
-        'Category name must be unique within the store.',
-      );
+    // 2. Check if ANOTHER active category with the new name exists
+    if (dto.name) {
+      const conflictingCategory = await this.prisma.category.findFirst({
+        where: {
+          storeId: storeId,
+          name: dto.name,
+          id: { not: categoryId }, // Exclude the current category
+          deletedAt: null, // Check only active categories
+        },
+        select: { id: true },
+      });
+      if (conflictingCategory) {
+        throw new BadRequestException(
+          `Another active category with name "${dto.name}" already exists.`,
+        );
+      }
     }
 
     try {
@@ -230,22 +268,44 @@ export class CategoryService {
       Role.ADMIN,
     ]);
 
-    await this.findOne(categoryId, storeId);
+    // 1. Ensure category exists and is active before trying to delete
+    await this.findOne(categoryId, storeId); // Includes deletedAt: null check
+
+    // 2. Check for ACTIVE child MenuItems
+    const menuItemCount = await this.prisma.menuItem.count({
+      where: {
+        categoryId: categoryId,
+        deletedAt: null, // <-- Check only ACTIVE menu items
+      },
+    });
+
+    if (menuItemCount > 0) {
+      this.logger.warn(
+        `Deletion blocked: Category ID ${categoryId} has ${menuItemCount} active menu item(s).`,
+      );
+      throw new BadRequestException(
+        `Cannot delete category because it contains ${menuItemCount} active menu item(s). Please move or delete them first.`,
+      );
+    }
+
+    this.logger.verbose(
+      `Category ID ${categoryId} has no active menu items. Proceeding with soft delete.`,
+    );
 
     try {
+      // 3. Perform soft delete (via middleware)
+      // The actual DB operation will be an UPDATE by the middleware
       await this.prisma.category.delete({
         where: { id: categoryId },
       });
-      this.logger.log(
-        `Category ID ${categoryId} deleted successfully from Store ${storeId}.`,
-      );
+      this.logger.log(`Category ID ${categoryId} soft deleted successfully.`);
       return { id: categoryId };
     } catch (error) {
+      // Handle errors *other* than not found (which findOne handles) or FK constraints (which menuItemCount check handles)
       this.logger.error(
-        `Failed to delete category ID ${categoryId} from Store ${storeId}.`,
+        `Failed to soft delete category ID ${categoryId}`,
         error,
       );
-
       throw new InternalServerErrorException('Could not delete category.');
     }
   }
