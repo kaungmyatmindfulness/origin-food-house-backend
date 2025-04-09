@@ -17,7 +17,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { AppService } from './app.service';
-import { PrismaService } from './prisma.service';
+import { PrismaService } from './prisma/prisma.service';
 
 @Module({
   imports: [

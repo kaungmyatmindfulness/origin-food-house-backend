@@ -12,7 +12,7 @@ import {
 import { User, UserStore, Prisma, Role } from '@prisma/client';
 
 import { EmailService } from '../email/email.service';
-import { PrismaService } from '../prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import {

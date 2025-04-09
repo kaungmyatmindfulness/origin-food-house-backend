@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule'; // Use CronExpression for readability
 import { S3Service } from '../infra/s3.service';
-import { PrismaService } from '../../prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import * as path from 'path'; // Import path module
 
 // Configuration (Consider moving to config file/service)

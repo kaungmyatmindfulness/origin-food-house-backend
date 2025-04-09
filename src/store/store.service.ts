@@ -5,7 +5,7 @@ import {
   Logger, // Added Logger
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma.service'; // Assuming correct path
+import { PrismaService } from '../prisma/prisma.service'; // Assuming correct path
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { InviteOrAssignRoleDto } from './dto/invite-or-assign-role.dto';

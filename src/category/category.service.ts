@@ -6,7 +6,7 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -90,7 +90,9 @@ export class CategoryService {
       const categories = await this.prisma.category.findMany({
         where: { storeId },
         include: {
-          menuItems: includeItems ? { orderBy: { sortOrder: 'asc' } } : false,
+          menuItems: includeItems
+            ? { where: { deletedAt: null }, orderBy: { sortOrder: 'asc' } }
+            : false,
         },
         orderBy: { sortOrder: 'asc' },
       });
