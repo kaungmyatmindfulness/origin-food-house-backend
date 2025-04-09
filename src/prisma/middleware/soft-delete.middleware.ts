@@ -3,18 +3,23 @@ import { Logger } from '@nestjs/common';
 
 const logger = new Logger('SoftDeleteMiddleware');
 
+const SOFT_DELETE_MODELS = new Set<Prisma.ModelName>([
+  Prisma.ModelName.MenuItem,
+  Prisma.ModelName.Category,
+]);
+
 export function softDeleteMiddleware(): Prisma.Middleware {
   return async (
     params: Prisma.MiddlewareParams,
     next: (params: Prisma.MiddlewareParams) => Promise<unknown>,
   ) => {
-    if (params.model !== 'MenuItem') {
+    if (!params.model || !SOFT_DELETE_MODELS.has(params.model)) {
       return next(params);
     }
 
     if (params.action === 'delete') {
       logger.verbose(
-        `[SoftDelete] Intercepted 'delete' -> 'update' for MenuItem`,
+        `[SoftDelete] Intercepted 'delete' -> 'update' for ${params.model}`,
       );
 
       params.action = 'update';

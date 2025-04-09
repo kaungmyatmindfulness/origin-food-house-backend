@@ -1,6 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { CustomizationGroupResponseDto } from './customization-group-response.dto';
+import { Decimal } from '@prisma/client/runtime/library';
 
 export class MenuItemNestedResponseDto {
   @ApiProperty({ example: 147 })
@@ -16,15 +15,11 @@ export class MenuItemNestedResponseDto {
   description: string | null;
 
   @ApiPropertyOptional({ type: String, example: '49.11', nullable: true })
-  basePrice: string | null;
+  basePrice: Decimal | string | null;
 
   @ApiPropertyOptional({ example: null, nullable: true })
   imageUrl: string | null;
 
   @ApiProperty({ example: 2 })
   sortOrder: number;
-
-  @ApiProperty({ type: () => [CustomizationGroupResponseDto] })
-  @Type(() => CustomizationGroupResponseDto)
-  customizationGroups: CustomizationGroupResponseDto[];
 }

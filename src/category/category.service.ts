@@ -12,6 +12,7 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { SortCategoriesPayloadDto } from './dto/sort-categories-payload.dto';
 import { Prisma, Category, Role } from '@prisma/client';
+import { CategoryResponseDto } from 'src/category/dto/category-response.dto';
 
 @Injectable()
 export class CategoryService {
@@ -82,7 +83,10 @@ export class CategoryService {
    * @param includeItems Whether to include associated menu items.
    * @returns Array of categories, potentially with nested menu items.
    */
-  async findAll(storeId: number, includeItems = false): Promise<Category[]> {
+  async findAll(
+    storeId: number,
+    includeItems = false,
+  ): Promise<CategoryResponseDto[]> {
     this.logger.verbose(
       `Finding all categories for Store ${storeId}, includeItems: ${includeItems}.`,
     );

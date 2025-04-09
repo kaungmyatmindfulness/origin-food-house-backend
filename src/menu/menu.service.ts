@@ -421,8 +421,12 @@ export class MenuService {
         );
       }
 
-      const existingCategory = await tx.category.findUnique({
-        where: { storeId_name: { storeId, name: catDto.name } },
+      const existingCategory = await tx.category.findFirst({
+        where: {
+          storeId: storeId,
+          name: catDto.name,
+          deletedAt: { not: null },
+        },
         select: { id: true },
       });
 

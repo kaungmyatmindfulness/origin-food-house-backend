@@ -66,17 +66,17 @@ model StoreSetting {
 }
 
 model Category {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   name      String
   storeId   Int
-  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  store     Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
 
   menuItems MenuItem[]
 
-  @@unique([storeId, name])
   @@index([storeId, sortOrder])
 }
 
