@@ -22,7 +22,7 @@ export class MenuItemResponseDto {
     type: String,
     nullable: true,
   })
-  basePrice: string | null;
+  basePrice: string;
 
   @ApiPropertyOptional({
     example: null,

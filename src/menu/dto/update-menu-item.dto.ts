@@ -1,17 +1,17 @@
-import {
-  IsString,
-  IsNumber,
-  IsOptional,
-  IsArray,
-  ValidateNested,
-  Min,
-  IsBoolean,
-} from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsBoolean,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
+import { IsPositiveNumericString } from 'src/common/decorators/is-positive-numeric-string.decorator';
+
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
 import { UpsertCategoryDto } from './upsert-category.dto';
 import { UpsertCustomizationGroupDto } from './upsert-customization-group.dto';
-import { Decimal } from '@prisma/client/runtime/library';
 
 export class UpdateMenuItemDto {
   @ApiPropertyOptional({ example: 'Pad Krapow Moo Kai Dao' })
@@ -27,15 +27,16 @@ export class UpdateMenuItemDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({
-    example: 10.5,
+  @ApiProperty({
+    example: 9.5,
     type: Number,
     description: 'Base price before customizations',
   })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  basePrice?: number | Decimal;
+  @IsPositiveNumericString({
+    message:
+      'Base price must be a numeric string representing a value of 0.01 or greater',
+  })
+  basePrice: string;
 
   @ApiPropertyOptional({
     example: 'images/krapow-pork-egg.jpg',
