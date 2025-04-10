@@ -1,4 +1,3 @@
-// src/menu/dto/menu-item-response.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { CategoryResponseDto } from './category-response.dto';
@@ -20,16 +19,23 @@ export class MenuItemResponseDto {
   @ApiPropertyOptional({
     description: 'Base price, formatted as string.',
     example: '49.11',
-    type: String, // Explicitly type as string for Swagger
+    type: String,
     nullable: true,
   })
-  basePrice: string | null; // Prisma Decimal serializes to string
+  basePrice: string | null;
 
   @ApiPropertyOptional({
-    example: null, // Or 'uploads/uuid' if present
+    example: null,
     nullable: true,
   })
   imageUrl: string | null;
+
+  @ApiProperty({
+    description:
+      'Indicates if the item is temporarily hidden (e.g., out of stock).',
+    example: false,
+  })
+  isHidden: boolean;
 
   @ApiProperty({ example: 6 })
   categoryId: number;
@@ -46,12 +52,11 @@ export class MenuItemResponseDto {
   @ApiProperty({ description: 'Last update timestamp' })
   updatedAt: Date;
 
-  // Nested Objects/Arrays
-  @ApiProperty({ type: () => CategoryResponseDto }) // Important for nested objects
-  @Type(() => CategoryResponseDto) // For potential class-transformer usage
+  @ApiProperty({ type: () => CategoryResponseDto })
+  @Type(() => CategoryResponseDto)
   category: CategoryResponseDto;
 
-  @ApiProperty({ type: () => [CustomizationGroupResponseDto] }) // Important for arrays
-  @Type(() => CustomizationGroupResponseDto) // For potential class-transformer usage
+  @ApiProperty({ type: () => [CustomizationGroupResponseDto] })
+  @Type(() => CustomizationGroupResponseDto)
   customizationGroups: CustomizationGroupResponseDto[];
 }

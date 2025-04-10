@@ -24,7 +24,7 @@ import { PrismaService } from './prisma/prisma.service';
     ThrottlerModule.forRoot([
       {
         ttl: 60 * 1000, // 1 minute
-        limit: 20,
+        limit: 60, // 60 requests per minute
       },
     ]),
     ConfigModule.forRoot({

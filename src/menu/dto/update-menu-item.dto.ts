@@ -5,6 +5,7 @@ import {
   IsArray,
   ValidateNested,
   Min,
+  IsBoolean,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -43,6 +44,16 @@ export class UpdateMenuItemDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Set to true to temporarily hide the item (e.g., out of stock). Defaults to false (visible).',
+    example: false,
+    type: Boolean,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isHidden?: boolean;
 
   @ApiPropertyOptional({
     type: UpsertCategoryDto,
