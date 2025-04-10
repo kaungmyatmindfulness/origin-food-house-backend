@@ -1,45 +1,46 @@
+import { RequestWithUser } from 'src/auth/types';
+import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
+import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
+import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
+
 import {
-  Controller,
-  Get,
-  Post,
-  Delete,
-  Query,
-  Param,
   Body,
-  Req,
-  UseGuards,
-  ParseIntPipe,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Logger,
+  Param,
+  ParseIntPipe,
   Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
   ApiBearerAuth,
+  ApiExtraModels,
+  ApiOperation,
+  ApiParam,
   ApiQuery,
   ApiResponse,
-  ApiExtraModels,
+  ApiTags,
   getSchemaPath,
-  ApiParam,
 } from '@nestjs/swagger';
-import { CategoryService } from './category.service';
-import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
-import { RequestWithUser } from 'src/auth/types';
-import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
 
-import { CategoryResponseDto } from './dto/category-response.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CategoryService } from './category.service';
 import { CategoryBasicResponseDto } from './dto/category-basic-response.dto';
 import { CategoryDeletedResponseDto } from './dto/category-deleted-response.dto';
-import { MenuItemNestedResponseDto } from './dto/menu-item-nested-response.dto';
+import { CategoryResponseDto } from './dto/category-response.dto';
+import { CreateCategoryDto } from './dto/create-category.dto';
 import { CustomizationGroupResponseDto } from './dto/customization-group-response.dto';
 import { CustomizationOptionResponseDto } from './dto/customization-option-response.dto';
+import { MenuItemNestedResponseDto } from './dto/menu-item-nested-response.dto';
 import { SortCategoriesPayloadDto } from './dto/sort-categories-payload.dto';
-import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @ApiTags('Categories')
 @Controller('categories')
@@ -66,16 +67,6 @@ export class CategoryController {
   @ApiSuccessResponse(CategoryBasicResponseDto, {
     status: HttpStatus.CREATED,
     description: 'Category created successfully.',
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Invalid input data.',
-    type: StandardApiResponse,
-  })
-  @ApiResponse({
-    status: HttpStatus.FORBIDDEN,
-    description: 'User lacks permission.',
-    type: StandardApiResponse,
   })
   async create(
     @Req() req: RequestWithUser,
@@ -110,11 +101,6 @@ export class CategoryController {
     isArray: true,
     description: 'List of categories with included menu items.',
   })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Invalid storeId.',
-    type: StandardApiResponse,
-  })
   async findAll(
     @Query('storeId', ParseIntPipe) storeId: number,
   ): Promise<StandardApiResponse<CategoryResponseDto[]>> {
@@ -144,15 +130,6 @@ export class CategoryController {
     description: 'ID of the store this category belongs to',
     example: 1,
   })
-  @ApiSuccessResponse(
-    CategoryBasicResponseDto,
-    'Category retrieved successfully.',
-  )
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Category not found in this store.',
-    type: StandardApiResponse,
-  })
   async findOne(
     @Param('id', ParseIntPipe) categoryId: number,
     @Query('storeId', ParseIntPipe) storeId: number,
@@ -169,6 +146,34 @@ export class CategoryController {
     );
   }
 
+  @Patch('sort')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Reorder categories and their menu items (OWNER/ADMIN Required)',
+  })
+  @ApiSuccessResponse(String, {
+    description: 'Categories and items reordered successfully.',
+  })
+  async sortCategories(
+    @Req() req: RequestWithUser,
+    @Query('storeId', ParseIntPipe) storeId: number,
+    @Body() payload: SortCategoriesPayloadDto,
+  ): Promise<StandardApiResponse<null>> {
+    const userId = req.user.sub;
+    const method = this.sortCategories.name;
+    this.logger.log(
+      `[${method}] User ${userId} sorting categories/items in Store ${storeId}.`,
+    );
+    const result = await this.categoryService.sortCategoriesAndMenuItems(
+      userId,
+      storeId,
+      payload,
+    );
+
+    return StandardApiResponse.success(null, result.message);
+  }
+
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -178,21 +183,6 @@ export class CategoryController {
     CategoryBasicResponseDto,
     'Category updated successfully.',
   )
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Invalid input data.',
-    type: StandardApiResponse,
-  })
-  @ApiResponse({
-    status: HttpStatus.FORBIDDEN,
-    description: 'User lacks permission.',
-    type: StandardApiResponse,
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Category not found in this store.',
-    type: StandardApiResponse,
-  })
   async update(
     @Req() req: RequestWithUser,
     @Param('id', ParseIntPipe) categoryId: number,
@@ -219,23 +209,12 @@ export class CategoryController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete a category (OWNER/ADMIN Required)' })
   @ApiParam({ name: 'id', description: 'ID of the category to delete' })
   @ApiSuccessResponse(
     CategoryDeletedResponseDto,
     'Category deleted successfully.',
   )
-  @ApiResponse({
-    status: HttpStatus.FORBIDDEN,
-    description: 'User lacks permission.',
-    type: StandardApiResponse,
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Category not found in this store.',
-    type: StandardApiResponse,
-  })
   async remove(
     @Req() req: RequestWithUser,
     @Query('storeId', ParseIntPipe) storeId: number,
@@ -255,59 +234,5 @@ export class CategoryController {
       deletedResult,
       'Category deleted successfully.',
     );
-  }
-
-  @Patch('sort')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Reorder categories and their menu items (OWNER/ADMIN Required)',
-  })
-  @ApiSuccessResponse(String, {
-    description: 'Categories and items reordered successfully.',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Categories and items reordered successfully.',
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(StandardApiResponse) },
-        {
-          properties: {
-            data: { type: 'object', nullable: true, example: null },
-            errors: { example: null },
-          },
-        },
-      ],
-    },
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Invalid sorting payload.',
-    type: StandardApiResponse,
-  })
-  @ApiResponse({
-    status: HttpStatus.FORBIDDEN,
-    description: 'User lacks permission.',
-    type: StandardApiResponse,
-  })
-  async sortCategories(
-    @Req() req: RequestWithUser,
-    @Query('storeId', ParseIntPipe) storeId: number,
-    @Body() payload: SortCategoriesPayloadDto,
-  ): Promise<StandardApiResponse<null>> {
-    const userId = req.user.sub;
-    const method = this.sortCategories.name;
-    this.logger.log(
-      `[${method}] User ${userId} sorting categories/items in Store ${storeId}.`,
-    );
-    const result = await this.categoryService.sortCategoriesAndMenuItems(
-      userId,
-      storeId,
-      payload,
-    );
-
-    return StandardApiResponse.success(null, result.message);
   }
 }

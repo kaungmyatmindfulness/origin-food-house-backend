@@ -168,7 +168,6 @@ export class UserController {
     @Req() req: RequestWithUser,
     @Query() query: GetProfileQueryDto,
   ): Promise<StandardApiResponse<UserProfileResponseDto>> {
-    console.log('📝 -> UserController -> req:', req.user);
     const userId = req.user.sub;
     const storeId = query.storeId;
     const method = this.getCurrentUser.name;
