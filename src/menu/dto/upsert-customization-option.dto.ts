@@ -1,6 +1,6 @@
 import { IsString, IsNumber, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsPositiveNumericString } from 'src/common/decorators/is-positive-numeric-string.decorator';
+import { IsNonNegativeNumericString } from 'src/common/decorators/is-non-negative-numeric-string.decorator';
 
 export class UpsertCustomizationOptionDto {
   @ApiPropertyOptional({
@@ -15,14 +15,15 @@ export class UpsertCustomizationOptionDto {
   @IsString()
   name: string;
 
-  @ApiProperty({
-    example: 9.5,
-    type: Number,
-    description: 'Base price before customizations',
+  @ApiPropertyOptional({
+    description:
+      'Optional: Additional price for this option. Must be zero or positive. Send as string (e.g., "1.50", "0", "0.00"). Defaults to 0 if omitted.',
+    type: String,
+    example: '1.50',
+    default: '0.00',
+    nullable: true,
   })
-  @IsPositiveNumericString({
-    message:
-      'Base price must be a numeric string representing a value of 0.01 or greater',
-  })
-  additionalPrice: string;
+  @IsOptional()
+  @IsNonNegativeNumericString()
+  additionalPrice?: string;
 }

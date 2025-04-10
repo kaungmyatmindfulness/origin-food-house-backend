@@ -9,6 +9,7 @@ import { IsPositiveNumericStringConstraint } from '../validators/is-positive-num
 export function IsPositiveNumericString(validationOptions?: ValidationOptions) {
   return function (object: object, propertyName: string) {
     registerDecorator({
+      name: 'isPositiveNumericString',
       target: object.constructor,
       propertyName: propertyName,
       options: validationOptions,
