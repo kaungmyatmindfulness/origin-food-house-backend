@@ -63,7 +63,7 @@ This repository is a **NestJS-based** application for managing **table sessions*
 
 5. **JWT Auth**
    - We rely on **JWT** for user authentication.
-   - Roles like OWNER, ADMIN, SALE, CHEF define who can create or update resources.
+   - Roles like OWNER, ADMIN, CASHIER, CHEF define who can create or update resources.
 
 ---
 

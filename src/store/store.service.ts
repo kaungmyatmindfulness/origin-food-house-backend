@@ -200,7 +200,7 @@ export class StoreService {
 
     // 2. Enforce role hierarchy restrictions
     // ADMIN can only assign STAFF or CHEF
-    if (isAdmin && !([Role.SALE, Role.CHEF] as Role[]).includes(dto.role)) {
+    if (isAdmin && !([Role.CASHIER, Role.CHEF] as Role[]).includes(dto.role)) {
       this.logger.warn(
         `Permission denied: ADMIN User ${actingUserId} attempted to assign restricted role ${dto.role} in Store ${storeId}.`,
       );

@@ -8,7 +8,7 @@ generator client {
 }
 
 model User {
-  id                 Int       @id @default(autoincrement())
+  id                 String    @id @default(uuid(7))
   email              String    @unique
   password           String
   name               String?
@@ -24,11 +24,8 @@ model User {
 }
 
 model Store {
-  id        Int      @id @default(autoincrement())
-  name      String
-  address   String?
-  phone     String?
-  email     String?
+  id        String   @id @default(uuid(7))
+  slug      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
@@ -37,39 +34,53 @@ model Store {
   menuItems     MenuItem[]
   tables        RestaurantTable[]
   tableSessions TableSession[]
+  information   StoreInformation?
   setting       StoreSetting?
 
-  @@index([name])
+  @@index([slug])
 }
 
 model UserStore {
-  id      Int  @id @default(autoincrement())
-  userId  Int
-  storeId Int
+  id      String @id @default(uuid(7))
+  userId  String
+  storeId String
   role    Role
 
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+  store Store @relation(fields: [storeId], references: [id])
 
   @@unique([userId, storeId])
 }
 
+model StoreInformation {
+  id        String   @id @default(uuid(7))
+  storeId   String   @unique
+  store     Store    @relation(fields: [storeId], references: [id])
+  name      String
+  address   String?
+  phone     String?
+  email     String?
+  website   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
 model StoreSetting {
-  id                Int      @id @default(autoincrement())
-  storeId           Int      @unique
+  id                String   @id @default(uuid(7))
+  storeId           String   @unique
   store             Store    @relation(fields: [storeId], references: [id])
   currency          Currency @default(USD)
-  vatRate           Decimal? @db.Decimal(4, 3) // Max 99.9%
-  serviceChargeRate Decimal? @db.Decimal(4, 3) // Max 99.9%
+  vatRate           Decimal? @db.Decimal(4, 3)
+  serviceChargeRate Decimal? @db.Decimal(4, 3)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @default(now()) @updatedAt
 }
 
 model Category {
-  id        Int       @id @default(autoincrement())
+  id        String    @id @default(uuid(7))
   name      String
-  storeId   Int
-  store     Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId   String
+  store     Store     @relation(fields: [storeId], references: [id])
   sortOrder Int       @default(0)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now()) @updatedAt
@@ -77,17 +88,19 @@ model Category {
 
   menuItems MenuItem[]
 
+  @@unique([storeId, name])
   @@index([storeId, sortOrder])
+  @@index([deletedAt])
 }
 
 model MenuItem {
-  id          Int       @id @default(autoincrement())
+  id          String    @id @default(uuid(7))
   name        String
   description String?
   basePrice   Decimal   @db.Decimal(10, 2)
   imageUrl    String?
-  categoryId  Int
-  storeId     Int
+  categoryId  String
+  storeId     String
   sortOrder   Int       @default(0)
   isHidden    Boolean   @default(false)
   createdAt   DateTime  @default(now())
@@ -100,19 +113,19 @@ model MenuItem {
   orderChunkItems     OrderChunkItem[]
 
   @@index([storeId, sortOrder])
+  @@index([deletedAt])
 }
 
 model CustomizationGroup {
-  id                           Int                           @id @default(autoincrement())
+  id                           String                        @id @default(uuid(7))
   name                         String
-  required                     Boolean                       @default(false)
   minSelectable                Int                           @default(0)
   maxSelectable                Int                           @default(1)
-  menuItemId                   Int
+  menuItemId                   String
   customizationOptions         CustomizationOption[]
   orderChunkItemCustomizations OrderChunkItemCustomization[]
 
-  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
@@ -121,13 +134,13 @@ model CustomizationGroup {
 }
 
 model CustomizationOption {
-  id                           Int                           @id @default(autoincrement())
+  id                           String                        @id @default(uuid(7))
   name                         String
   additionalPrice              Decimal?                      @db.Decimal(10, 2)
-  customizationGroupId         Int
+  customizationGroupId         String
   orderChunkItemCustomizations OrderChunkItemCustomization[]
 
-  customizationGroup CustomizationGroup @relation(fields: [customizationGroupId], references: [id], onDelete: Cascade)
+  customizationGroup CustomizationGroup @relation(fields: [customizationGroupId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
@@ -136,28 +149,28 @@ model CustomizationOption {
 }
 
 model RestaurantTable {
-  id        Int      @id @default(autoincrement())
-  storeId   Int
+  id        String   @id @default(uuid(7))
+  storeId   String
   number    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store         Store          @relation(fields: [storeId], references: [id])
   tableSessions TableSession[]
 
   @@index([storeId, number])
 }
 
 model TableSession {
-  id          Int                @id @default(autoincrement())
-  storeId     Int
-  tableId     Int
+  id          String             @id @default(uuid(7))
+  storeId     String
+  tableId     String
   sessionUuid String             @unique
   status      TableSessionStatus @default(ACTIVE)
   closedAt    DateTime?
 
-  store  Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  table  RestaurantTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  store  Store           @relation(fields: [storeId], references: [id])
+  table  RestaurantTable @relation(fields: [tableId], references: [id])
   orders Order[]
 
   createdAt DateTime @default(now())
@@ -168,12 +181,19 @@ model TableSession {
 }
 
 model Order {
-  id             Int         @id @default(autoincrement())
-  tableSessionId Int
+  id             String      @id @default(uuid(7))
+  tableSessionId String
   status         OrderStatus @default(OPEN)
   paidAt         DateTime?
 
-  tableSession TableSession @relation(fields: [tableSessionId], references: [id])
+  subTotal                  Decimal  @default(0) @db.Decimal(10, 2)
+  vatRateSnapshot           Decimal? @db.Decimal(4, 3)
+  serviceChargeRateSnapshot Decimal? @db.Decimal(4, 3)
+  vatAmount                 Decimal  @default(0) @db.Decimal(10, 2)
+  serviceChargeAmount       Decimal  @default(0) @db.Decimal(10, 2)
+  grandTotal                Decimal  @default(0) @db.Decimal(10, 2)
+
+  tableSession TableSession @relation(fields: [tableSessionId], references: [id], onDelete: Cascade) // Keep Cascade if deleting session deletes orders
   chunks       OrderChunk[]
 
   createdAt DateTime @default(now())
@@ -183,11 +203,11 @@ model Order {
 }
 
 model OrderChunk {
-  id      Int         @id @default(autoincrement())
-  orderId Int
+  id      String      @id @default(uuid(7))
+  orderId String
   status  ChunkStatus @default(PENDING)
 
-  order      Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order      Order            @relation(fields: [orderId], references: [id])
   chunkItems OrderChunkItem[]
 
   createdAt DateTime @default(now())
@@ -197,48 +217,52 @@ model OrderChunk {
 }
 
 model OrderChunkItem {
-  id           Int      @id @default(autoincrement())
-  orderChunkId Int
-  menuItemId   Int
+  id           String   @id @default(uuid(7))
+  orderChunkId String
+  menuItemId   String?
   price        Decimal  @db.Decimal(10, 2)
   quantity     Int      @default(1)
   finalPrice   Decimal? @db.Decimal(10, 2)
   notes        String?
 
-  orderChunk     OrderChunk                    @relation(fields: [orderChunkId], references: [id], onDelete: Cascade)
-  menuItem       MenuItem                      @relation(fields: [menuItemId], references: [id])
+  orderChunk     OrderChunk                    @relation(fields: [orderChunkId], references: [id])
+  menuItem       MenuItem?                     @relation(fields: [menuItemId], references: [id])
   customizations OrderChunkItemCustomization[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
   @@index([orderChunkId])
+  @@index([menuItemId])
 }
 
 model OrderChunkItemCustomization {
-  id Int @id @default(autoincrement())
+  id String @id @default(uuid(7))
 
-  orderChunkItemId      Int
-  customizationOptionId Int
+  orderChunkItemId      String
+  customizationOptionId String
 
   quantity   Int?     @default(1)
   finalPrice Decimal? @db.Decimal(10, 2)
 
-  orderChunkItem      OrderChunkItem      @relation(fields: [orderChunkItemId], references: [id], onDelete: Cascade)
+  orderChunkItem OrderChunkItem @relation(fields: [orderChunkItemId], references: [id])
+
   customizationOption CustomizationOption @relation(fields: [customizationOptionId], references: [id])
 
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @default(now()) @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
   CustomizationGroup   CustomizationGroup? @relation(fields: [customizationGroupId], references: [id])
-  customizationGroupId Int?
+  customizationGroupId String?
 
   @@unique([orderChunkItemId, customizationOptionId])
 }
 
+// --- Enums remain the same ---
 enum Role {
   OWNER
   ADMIN
-  SALE
+  CASHIER
   CHEF
 }
 
@@ -260,25 +284,25 @@ enum ChunkStatus {
 }
 
 enum Currency {
-  THB // Thai Baht
-  MMK // Myanmar Kyat
-  USD // US Dollar
-  EUR // Euro
-  GBP // British Pound
-  JPY // Japanese Yen
-  CNY // Chinese Yuan
-  AUD // Australian Dollar
-  CAD // Canadian Dollar
-  NZD // New Zealand Dollar
-  SGD // Singapore Dollar
-  HKD // Hong Kong Dollar
-  INR // Indian Rupee
-  IDR // Indonesian Rupiah
-  PHP // Philippine Peso
-  MYR // Malaysian Ringgit
-  VND // Vietnamese Dong
-  PKR // Pakistani Rupee
-  BDT // Bangladeshi Taka
-  AED // United Arab Emirates Dirham
-  SAR // Saudi Riyal
+  THB
+  MMK
+  USD
+  EUR
+  GBP
+  JPY
+  CNY
+  AUD
+  CAD
+  NZD
+  SGD
+  HKD
+  INR
+  IDR
+  PHP
+  MYR
+  VND
+  PKR
+  BDT
+  AED
+  SAR
 }

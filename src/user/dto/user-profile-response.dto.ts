@@ -28,7 +28,7 @@ export class UserProfileResponseDto {
     description:
       "User's role in the specific store requested via query parameter (if provided and user is a member)",
     enum: Role,
-    example: Role.SALE,
+    example: Role.CASHIER,
     nullable: true,
   })
   selectedStoreRole?: Role | null;
