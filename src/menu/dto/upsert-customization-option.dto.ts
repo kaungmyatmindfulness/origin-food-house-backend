@@ -5,12 +5,12 @@ import { IsNonNegativeNumericString } from 'src/common/decorators/is-non-negativ
 export class UpsertCustomizationOptionDto {
   @ApiPropertyOptional({
     description:
-      'ID of the option to update. Omit to create a new option within the group.',
+      'ID (UUID) of the option to update. Omit to create a new option within the group.',
     example: '018eb1ca-18e9-7634-8009-11d0e817b99f',
     format: 'uuid',
   })
   @IsOptional()
-  @IsUUID('all', { message: 'Provided ID must be a valid UUID' })
+  @IsUUID(7, { message: 'Provided ID must be a valid UUID' })
   id?: string;
 
   @ApiProperty({ example: 'Large' })

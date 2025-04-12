@@ -10,6 +10,6 @@ export class GetProfileQueryDto {
     example: '018eb1b4-9183-7a94-b723-f7f5f5ddb0af',
   })
   @IsOptional()
-  @IsUUID('all', { message: 'storeId must be a valid UUID string' })
+  @IsUUID(7, { message: 'storeId must be a valid UUID string' })
   storeId?: string;
 }

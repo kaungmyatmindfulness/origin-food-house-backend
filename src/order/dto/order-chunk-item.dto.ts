@@ -1,9 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class OrderChunkItemDto {
-  @ApiProperty({ example: 5, description: 'ID of the menu item' })
-  @IsInt()
+  @ApiProperty({ example: 5, description: 'ID (UUID) of the menu item' })
+  @IsUUID(7, { message: 'menuItemId must be a valid UUID string' })
   menuItemId: string;
 
   @ApiProperty({ example: 4.99, description: 'Unit price of the menu item' })

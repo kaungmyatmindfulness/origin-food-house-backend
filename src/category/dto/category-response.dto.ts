@@ -17,7 +17,7 @@ export class CategoryResponseDto {
   name: string;
 
   @ApiProperty({
-    description: 'ID of the store this category belongs to.',
+    description: 'ID (UUID) of the store this category belongs to.',
     example: 1,
   })
   storeId: string;

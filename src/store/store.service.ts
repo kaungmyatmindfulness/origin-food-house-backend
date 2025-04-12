@@ -100,8 +100,8 @@ export class StoreService {
 
   /**
    * Updates store information details. Requires OWNER or ADMIN role for the associated Store.
-   * @param userId The ID of the user performing the action.
-   * @param storeId The ID of the Store whose information is being updated.
+   * @param userId The ID (UUID) of the user performing the action.
+   * @param storeId The ID (UUID) of the Store whose information is being updated.
    * @param dto DTO containing the fields to update.
    * @returns The updated StoreInformation object.
    * @throws {NotFoundException} If StoreInformation for the storeId is not found.

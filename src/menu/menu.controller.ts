@@ -57,7 +57,7 @@ export class MenuController {
     required: true,
     type: String,
     format: 'uuid',
-    description: 'ID of the store whose menu items to fetch',
+    description: 'ID (UUID) of the store whose menu items to fetch',
     example: '018ebc9a-7e1c-7f5e-b48a-3f4f72c55a1e',
   })
   @ApiSuccessResponse(MenuItemResponseDto, {

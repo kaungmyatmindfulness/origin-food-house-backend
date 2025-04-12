@@ -33,8 +33,8 @@ export class CategoryService {
 
   /**
    * Creates a new category within the specified store. Requires Owner/Admin role.
-   * @param userId The ID of the user performing the action.
-   * @param storeId The ID of the store.
+   * @param userId The ID (UUID) of the user performing the action.
+   * @param storeId The ID (UUID) of the store.
    * @param dto DTO containing category name.
    * @returns The newly created Category.
    * @throws {ForbiddenException} If user lacks permission.
@@ -108,7 +108,7 @@ export class CategoryService {
   /**
    * Finds all categories for a given store, ordered by sortOrder.
    * Optionally includes MenuItems ordered by their sortOrder.
-   * @param storeId The ID of the store.
+   * @param storeId The ID (UUID) of the store.
    * @param includeItems Whether to include associated menu items.
    * @returns Array of categories, potentially with nested menu items.
    */
@@ -144,8 +144,8 @@ export class CategoryService {
 
   /**
    * Finds a single category by ID, ensuring it belongs to the specified store.
-   * @param categoryId The ID of the category.
-   * @param storeId The ID of the store it should belong to.
+   * @param categoryId The ID (UUID) of the category.
+   * @param storeId The ID (UUID) of the store it should belong to.
    * @returns The found Category.
    * @throws {NotFoundException} If category not found or doesn't belong to the store.
    * @throws {InternalServerErrorException} On unexpected database errors.
@@ -186,9 +186,9 @@ export class CategoryService {
 
   /**
    * Updates a category's name. Requires Owner/Admin role.
-   * @param userId The ID of the user performing the action.
-   * @param storeId The ID of the store.
-   * @param categoryId The ID of the category to update.
+   * @param userId The ID (UUID) of the user performing the action.
+   * @param storeId The ID (UUID) of the store.
+   * @param categoryId The ID (UUID) of the category to update.
    * @param dto DTO containing the new name.
    * @returns The updated Category.
    * @throws {ForbiddenException} | {NotFoundException} | {InternalServerErrorException}
@@ -249,10 +249,10 @@ export class CategoryService {
   /**
    * Deletes a category. Requires Owner/Admin role.
    * NOTE: Ensure Prisma schema relation from MenuItem to Category has appropriate `onDelete` behavior (e.g., Cascade, SetNull, Restrict).
-   * @param userId The ID of the user performing the action.
-   * @param storeId The ID of the store.
-   * @param categoryId The ID of the category to delete.
-   * @returns Object containing the ID of the deleted category.
+   * @param userId The ID (UUID) of the user performing the action.
+   * @param storeId The ID (UUID) of the store.
+   * @param categoryId The ID (UUID) of the category to delete.
+   * @returns Object containing the ID (UUID) of the deleted category.
    * @throws {ForbiddenException} | {NotFoundException} | {InternalServerErrorException}
    */
   async remove(
@@ -312,8 +312,8 @@ export class CategoryService {
 
   /**
    * Bulk updates sort orders for categories and their menu items within a store. Requires Owner/Admin role.
-   * @param userId The ID of the user performing the action.
-   * @param storeId The ID of the store.
+   * @param userId The ID (UUID) of the user performing the action.
+   * @param storeId The ID (UUID) of the store.
    * @param payload DTO containing the nested structure of categories and items with new sort orders.
    * @returns Success message.
    * @throws {ForbiddenException} | {BadRequestException} | {NotFoundException} | {InternalServerErrorException}

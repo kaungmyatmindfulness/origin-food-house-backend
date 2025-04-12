@@ -14,12 +14,12 @@ import { UpsertCustomizationOptionDto } from './upsert-customization-option.dto'
 
 export class UpsertCustomizationGroupDto {
   @ApiPropertyOptional({
-    description: 'ID of the existing group to update.',
+    description: 'ID (UUID) of the existing group to update.',
     example: '018eb1ca-18e9-7634-8009-11d0e817b99f',
     format: 'uuid',
   })
   @IsOptional()
-  @IsUUID('all', { message: 'Provided ID must be a valid UUID' })
+  @IsUUID(7, { message: 'Provided ID must be a valid UUID' })
   id?: string;
 
   @ApiProperty({ example: 'Size' })

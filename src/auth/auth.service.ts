@@ -39,8 +39,8 @@ export class AuthService {
   /**
    * Retrieves the role of a user within a specific store.
    * Throws ForbiddenException if the user is not a member of the store.
-   * @param userId - The ID of the user.
-   * @param storeId - The ID of the store.
+   * @param userId - The ID (UUID) of the user.
+   * @param storeId - The ID (UUID) of the store.
    * @returns The user's role in the store.
    */
   async getUserStoreRole(userId: string, storeId: string): Promise<Role> {
@@ -77,8 +77,8 @@ export class AuthService {
   /**
    * Convenience function combining getUserStoreRole and checkPermission.
    * Verifies if a user has one of the required roles within a specific store.
-   * @param userId - The ID of the user.
-   * @param storeId - The ID of the store.
+   * @param userId - The ID (UUID) of the user.
+   * @param storeId - The ID (UUID) of the store.
    * @param authorizedRoles - An array of roles that grant permission.
    * @throws {ForbiddenException} If the user is not a member or does not have the required role.
    */
@@ -344,7 +344,7 @@ export class AuthService {
 
   /**
    * Allows a logged-in user to change their password.
-   * @param userId The ID of the user changing their password.
+   * @param userId The ID (UUID) of the user changing their password.
    * @param oldPassword The user's current password.
    * @param newPassword The desired new password.
    * @returns Success message.

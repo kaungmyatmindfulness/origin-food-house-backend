@@ -30,68 +30,14 @@ export class OrderController {
   })
   @ApiParam({
     name: 'sessionId',
-    description: 'The numeric ID of the TableSession',
+    description: 'The numeric ID (UUID) of the TableSession',
     type: Number,
   })
   @ApiResponse({
     status: 201, // Correct status code for creation
     description: 'New order chunk created successfully',
     type: StandardApiResponse<OrderChunk>, // Use generic type with OrderChunk
-    // The schema example below needs manual update if exact structure is needed in Swagger UI
   })
-  /* Example of how to manually define the response schema for Swagger if needed
-    @ApiResponse({
-    status: 201,
-    description: 'New order chunk created successfully',
-     schema: {
-       allOf: [
-         { $ref: getSchemaPath(StandardApiResponse) },
-         {
-           properties: {
-             data: {
-               // Define OrderChunk structure here based on Prisma model + includes
-               // Example:
-               type: 'object',
-               properties: {
-                  id: { type: 'number', example: 12 },
-                  orderId: { type: 'number', example: 5 },
-                  status: { type: 'string', enum: ['PENDING', 'IN_PROGRESS', 'COMPLETED'], example: 'PENDING' },
-                  createdAt: { type: 'string', format: 'date-time' },
-                  updatedAt: { type: 'string', format: 'date-time' },
-                  chunkItems: {
-                    type: 'array',
-                    items: {
-                       type: 'object',
-                       properties: {
-                         id: { type: 'number', example: 101 },
-                         menuItemId: { type: 'number', example: 7 },
-                         price: { type: 'number', format: 'double', example: 8.50 },
-                         quantity: { type: 'number', example: 2 },
-                         finalPrice: { type: 'number', format: 'double', example: 19.00 },
-                         notes: { type: 'string', example: 'Extra spicy', nullable: true },
-                         customizations: {
-                           type: 'array',
-                           items: {
-                             type: 'object',
-                             properties: {
-                               id: { type: 'number', example: 301 },
-                               customizationOptionId: { type: 'number', example: 101 },
-                               quantity: { type: 'number', example: 1},
-                               finalPrice: { type: 'number', format: 'double', example: 2.00 },
-                               // Include customizationOption details if needed
-                             }
-                           }
-                         }
-                       } // end chunkItem properties
-                    } // end items object
-                  } // end chunkItems array
-               } // end data properties
-             } // end data object
-           } // end properties
-         } // end second part of allOf
-       ] // end allOf
-     } // end schema
-   }) */
   @ApiResponse({
     status: 400,
     description: 'Invalid input data (e.g., empty items, invalid IDs)',
@@ -118,7 +64,7 @@ export class OrderController {
   })
   @ApiParam({
     name: 'chunkId',
-    description: 'The numeric ID of the OrderChunk',
+    description: 'The numeric ID (UUID) of the OrderChunk',
     type: Number,
   })
   @ApiResponse({
@@ -152,7 +98,7 @@ export class OrderController {
   })
   @ApiParam({
     name: 'sessionId',
-    description: 'The numeric ID of the TableSession',
+    description: 'The numeric ID (UUID) of the TableSession',
     type: Number,
   })
   @ApiResponse({

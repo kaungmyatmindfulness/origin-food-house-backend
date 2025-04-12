@@ -123,7 +123,7 @@ export class CategoryController {
   @ApiOperation({ summary: 'Get a specific category by ID (Public)' })
   @ApiParam({
     name: 'id',
-    description: 'ID of the category to retrieve',
+    description: 'ID (UUID) of the category to fetch',
     type: String,
     format: 'uuid',
   })
@@ -185,7 +185,7 @@ export class CategoryController {
   @ApiOperation({ summary: 'Update a category name (OWNER/ADMIN Required)' })
   @ApiParam({
     name: 'id',
-    description: 'ID of the category to update',
+    description: 'ID (UUID) of the category to update',
     type: String,
     format: 'uuid',
   })
@@ -223,7 +223,7 @@ export class CategoryController {
   @ApiOperation({ summary: 'Delete a category (OWNER/ADMIN Required)' })
   @ApiParam({
     name: 'id',
-    description: 'ID of the category to delete',
+    description: 'ID (UUID) of the category to delete',
     type: String,
     format: 'uuid',
   })

@@ -1,12 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, Min, ValidateNested, IsArray } from 'class-validator';
+import { IsInt, ValidateNested, IsArray, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 import { SortMenuItemDto } from './sort-menu-item.dto';
 
 export class SortCategoryDto {
-  @ApiProperty({ example: 1, description: 'Category ID' })
-  @IsInt()
-  @Min(1)
+  @ApiProperty({ example: 1, description: 'Category ID (UUID)' })
+  @IsUUID(7, { message: 'id must be a valid UUID string' })
   id: string;
 
   @ApiProperty({ example: 5, description: 'Sort order for this category' })

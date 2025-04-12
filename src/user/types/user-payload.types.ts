@@ -21,7 +21,11 @@ export const userSelectWithStores = Prisma.validator<Prisma.UserSelect>()({
   ...userSelectPublic,
   userStores: {
     include: {
-      store: true, // Include nested store details
+      store: {
+        include: {
+          information: true,
+        },
+      },
     },
   },
 });

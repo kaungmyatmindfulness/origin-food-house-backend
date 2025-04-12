@@ -1,4 +1,3 @@
-// seed.ts
 import {
   PrismaClient,
   Role,
@@ -149,7 +148,7 @@ async function main() {
               // Prisma handles string -> Decimal conversion here
               basePrice: faker.commerce.price({ min: 5, max: 50, dec: 2 }),
               imageUrl: faker.datatype.boolean(0.8) // 80% chance of having an image
-                ? `uploads/${faker.string.uuid()}.webp` // Use uploads/ prefix and webp
+                ? `https://picsum.photos/seed/${faker.string.uuid()}/600/400` // Get random image from Picsum with fixed size
                 : null,
               isHidden: faker.datatype.boolean(0.1), // 10% chance of being hidden
               categoryId: category.id, // category.id is now String (UUID)
@@ -332,7 +331,7 @@ async function main() {
                     : null,
                   // Calculate finalPrice for Item (base + customizations * quantity)
                   // This is complex for seed, maybe just estimate or store base * quantity
-                  // finalPrice: calculatedItemFinalPrice, // Assign calculated value if needed
+                  // finalPrice: calculatedItemFinalPrice; // Assign calculated value if needed
                   customizations: { create: chosenCustomizations },
                 },
               });
