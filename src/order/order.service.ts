@@ -54,7 +54,7 @@ export class OrderService {
   } satisfies Prisma.OrderInclude;
 
   async initOrderForSession(
-    tableSessionId: number,
+    tableSessionId: string,
     tx: Prisma.TransactionClient,
   ) {
     // Changed to accept transaction client 'tx'
@@ -91,7 +91,7 @@ export class OrderService {
   }
 
   async addChunk(
-    tableSessionId: number,
+    tableSessionId: string,
     createOrderChunkDto: CreateOrderChunkDto, // Use the new DTO
   ) {
     if (!createOrderChunkDto.items || createOrderChunkDto.items.length === 0) {
@@ -146,7 +146,7 @@ export class OrderService {
           for (const custDto of itemDto.customizations) {
             // Find the specific option details within the fetched menu item data
             let optionDetails:
-              | { id: number; additionalPrice: Decimal | null }
+              | { id: string; additionalPrice: Decimal | null }
               | undefined;
             menuItem.customizationGroups.forEach((g) => {
               const found = g.customizationOptions.find(
@@ -229,7 +229,7 @@ export class OrderService {
   } // End addChunk
 
   async updateChunkStatus(
-    chunkId: number,
+    chunkId: string,
     newStatus: ChunkStatus, // Use the Prisma enum
   ) {
     // Check if chunk exists first
@@ -257,7 +257,7 @@ export class OrderService {
     });
   }
 
-  async payOrder(tableSessionId: number) {
+  async payOrder(tableSessionId: string) {
     // Use transaction for atomicity (update order and session)
     return this.prisma.$transaction(async (tx) => {
       // Find the OPEN order for the session

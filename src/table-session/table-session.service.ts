@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 export class TableSessionService {
   constructor(private prisma: PrismaService) {}
 
-  async createSession(dto: { storeId: number; tableId: number }) {
+  async createSession(dto: { storeId: string; tableId: string }) {
     // Check that table belongs to store
     const table = await this.prisma.restaurantTable.findUnique({
       where: { id: dto.tableId },

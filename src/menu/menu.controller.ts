@@ -15,6 +15,7 @@ import {
   Logger,
   Param,
   ParseIntPipe,
+  ParseUUIDPipe,
   Post,
   Put,
   Query,
@@ -54,15 +55,17 @@ export class MenuController {
   @ApiQuery({
     name: 'storeId',
     required: true,
-    type: Number,
+    type: String,
+    format: 'uuid',
     description: 'ID of the store whose menu items to fetch',
+    example: '018ebc9a-7e1c-7f5e-b48a-3f4f72c55a1e',
   })
   @ApiSuccessResponse(MenuItemResponseDto, {
     isArray: true,
     description: 'List of menu items retrieved successfully.',
   })
   async getStoreMenuItems(
-    @Query('storeId', ParseIntPipe) storeId: number,
+    @Query('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
   ): Promise<StandardApiResponse<MenuItemModel[]>> {
     const method = this.getStoreMenuItems.name;
     this.logger.log(`[${method}] Fetching menu items for Store ${storeId}`);
@@ -81,7 +84,7 @@ export class MenuController {
     'Menu item details retrieved successfully.',
   )
   async getMenuItemById(
-    @Param('id', ParseIntPipe) itemId: number,
+    @Param('id', new ParseUUIDPipe({ version: '7' })) itemId: string,
   ): Promise<StandardApiResponse<MenuItemModel>> {
     const method = this.getMenuItemById.name;
     this.logger.log(`[${method}] Fetching menu item by ID ${itemId}`);
@@ -103,7 +106,7 @@ export class MenuController {
   })
   async createMenuItem(
     @Req() req: RequestWithUser,
-    @Query('storeId', ParseIntPipe) storeId: number,
+    @Query('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
     @Body() dto: CreateMenuItemDto,
   ): Promise<StandardApiResponse<MenuItemModel>> {
     const method = this.createMenuItem.name;
@@ -128,8 +131,8 @@ export class MenuController {
   })
   async updateMenuItem(
     @Req() req: RequestWithUser,
-    @Query('storeId', ParseIntPipe) storeId: number,
-    @Param('id', ParseIntPipe) itemId: number,
+    @Param('id', new ParseUUIDPipe({ version: '7' })) itemId: string,
+    @Query('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
     @Body() dto: UpdateMenuItemDto,
   ): Promise<StandardApiResponse<MenuItemModel>> {
     const method = this.updateMenuItem.name;
@@ -160,8 +163,8 @@ export class MenuController {
   )
   async deleteMenuItem(
     @Req() req: RequestWithUser,
-    @Query('storeId', ParseIntPipe) storeId: number,
-    @Param('id', ParseIntPipe) itemId: number,
+    @Param('id', new ParseUUIDPipe({ version: '7' })) itemId: string,
+    @Query('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
   ): Promise<StandardApiResponse<unknown>> {
     const method = this.deleteMenuItem.name;
     const userId = req.user.sub;

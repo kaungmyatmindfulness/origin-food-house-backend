@@ -6,6 +6,7 @@ import {
   ValidateNested,
   IsBoolean,
   Min,
+  IsUUID,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -13,12 +14,13 @@ import { UpsertCustomizationOptionDto } from './upsert-customization-option.dto'
 
 export class UpsertCustomizationGroupDto {
   @ApiPropertyOptional({
-    example: 25,
-    description: 'ID of existing group to update',
+    description: 'ID of the existing group to update.',
+    example: '018eb1ca-18e9-7634-8009-11d0e817b99f',
+    format: 'uuid',
   })
   @IsOptional()
-  @IsNumber()
-  id?: number;
+  @IsUUID('all', { message: 'Provided ID must be a valid UUID' })
+  id?: string;
 
   @ApiProperty({ example: 'Size' })
   @IsString()

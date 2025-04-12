@@ -43,7 +43,7 @@ export class AuthService {
    * @param storeId - The ID of the store.
    * @returns The user's role in the store.
    */
-  async getUserStoreRole(userId: number, storeId: number): Promise<Role> {
+  async getUserStoreRole(userId: string, storeId: string): Promise<Role> {
     const membership = await this.prisma.userStore.findUnique({
       where: { userId_storeId: { userId, storeId } },
       select: { role: true }, // Optimization: Only select the role
@@ -83,8 +83,8 @@ export class AuthService {
    * @throws {ForbiddenException} If the user is not a member or does not have the required role.
    */
   async checkStorePermission(
-    userId: number,
-    storeId: number,
+    userId: string,
+    storeId: string,
     authorizedRoles: Role[],
   ): Promise<void> {
     // Step 1: Get the user's role (throws if not a member)
@@ -148,7 +148,7 @@ export class AuthService {
    * @param user User object (requires at least 'id')
    * @returns Signed JWT string.
    */
-  generateAccessTokenNoStore(user: { id: number }): string {
+  generateAccessTokenNoStore(user: { id: string }): string {
     const payload = { sub: user.id };
     this.logger.log(`Generating basic access token for user ID: ${user.id}`);
     return this.jwtService.sign(payload, {
@@ -166,8 +166,8 @@ export class AuthService {
    * @throws NotFoundException if user or store membership cannot be resolved.
    */
   async generateAccessTokenWithStore(
-    userId: number,
-    storeId: number,
+    userId: string,
+    storeId: string,
   ): Promise<string> {
     this.logger.log(
       `Attempting to generate store-context token for User ID: ${userId}, Store ID: ${storeId}`,
@@ -244,7 +244,7 @@ export class AuthService {
    */
   async forgotPassword(email: string): Promise<{
     message: string;
-    resetInfo?: { userId: number; token: string; email: string; expiry: Date };
+    resetInfo?: { userId: string; token: string; email: string; expiry: Date };
   }> {
     this.logger.log(`Password reset requested for email: ${email}`);
     const user = await this.userService.findByEmail(email);
@@ -352,7 +352,7 @@ export class AuthService {
    * @throws UnauthorizedException if old password doesn't match.
    */
   async changePassword(
-    userId: number,
+    userId: string,
     oldPassword: string,
     newPassword: string,
   ): Promise<{ message: string }> {

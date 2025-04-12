@@ -145,7 +145,7 @@ export class UserService {
   /**
    * Finds a user by ID, excluding the password. Includes store memberships.
    */
-  async findById(id: number): Promise<UserWithStoresPublicPayload | null> {
+  async findById(id: string): Promise<UserWithStoresPublicPayload | null> {
     return this.prisma.user.findUnique({
       where: { id },
       select: userSelectWithStores,
@@ -156,7 +156,7 @@ export class UserService {
    * Finds a user by ID, selecting only the password hash. Used for internal checks.
    * @throws NotFoundException if user not found.
    */
-  async findPasswordById(id: number): Promise<{ password: string }> {
+  async findPasswordById(id: string): Promise<{ password: string }> {
     const user = await this.prisma.user.findUnique({
       where: { id },
       select: { password: true },
@@ -185,7 +185,7 @@ export class UserService {
    * Marks a user as verified and clears verification details.
    * @returns Public user data.
    */
-  async markUserVerified(userId: number): Promise<UserPublicPayload> {
+  async markUserVerified(userId: string): Promise<UserPublicPayload> {
     this.logger.log(`Marking user ID ${userId} as verified.`);
     return this.prisma.user.update({
       where: { id: userId },
@@ -247,7 +247,7 @@ export class UserService {
    * Gets all store memberships (including store details) for a given user.
    */
   async getUserStores(
-    userId: number,
+    userId: string,
   ): Promise<Array<UserStore & { store: Prisma.StoreGetPayload<true> }>> {
     return this.prisma.userStore.findMany({
       where: { userId },
@@ -261,8 +261,8 @@ export class UserService {
    * @throws NotFoundException if user not found.
    */
   async findUserProfile(
-    userId: number,
-    currentStoreId?: number,
+    userId: string,
+    currentStoreId?: string,
   ): Promise<UserProfileResponseDto> {
     this.logger.log(
       `Workspaceing profile for User ID: ${userId}, Current Store ID: ${currentStoreId ?? 'None'}`,
@@ -303,7 +303,7 @@ export class UserService {
    * Sets the password reset token and expiry for a user.
    */
   async setResetToken(
-    userId: number,
+    userId: string,
     token: string,
     expiry: Date,
   ): Promise<void> {
@@ -332,7 +332,7 @@ export class UserService {
    * Updates user password and clears reset token details atomically.
    */
   async updatePasswordAndClearResetToken(
-    userId: number,
+    userId: string,
     hashedPassword: string,
   ): Promise<void> {
     await this.prisma.user.update({
@@ -351,7 +351,7 @@ export class UserService {
   /**
    * Updates only the user's password.
    */
-  async updatePassword(userId: number, hashedPassword: string): Promise<void> {
+  async updatePassword(userId: string, hashedPassword: string): Promise<void> {
     await this.prisma.user.update({
       where: { id: userId },
       data: {

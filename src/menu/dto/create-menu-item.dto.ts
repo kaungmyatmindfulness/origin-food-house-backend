@@ -25,7 +25,7 @@ export class CreateMenuItemDto {
 
   @ApiProperty({
     example: 9.5,
-    type: Number,
+    type: String,
     description: 'Base price before customizations',
   })
   @IsPositiveNumericString({

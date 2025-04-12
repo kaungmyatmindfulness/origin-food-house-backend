@@ -8,5 +8,5 @@ export class ChooseStoreDto {
   })
   @IsInt()
   @Min(1)
-  storeId: number;
+  storeId: string;
 }

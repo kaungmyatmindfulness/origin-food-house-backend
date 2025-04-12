@@ -3,10 +3,10 @@ import { Role } from '@prisma/client';
 
 export class AddUserToStoreDto {
   @ApiProperty()
-  userId: number;
+  userId: string;
 
   @ApiProperty()
-  storeId: number;
+  storeId: string;
 
   @ApiProperty({ enum: Role })
   role: Role;

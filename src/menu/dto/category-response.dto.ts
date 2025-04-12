@@ -2,13 +2,13 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class CategoryResponseDto {
   @ApiProperty({ example: 6 })
-  id: number;
+  id: string;
 
   @ApiProperty({ example: 'Books' })
   name: string;
 
   @ApiProperty({ example: 1 })
-  storeId: number;
+  storeId: string;
 
   @ApiProperty({ example: 1 })
   sortOrder: number;

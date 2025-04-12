@@ -3,7 +3,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 
 export class MenuItemNestedResponseDto {
   @ApiProperty({ example: 147 })
-  id: number;
+  id: string;
 
   @ApiProperty({ example: 'Generic Granite Cheese' })
   name: string;

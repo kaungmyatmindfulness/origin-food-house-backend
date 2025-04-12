@@ -5,7 +5,7 @@ import { CustomizationGroupResponseDto } from './customization-group-response.dt
 
 export class MenuItemResponseDto {
   @ApiProperty({ example: 147 })
-  id: number;
+  id: string;
 
   @ApiProperty({ example: 'Generic Granite Cheese' })
   name: string;
@@ -38,10 +38,10 @@ export class MenuItemResponseDto {
   isHidden: boolean;
 
   @ApiProperty({ example: 6 })
-  categoryId: number;
+  categoryId: string;
 
   @ApiProperty({ example: 1 })
-  storeId: number;
+  storeId: string;
 
   @ApiProperty({ example: 2 })
   sortOrder: number;

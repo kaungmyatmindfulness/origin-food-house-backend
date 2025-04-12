@@ -2,7 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CustomizationOptionResponseDto {
   @ApiProperty({ example: 737 })
-  id: number;
+  id: string;
 
   @ApiProperty({ example: 'Bamboo' })
   name: string;
@@ -16,7 +16,7 @@ export class CustomizationOptionResponseDto {
   additionalPrice: string | null;
 
   @ApiProperty({ example: 219 })
-  customizationGroupId: number;
+  customizationGroupId: string;
 
   @ApiProperty()
   createdAt: Date;

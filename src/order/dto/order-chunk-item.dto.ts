@@ -4,7 +4,7 @@ import { IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
 export class OrderChunkItemDto {
   @ApiProperty({ example: 5, description: 'ID of the menu item' })
   @IsInt()
-  menuItemId: number;
+  menuItemId: string;
 
   @ApiProperty({ example: 4.99, description: 'Unit price of the menu item' })
   @IsNumber()

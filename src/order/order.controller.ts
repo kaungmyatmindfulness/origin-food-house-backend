@@ -99,7 +99,7 @@ export class OrderController {
   @ApiResponse({ status: 403, description: 'Session is closed' })
   @ApiResponse({ status: 404, description: 'Session or MenuItem not found' })
   async addChunk(
-    @Param('sessionId', ParseIntPipe) sessionId: number, // Ensure ID is parsed as integer
+    @Param('sessionId', ParseIntPipe) sessionId: string, // Ensure ID is parsed as integer
     @Body() createOrderChunkDto: CreateOrderChunkDto,
   ): Promise<StandardApiResponse<OrderChunk>> {
     // Use correct return type
@@ -132,7 +132,7 @@ export class OrderController {
   })
   @ApiResponse({ status: 404, description: 'Order Chunk not found' })
   async updateChunkStatus(
-    @Param('chunkId', ParseIntPipe) chunkId: number, // Parse ID
+    @Param('chunkId', ParseIntPipe) chunkId: string, // Parse ID
     @Body() updateChunkStatusDto: UpdateChunkStatusDto,
   ): Promise<StandardApiResponse<OrderChunk>> {
     // Use correct return type
@@ -169,7 +169,7 @@ export class OrderController {
     description: 'No open order found for the session',
   })
   async payOrder(
-    @Param('sessionId', ParseIntPipe) sessionId: number, // Parse ID
+    @Param('sessionId', ParseIntPipe) sessionId: string, // Parse ID
   ): Promise<StandardApiResponse<Order>> {
     // Use correct return type
     const paidOrder = await this.orderService.payOrder(sessionId);

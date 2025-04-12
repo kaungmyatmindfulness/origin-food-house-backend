@@ -9,7 +9,7 @@ export class TableSessionController {
 
   @Post('create')
   @ApiOperation({ summary: 'Create a new table session' })
-  async createSession(@Body() body: { storeId: number; tableId: number }) {
+  async createSession(@Body() body: { storeId: string; tableId: string }) {
     const session = await this.tableSessionService.createSession(body);
     return {
       status: 'success',

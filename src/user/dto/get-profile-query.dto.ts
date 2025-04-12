@@ -1,17 +1,15 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Min } from 'class-validator';
+import { IsOptional, IsUUID } from 'class-validator';
 
 export class GetProfileQueryDto {
   @ApiPropertyOptional({
     description:
-      'Optional: ID of the store to get user context (e.g., role) for.',
-    type: Number,
-    example: 1,
+      'Optional: ID (UUID) of the store to get user context (e.g., role) for.',
+    type: String,
+    format: 'uuid',
+    example: '018eb1b4-9183-7a94-b723-f7f5f5ddb0af',
   })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt({ message: 'storeId must be an integer' })
-  @Min(1, { message: 'storeId must be a positive integer' })
-  storeId?: number;
+  @IsUUID('all', { message: 'storeId must be a valid UUID string' })
+  storeId?: string;
 }

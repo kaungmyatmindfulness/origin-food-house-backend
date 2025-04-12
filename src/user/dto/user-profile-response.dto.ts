@@ -3,7 +3,7 @@ import { Role } from '@prisma/client';
 
 export class UserProfileResponseDto {
   @ApiProperty({ description: "User's unique identifier", example: 123 })
-  id: number;
+  id: string;
 
   @ApiProperty({
     description: "User's email address",

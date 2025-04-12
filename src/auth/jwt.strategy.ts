@@ -61,10 +61,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
    * @param payload The decoded JWT payload.
    * @returns The object to be attached to `req.user`.
    */
-  validate(payload: JwtPayload): { sub: number } {
+  validate(payload: JwtPayload): { sub: string } {
     this.logger.verbose(`Validating JWT payload for User ID: ${payload?.sub}`);
 
-    if (!payload || typeof payload.sub !== 'number') {
+    if (!payload || typeof payload.sub !== 'string') {
       this.logger.warn(
         'JWT payload validation encountered unexpected structure or missing fields.',
         payload,

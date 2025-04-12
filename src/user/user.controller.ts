@@ -15,6 +15,7 @@ import {
   NotFoundException,
   Param,
   ParseIntPipe,
+  ParseUUIDPipe,
   Post,
   Query,
   Req,
@@ -112,8 +113,9 @@ export class UserController {
   })
   @ApiParam({
     name: 'id',
-    description: 'Numeric ID of the target user',
-    type: Number,
+    description: 'ID (UUID) of the target user',
+    type: String,
+    format: 'uuid',
   })
   @ApiOkResponse({
     description: 'List of user store memberships retrieved.',
@@ -124,7 +126,7 @@ export class UserController {
   })
   @ApiNotFoundResponse({ description: 'Target user not found.' })
   async getUserStores(
-    @Param('id', ParseIntPipe) userId: number,
+    @Param('id', new ParseUUIDPipe({ version: '7' })) userId: string,
     @Req() req: RequestWithUser,
   ): Promise<
     StandardApiResponse<
@@ -159,10 +161,11 @@ export class UserController {
   @ApiQuery({
     name: 'storeId',
     required: false,
-    type: Number,
+    type: String,
+    format: 'uuid',
     description:
-      'Optional: ID of the store to get user context (e.g., role) for.',
-    example: 1,
+      'Optional: ID (UUID) of the store to get user context (e.g., role) for.', //
+    example: '018ebc9a-7e1c-7f5e-b48a-3f4f72c55a1e',
   })
   async getCurrentUser(
     @Req() req: RequestWithUser,

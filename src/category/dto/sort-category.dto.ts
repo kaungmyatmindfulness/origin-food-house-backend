@@ -7,7 +7,7 @@ export class SortCategoryDto {
   @ApiProperty({ example: 1, description: 'Category ID' })
   @IsInt()
   @Min(1)
-  id: number;
+  id: string;
 
   @ApiProperty({ example: 5, description: 'Sort order for this category' })
   @IsInt()

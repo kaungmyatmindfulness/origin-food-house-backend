@@ -12,7 +12,7 @@ import {
   HttpStatus,
   Logger,
   Param,
-  ParseIntPipe,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -25,9 +25,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiQuery,
-  ApiResponse,
   ApiTags,
-  getSchemaPath,
 } from '@nestjs/swagger';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -70,7 +68,7 @@ export class CategoryController {
   })
   async create(
     @Req() req: RequestWithUser,
-    @Query('storeId', ParseIntPipe) storeId: number,
+    @Query('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
     @Body() dto: CreateCategoryDto,
   ): Promise<StandardApiResponse<CategoryBasicResponseDto>> {
     const userId = req.user.sub;
@@ -93,16 +91,17 @@ export class CategoryController {
   @ApiQuery({
     name: 'storeId',
     required: true,
-    type: Number,
-    description: 'ID of the store',
-    example: 1,
+    type: String,
+    format: 'uuid',
+    description: 'ID (UUID) of the store',
+    example: '018ebc9a-7e1c-7f5e-b48a-3f4f72c55a1e',
   })
   @ApiSuccessResponse(CategoryResponseDto, {
     isArray: true,
     description: 'List of categories with included menu items.',
   })
   async findAll(
-    @Query('storeId', ParseIntPipe) storeId: number,
+    @Query('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
   ): Promise<StandardApiResponse<CategoryResponseDto[]>> {
     const method = this.findAll.name;
     const includeItems = true;
@@ -122,17 +121,23 @@ export class CategoryController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a specific category by ID (Public)' })
-  @ApiParam({ name: 'id', description: 'ID of the category to retrieve' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the category to retrieve',
+    type: String,
+    format: 'uuid',
+  })
   @ApiQuery({
     name: 'storeId',
     required: true,
-    type: Number,
-    description: 'ID of the store this category belongs to',
-    example: 1,
+    type: String,
+    format: 'uuid',
+    description: 'ID (UUID) of the store this category belongs to',
+    example: '018ebc9a-7e1c-7f5e-b48a-3f4f72c55a1e',
   })
   async findOne(
-    @Param('id', ParseIntPipe) categoryId: number,
-    @Query('storeId', ParseIntPipe) storeId: number,
+    @Param('id', new ParseUUIDPipe({ version: '7' })) categoryId: string,
+    @Query('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
   ): Promise<StandardApiResponse<CategoryBasicResponseDto>> {
     const method = this.findOne.name;
     this.logger.log(
@@ -157,7 +162,7 @@ export class CategoryController {
   })
   async sortCategories(
     @Req() req: RequestWithUser,
-    @Query('storeId', ParseIntPipe) storeId: number,
+    @Query('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
     @Body() payload: SortCategoriesPayloadDto,
   ): Promise<StandardApiResponse<null>> {
     const userId = req.user.sub;
@@ -178,15 +183,21 @@ export class CategoryController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a category name (OWNER/ADMIN Required)' })
-  @ApiParam({ name: 'id', description: 'ID of the category to update' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the category to update',
+    type: String,
+    format: 'uuid',
+  })
   @ApiSuccessResponse(
     CategoryBasicResponseDto,
     'Category updated successfully.',
   )
   async update(
     @Req() req: RequestWithUser,
-    @Param('id', ParseIntPipe) categoryId: number,
-    @Query('storeId', ParseIntPipe) storeId: number,
+
+    @Param('id', new ParseUUIDPipe({ version: '7' })) categoryId: string,
+    @Query('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
     @Body() dto: UpdateCategoryDto,
   ): Promise<StandardApiResponse<CategoryBasicResponseDto>> {
     const userId = req.user.sub;
@@ -210,15 +221,21 @@ export class CategoryController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a category (OWNER/ADMIN Required)' })
-  @ApiParam({ name: 'id', description: 'ID of the category to delete' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the category to delete',
+    type: String,
+    format: 'uuid',
+  })
   @ApiSuccessResponse(
     CategoryDeletedResponseDto,
     'Category deleted successfully.',
   )
   async remove(
     @Req() req: RequestWithUser,
-    @Query('storeId', ParseIntPipe) storeId: number,
-    @Param('id', ParseIntPipe) categoryId: number,
+    @Query('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
+
+    @Param('id', new ParseUUIDPipe({ version: '7' })) categoryId: string,
   ): Promise<StandardApiResponse<CategoryDeletedResponseDto>> {
     const userId = req.user.sub;
     const method = this.remove.name;

@@ -25,7 +25,7 @@ import { UpsertCustomizationGroupDto } from './dto/upsert-customization-group.dt
  * This minimal structure is used by the syncCustomizationGroups logic.
  */
 type ExistingCustomizationGroup = PrismaCustomizationGroup & {
-  customizationOptions: Array<{ id: number }>;
+  customizationOptions: Array<{ id: string }>;
 };
 
 @Injectable()
@@ -58,7 +58,7 @@ export class MenuService {
    * Retrieves all menu items for a specific store.
    * NOTE: Currently assumes public read access. Add auth check if needed.
    */
-  async getStoreMenuItems(storeId: number): Promise<MenuItem[]> {
+  async getStoreMenuItems(storeId: string): Promise<MenuItem[]> {
     this.logger.log(`Workspaceing menu items for store ID: ${storeId}`);
     return this.prisma.menuItem.findMany({
       where: { storeId },
@@ -71,7 +71,7 @@ export class MenuService {
    * Retrieves a single menu item by its ID, including details.
    * NOTE: Currently assumes public read access if the ID is known.
    */
-  async getMenuItemById(itemId: number): Promise<MenuItem> {
+  async getMenuItemById(itemId: string): Promise<MenuItem> {
     const item = await this.prisma.menuItem.findUnique({
       where: { id: itemId },
       include: this.menuItemInclude,
@@ -87,8 +87,8 @@ export class MenuService {
    * Creates a new menu item within a store. Requires OWNER or ADMIN role.
    */
   async createMenuItem(
-    userId: number,
-    storeId: number,
+    userId: string,
+    storeId: string,
     dto: CreateMenuItemDto,
   ): Promise<MenuItem> {
     this.logger.log(
@@ -169,9 +169,9 @@ export class MenuService {
    * Updates an existing menu item. Requires OWNER or ADMIN role.
    */
   async updateMenuItem(
-    userId: number,
-    storeId: number,
-    itemId: number,
+    userId: string,
+    storeId: string,
+    itemId: string,
     dto: UpdateMenuItemDto,
   ): Promise<MenuItem> {
     this.logger.log(
@@ -282,10 +282,10 @@ export class MenuService {
    * Deletes a menu item. Requires OWNER or ADMIN role (configurable).
    */
   async deleteMenuItem(
-    userId: number,
-    storeId: number,
-    itemId: number,
-  ): Promise<{ id: number }> {
+    userId: string,
+    storeId: string,
+    itemId: string,
+  ): Promise<{ id: string }> {
     this.logger.log(
       `User ${userId} attempting to delete menu item ${itemId} from store ${storeId}`,
     );
@@ -350,7 +350,7 @@ export class MenuService {
    */
   private async createCustomizations(
     tx: Prisma.TransactionClient,
-    menuItemId: number,
+    menuItemId: string,
     groupDtos: UpsertCustomizationGroupDto[],
   ): Promise<void> {
     this.logger.debug(
@@ -368,7 +368,6 @@ export class MenuService {
         data: {
           menuItemId: menuItemId,
           name: groupDto.name,
-          required: groupDto.required ?? false,
           minSelectable: groupDto.minSelectable ?? (groupDto.required ? 1 : 0),
           maxSelectable: groupDto.maxSelectable ?? 1,
         },
@@ -392,8 +391,8 @@ export class MenuService {
   private async upsertCategory(
     tx: Prisma.TransactionClient,
     catDto: UpsertCategoryDto,
-    storeId: number,
-  ): Promise<number> {
+    storeId: string,
+  ): Promise<string> {
     if (catDto.id) {
       if (!catDto.name) {
         throw new BadRequestException(
@@ -461,7 +460,7 @@ export class MenuService {
    */
   private async syncCustomizationGroups(
     tx: Prisma.TransactionClient,
-    menuItemId: number,
+    menuItemId: string,
     existingGroups: ExistingCustomizationGroup[],
     groupDtos: UpsertCustomizationGroupDto[] | null | undefined,
   ): Promise<void> {
@@ -500,7 +499,7 @@ export class MenuService {
       }
 
       const isExistingGroup =
-        typeof key === 'number' && existingGroupIds.has(key);
+        typeof key === 'string' && existingGroupIds.has(key);
 
       if (isExistingGroup) {
         const groupId = key;
@@ -512,7 +511,6 @@ export class MenuService {
           where: { id: groupId },
           data: {
             name: groupDto.name,
-            required: groupDto.required ?? false,
             minSelectable:
               groupDto.minSelectable ?? (groupDto.required ? 1 : 0),
             maxSelectable: groupDto.maxSelectable ?? 1,
@@ -538,7 +536,6 @@ export class MenuService {
           data: {
             menuItemId: menuItemId,
             name: groupDto.name,
-            required: groupDto.required ?? false,
             minSelectable:
               groupDto.minSelectable ?? (groupDto.required ? 1 : 0),
             maxSelectable: groupDto.maxSelectable ?? 1,
@@ -568,11 +565,11 @@ export class MenuService {
    */
   private async syncCustomizationOptions(
     tx: Prisma.TransactionClient,
-    groupId: number,
-    existingOptions: Array<{ id: number }>,
+    groupId: string,
+    existingOptions: Array<{ id: string }>,
     optionDtos:
       | Array<{
-          id?: number;
+          id?: string;
           name: string;
           additionalPrice?: string;
         }>
@@ -614,7 +611,7 @@ export class MenuService {
       }
 
       const isExistingOption =
-        typeof key === 'number' && existingOptionIds.has(key);
+        typeof key === 'string' && existingOptionIds.has(key);
 
       if (isExistingOption) {
         const optionId = key;

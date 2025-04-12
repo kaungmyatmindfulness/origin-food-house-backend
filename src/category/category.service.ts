@@ -41,8 +41,8 @@ export class CategoryService {
    * @throws {InternalServerErrorException} On unexpected database errors.
    */
   async create(
-    userId: number,
-    storeId: number,
+    userId: string,
+    storeId: string,
     dto: CreateCategoryDto,
   ): Promise<Category> {
     this.logger.log(
@@ -113,7 +113,7 @@ export class CategoryService {
    * @returns Array of categories, potentially with nested menu items.
    */
   async findAll(
-    storeId: number,
+    storeId: string,
     includeItems = false,
   ): Promise<CategoryResponseDto[]> {
     this.logger.verbose(
@@ -150,7 +150,7 @@ export class CategoryService {
    * @throws {NotFoundException} If category not found or doesn't belong to the store.
    * @throws {InternalServerErrorException} On unexpected database errors.
    */
-  async findOne(categoryId: number, storeId: number): Promise<Category> {
+  async findOne(categoryId: string, storeId: string): Promise<Category> {
     this.logger.verbose(
       `Finding category ID ${categoryId} within Store ${storeId}.`,
     );
@@ -194,9 +194,9 @@ export class CategoryService {
    * @throws {ForbiddenException} | {NotFoundException} | {InternalServerErrorException}
    */
   async update(
-    userId: number,
-    storeId: number,
-    categoryId: number,
+    userId: string,
+    storeId: string,
+    categoryId: string,
     dto: UpdateCategoryDto,
   ): Promise<Category> {
     this.logger.log(
@@ -256,10 +256,10 @@ export class CategoryService {
    * @throws {ForbiddenException} | {NotFoundException} | {InternalServerErrorException}
    */
   async remove(
-    userId: number,
-    storeId: number,
-    categoryId: number,
-  ): Promise<{ id: number }> {
+    userId: string,
+    storeId: string,
+    categoryId: string,
+  ): Promise<{ id: string }> {
     this.logger.log(
       `User ${userId} attempting to delete category ID ${categoryId} from Store ${storeId}.`,
     );
@@ -319,8 +319,8 @@ export class CategoryService {
    * @throws {ForbiddenException} | {BadRequestException} | {NotFoundException} | {InternalServerErrorException}
    */
   async sortCategoriesAndMenuItems(
-    userId: number,
-    storeId: number,
+    userId: string,
+    storeId: string,
     payload: SortCategoriesPayloadDto,
   ): Promise<{ message: string }> {
     this.logger.log(

@@ -11,7 +11,7 @@ export class CategoryResponseDto {
     description: 'Unique identifier for the category.',
     example: 6,
   })
-  id: number;
+  id: string;
 
   @ApiProperty({ description: 'Name of the category.', example: 'Books' })
   name: string;
@@ -20,7 +20,7 @@ export class CategoryResponseDto {
     description: 'ID of the store this category belongs to.',
     example: 1,
   })
-  storeId: number;
+  storeId: string;
 
   @ApiProperty({
     description: 'Sort order of the category within the store.',

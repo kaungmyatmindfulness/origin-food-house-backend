@@ -5,7 +5,7 @@ export class SortMenuItemDto {
   @ApiProperty({ example: 1, description: 'Menu item ID' })
   @IsInt()
   @Min(1)
-  id: number;
+  id: string;
 
   @ApiProperty({ example: 2, description: 'Sort order for this menu item' })
   @IsInt()

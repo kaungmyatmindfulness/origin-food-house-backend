@@ -5,14 +5,11 @@ import {
   IsArray,
   IsInt,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
-  IsPositive,
   IsString,
   Min,
   ValidateNested,
 } from 'class-validator';
-import { Decimal } from '@prisma/client/runtime/library';
 
 // Represents a single selected customization for an item
 class OrderItemCustomizationDto {
@@ -21,7 +18,7 @@ class OrderItemCustomizationDto {
     example: 101,
   })
   @IsInt()
-  optionId: number;
+  optionId: string;
 
   // Optional: If the same customization can be selected multiple times (e.g., "Extra Cheese" x2)
   // Defaults to 1 if not provided. Add if needed based on requirements.
@@ -36,7 +33,7 @@ class OrderItemCustomizationDto {
 class OrderChunkItemDto {
   @ApiProperty({ description: 'ID of the MenuItem being ordered', example: 7 })
   @IsInt()
-  menuItemId: number;
+  menuItemId: string;
 
   @ApiProperty({ description: 'Number of this item ordered', example: 2 })
   @IsInt()

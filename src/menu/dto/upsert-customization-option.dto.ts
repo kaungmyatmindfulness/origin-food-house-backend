@@ -1,15 +1,17 @@
-import { IsString, IsNumber, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNonNegativeNumericString } from 'src/common/decorators/is-non-negative-numeric-string.decorator';
 
 export class UpsertCustomizationOptionDto {
   @ApiPropertyOptional({
-    example: 101,
-    description: 'ID of existing option to update',
+    description:
+      'ID of the option to update. Omit to create a new option within the group.',
+    example: '018eb1ca-18e9-7634-8009-11d0e817b99f',
+    format: 'uuid',
   })
   @IsOptional()
-  @IsNumber()
-  id?: number;
+  @IsUUID('all', { message: 'Provided ID must be a valid UUID' })
+  id?: string;
 
   @ApiProperty({ example: 'Large' })
   @IsString()

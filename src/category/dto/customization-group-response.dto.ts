@@ -4,7 +4,7 @@ import { CustomizationOptionResponseDto } from './customization-option-response.
 
 export class CustomizationGroupResponseDto {
   @ApiProperty({ example: 219 })
-  id: number;
+  id: string;
   @ApiProperty({ example: 'Size' })
   name: string;
   @ApiProperty({ example: false })
@@ -14,7 +14,7 @@ export class CustomizationGroupResponseDto {
   @ApiProperty({ example: 1 })
   maxSelectable: number;
   @ApiProperty({ example: 147 })
-  menuItemId: number;
+  menuItemId: string;
   @ApiProperty({ type: () => [CustomizationOptionResponseDto] })
   @Type(() => CustomizationOptionResponseDto)
   customizationOptions: CustomizationOptionResponseDto[];
