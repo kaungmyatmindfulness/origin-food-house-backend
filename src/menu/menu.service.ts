@@ -230,6 +230,7 @@ export class MenuService {
             description: dto.description,
             basePrice: dto.basePrice,
             imageUrl: dto.imageUrl,
+            isHidden: dto.isHidden,
             categoryId:
               newCategoryId !== existingMenuItem.categoryId
                 ? newCategoryId

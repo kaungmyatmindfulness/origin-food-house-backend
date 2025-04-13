@@ -14,7 +14,6 @@ import {
   HttpStatus,
   Logger,
   Param,
-  ParseIntPipe,
   ParseUUIDPipe,
   Post,
   Put,
