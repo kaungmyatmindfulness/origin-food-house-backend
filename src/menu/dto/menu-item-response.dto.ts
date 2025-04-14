@@ -16,11 +16,11 @@ export class MenuItemResponseDto {
   })
   description: string | null;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     description: 'Base price, formatted as string.',
     example: '49.11',
     type: String,
-    nullable: true,
+    nullable: false,
   })
   basePrice: string;
 

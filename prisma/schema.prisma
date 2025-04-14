@@ -57,6 +57,7 @@ model StoreInformation {
   storeId   String   @unique
   store     Store    @relation(fields: [storeId], references: [id])
   name      String
+  logoUrl   String?
   address   String?
   phone     String?
   email     String?
@@ -70,8 +71,8 @@ model StoreSetting {
   storeId           String   @unique
   store             Store    @relation(fields: [storeId], references: [id])
   currency          Currency @default(USD)
-  vatRate           Decimal? @db.Decimal(4, 3)
-  serviceChargeRate Decimal? @db.Decimal(4, 3)
+  vatRate           Decimal? @default(0.07) @db.Decimal(4, 3)
+  serviceChargeRate Decimal? @default(0.0) @db.Decimal(4, 3)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @default(now()) @updatedAt
 }

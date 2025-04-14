@@ -21,6 +21,16 @@ export class UpdateStoreInformationDto {
   name: string;
 
   @ApiPropertyOptional({
+    description: "Store's logo URL",
+    example: 'https://example.com/logo.png',
+    maxLength: 255,
+  })
+  @IsOptional()
+  @IsUrl()
+  @MaxLength(255)
+  logoUrl?: string;
+
+  @ApiPropertyOptional({
     description: "Store's physical address",
     example: '456 Side St, Anytown',
     maxLength: 255,

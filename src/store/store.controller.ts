@@ -10,6 +10,8 @@ import {
   HttpStatus,
   Query,
   ParseUUIDPipe,
+  Param,
+  Get,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,6 +20,7 @@ import {
   ApiOkResponse,
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
+  ApiParam,
 } from '@nestjs/swagger';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -29,20 +32,50 @@ import { RequestWithUser } from 'src/auth/types';
 import { CreateStoreDto } from 'src/store/dto/create-store.dto';
 import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
 import { UpdateStoreInformationDto } from 'src/store/dto/update-store-information.dto';
+import { StoreSettingResponseDto } from 'src/store/dto/store-setting-response.dto';
+import { UpdateStoreSettingDto } from 'src/store/dto/update-store-setting.dto';
+import { GetStoreDetailsResponseDto } from 'src/store/dto/get-store-details-response.dto';
 
 @ApiTags('Stores')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('stores')
-@ApiUnauthorizedResponse({
-  description: 'Unauthorized - Invalid or missing JWT.',
-})
 export class StoreController {
   private readonly logger = new Logger(StoreController.name);
 
   constructor(private storeService: StoreService) {}
 
+  @Get(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get public details for a specific store by ID' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID (UUID) of the store to retrieve',
+    type: String,
+  })
+  @ApiSuccessResponse(
+    GetStoreDetailsResponseDto,
+    'Store details retrieved successfully.',
+  )
+  @ApiNotFoundResponse({ description: 'Store not found.' })
+  async getStoreDetails(
+    @Param('id', ParseUUIDPipe) storeId: string,
+  ): Promise<StandardApiResponse<GetStoreDetailsResponseDto>> {
+    const method = this.getStoreDetails.name;
+    this.logger.log(
+      `[${method}] Fetching public details for Store ID: ${storeId}`,
+    );
+    const storeDetails = await this.storeService.getStoreDetails(storeId);
+    return StandardApiResponse.success(
+      storeDetails as GetStoreDetailsResponseDto,
+      'Store details retrieved successfully.',
+    );
+  }
+
   @Post()
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - Invalid or missing JWT.',
+  })
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a store (creator becomes OWNER)' })
   @ApiSuccessResponse(String, {
@@ -69,12 +102,17 @@ export class StoreController {
   }
 
   @Put(':id/information')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - Invalid or missing JWT.',
+  })
   @ApiOperation({ summary: 'Update a store details (OWNER or ADMIN only)' })
   @ApiOkResponse({
     description: 'Store updated successfully.',
     type: StandardApiResponse,
   })
-  async updateStore(
+  async updateStoreInformation(
     @Req() req: RequestWithUser,
     @Query('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
     @Body() dto: UpdateStoreInformationDto,
@@ -96,7 +134,62 @@ export class StoreController {
     );
   }
 
+  @Put(':id/settings')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - Invalid or missing JWT.',
+  })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update store settings (OWNER or ADMIN only)' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID (UUID) of the store whose settings to update',
+    type: String,
+  })
+  @ApiSuccessResponse(
+    StoreSettingResponseDto,
+    'Store settings updated successfully.',
+  )
+  async updateStoreSettings(
+    @Req() req: RequestWithUser,
+    @Param('id', ParseUUIDPipe) storeId: string,
+    @Body() dto: UpdateStoreSettingDto,
+  ): Promise<StandardApiResponse<StoreSettingResponseDto>> {
+    const userId = req.user.sub;
+    const method = this.updateStoreSettings.name;
+    this.logger.log(
+      `[${method}] User ${userId} attempting to update settings for Store ID: ${storeId}`,
+    );
+
+    const updatedSettings = await this.storeService.updateStoreSettings(
+      userId,
+      storeId,
+      dto,
+    );
+
+    const mappedSettings: StoreSettingResponseDto = {
+      id: updatedSettings.id,
+      storeId: updatedSettings.storeId,
+      currency: updatedSettings.currency,
+      vatRate: updatedSettings.vatRate?.toString() || null,
+      serviceChargeRate: updatedSettings.serviceChargeRate?.toString() || null,
+      createdAt: updatedSettings.createdAt,
+      updatedAt: updatedSettings.updatedAt,
+    };
+
+    return StandardApiResponse.success(
+      mappedSettings,
+      'Store settings updated successfully.',
+    );
+  }
+
   @Post(':id/invite-assign-role')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - Invalid or missing JWT.',
+  })
   @ApiOperation({
     summary:
       'Invite a new user or assign/update role for an existing user by email (Role permissions apply)',

@@ -13,12 +13,23 @@ import {
   Role,
   Store,
   StoreInformation,
+  StoreSetting,
   UserStore,
 } from '@prisma/client';
 import { UpdateStoreInformationDto } from 'src/store/dto/update-store-information.dto';
 import slugify from 'slugify';
 import { CreateStoreDto } from 'src/store/dto/create-store.dto';
 import { AuthService } from 'src/auth/auth.service';
+import { UpdateStoreSettingDto } from 'src/store/dto/update-store-setting.dto';
+
+const storeWithDetailsInclude = Prisma.validator<Prisma.StoreInclude>()({
+  information: true,
+  setting: true,
+});
+type StoreWithDetailsPayload = Prisma.StoreGetPayload<{
+  include: typeof storeWithDetailsInclude;
+}>;
+
 @Injectable()
 export class StoreService {
   private readonly logger = new Logger(StoreService.name);
@@ -27,6 +38,53 @@ export class StoreService {
     private prisma: PrismaService,
     private authService: AuthService,
   ) {}
+
+  /**
+   * Retrieves PUBLIC details for a specific store, including information and settings.
+   * Does not require authentication or membership.
+   * @param storeId The ID (UUID) of the store to retrieve.
+   * @returns The Store object with nested information and setting.
+   * @throws {NotFoundException} If the store is not found.
+   * @throws {InternalServerErrorException} On unexpected database errors.
+   */
+  async getStoreDetails(storeId: string): Promise<StoreWithDetailsPayload> {
+    // Removed userId parameter
+    const method = this.getStoreDetails.name;
+    // Updated log message
+    this.logger.log(
+      `[${method}] Fetching public details for Store ID: ${storeId}`,
+    );
+
+    // REMOVED: Membership check (await this.checkStoreMembership(userId, storeId);)
+
+    try {
+      // Fetch store details directly by ID
+      const storeDetails = await this.prisma.store.findUniqueOrThrow({
+        where: { id: storeId },
+        include: storeWithDetailsInclude, // Use defined include { information: true, setting: true }
+      });
+      // NOTE: If settings/info contain sensitive data visible only to members,
+      // you might need separate public/private fetch methods or use Prisma $omit / DTO mapping.
+      // Assuming information/setting are safe for public view here.
+      return storeDetails;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        // P2025 from findUniqueOrThrow
+        this.logger.warn(`[${method}] Store ${storeId} not found.`);
+        throw new NotFoundException(`Store with ID ${storeId} not found.`);
+      }
+      this.logger.error(
+        `[${method}] Error fetching store details for ${storeId}`,
+        error,
+      );
+      throw new InternalServerErrorException(
+        'Could not retrieve store details.',
+      );
+    }
+  }
 
   /**
    * Creates a new store with its information and assigns the creator as OWNER.
@@ -128,6 +186,7 @@ export class StoreService {
         where: { storeId: storeId },
         data: {
           name: dto.name,
+          logoUrl: dto.logoUrl,
           address: dto.address,
           phone: dto.phone,
           email: dto.email,
@@ -157,6 +216,69 @@ export class StoreService {
       );
       throw new InternalServerErrorException(
         'Could not update store information.',
+      );
+    }
+  }
+
+  /**
+   * Updates store settings (currency, rates). Requires OWNER or ADMIN role.
+   * @param userId The ID of the user performing the action.
+   * @param storeId The ID of the Store whose settings are being updated.
+   * @param dto DTO containing the fields to update.
+   * @returns The updated StoreSetting object.
+   * @throws {NotFoundException} If StoreSetting for the storeId is not found.
+   * @throws {ForbiddenException} If user lacks permission for the Store.
+   * @throws {InternalServerErrorException} On unexpected database errors.
+   */
+  async updateStoreSettings(
+    userId: string,
+    storeId: string,
+    dto: UpdateStoreSettingDto,
+  ): Promise<StoreSetting> {
+    const method = this.updateStoreSettings.name;
+    this.logger.log(
+      `[${method}] User ${userId} attempting to update StoreSetting for Store ID: ${storeId}.`,
+    );
+
+    await this.authService.checkStorePermission(userId, storeId, [
+      Role.OWNER,
+      Role.ADMIN,
+    ]);
+
+    try {
+      const updatedSettings = await this.prisma.storeSetting.update({
+        where: { storeId: storeId },
+        data: {
+          currency: dto.currency,
+          vatRate: dto.vatRate,
+          serviceChargeRate: dto.serviceChargeRate,
+        },
+      });
+
+      this.logger.log(
+        `[${method}] StoreSetting for Store ID ${storeId} updated successfully by User ${userId}.`,
+      );
+      return updatedSettings;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        this.logger.warn(
+          `[${method}] Update failed: StoreSetting for Store ID ${storeId} not found. Ensure settings were created with the store.`,
+          error.meta,
+        );
+        throw new NotFoundException(
+          `Settings for store with ID ${storeId} not found. Cannot update.`,
+        );
+      }
+
+      this.logger.error(
+        `[${method}] Failed to update StoreSetting for Store ID ${storeId}`,
+        error,
+      );
+      throw new InternalServerErrorException(
+        'Could not update store settings.',
       );
     }
   }
