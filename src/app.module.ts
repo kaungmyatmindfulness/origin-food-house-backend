@@ -5,9 +5,7 @@ import { CommonModule } from 'src/common/common.module';
 import { LoggerMiddleware } from 'src/common/middleware/logger.middleware';
 import { EmailModule } from 'src/email/email.module';
 import { MenuModule } from 'src/menu/menu.module';
-import { OrderModule } from 'src/order/order.module';
 import { StoreModule } from 'src/store/store.module';
-import { TableSessionModule } from 'src/table-session/table-session.module';
 import { UserModule } from 'src/user/user.module';
 
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
@@ -18,6 +16,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { AppService } from './app.service';
 import { PrismaService } from './prisma/prisma.service';
+import { TableModule } from 'src/table/table.module';
 
 @Module({
   imports: [
@@ -37,10 +36,9 @@ import { PrismaService } from './prisma/prisma.service';
     CommonModule,
     EmailModule,
     MenuModule,
-    OrderModule,
     StoreModule,
-    TableSessionModule,
     UserModule,
+    TableModule,
   ],
   controllers: [],
   providers: [

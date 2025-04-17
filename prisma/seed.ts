@@ -2,359 +2,511 @@ import {
   PrismaClient,
   Role,
   Currency,
-  ChunkStatus,
-  OrderStatus,
-  TableSessionStatus,
-  Prisma, // Import Prisma namespace for Decimal type hint if needed
+  PreparationStatus,
+  CustomerRequestType,
+  CustomerRequestStatus,
+  Prisma,
 } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
-const SALT_ROUNDS = 10; // Keep consistent with your auth strategy
+const SALT_ROUNDS = 10;
+
+function selectCustomizations(
+  availableGroups: ({
+    customizationOptions: {
+      id: string;
+      additionalPrice: Prisma.Decimal | null;
+    }[];
+  } & {
+    minSelectable: number;
+    maxSelectable: number;
+    name: string;
+  })[],
+): { id: string; additionalPrice: Prisma.Decimal | null }[] {
+  return availableGroups.flatMap((group) => {
+    if (!group.customizationOptions || group.customizationOptions.length === 0)
+      return [];
+
+    const minRequired = group.minSelectable;
+    const maxAllowed = Math.min(
+      group.maxSelectable,
+      group.customizationOptions.length,
+    );
+
+    if (
+      minRequired > group.customizationOptions.length ||
+      minRequired > maxAllowed
+    ) {
+      return [];
+    }
+
+    const numToSelect = faker.number.int({ min: minRequired, max: maxAllowed });
+    if (numToSelect === 0) return [];
+
+    return faker.helpers
+      .arrayElements(group.customizationOptions, numToSelect)
+      .map((option) => ({
+        id: option.id,
+        additionalPrice: option.additionalPrice,
+      }));
+  });
+}
 
 async function main() {
-  console.log('Seeding database...');
-  console.log('Step 1: Cleaning existing data...');
-  // Clean existing data in reverse order of dependency
-  // Note: Order matters due to foreign key constraints unless using raw truncate
-  await prisma.orderChunkItemCustomization.deleteMany();
-  await prisma.customizationOption.deleteMany(); // Must delete options before groups if referenced elsewhere (though OrderChunkItemCustomization cascades)
-  await prisma.customizationGroup.deleteMany(); // Must delete groups before items if referenced elsewhere (though OrderChunkItemCustomization cascades)
-  await prisma.orderChunkItem.deleteMany();
-  await prisma.orderChunk.deleteMany();
-  await prisma.order.deleteMany();
-  await prisma.tableSession.deleteMany();
-  await prisma.restaurantTable.deleteMany();
-  await prisma.menuItem.deleteMany();
-  await prisma.category.deleteMany();
-  await prisma.storeSetting.deleteMany();
-  await prisma.storeInformation.deleteMany(); // Added StoreInformation cleanup
-  await prisma.userStore.deleteMany();
-  await prisma.store.deleteMany();
-  await prisma.user.deleteMany();
-  console.log('Existing data cleaned.');
+  console.log(`🌱 Starting database seeding at ${new Date().toISOString()}...`);
+  console.log('--------------------------------------------------');
 
-  console.log('Step 2: Creating Users...');
+  console.log('🧹 Step 1: Cleaning existing data (in dependency order)...');
+
+  await prisma.$transaction([
+    prisma.orderItemCustomization.deleteMany(),
+    prisma.orderItem.deleteMany(),
+    prisma.order.deleteMany(),
+    prisma.cartItem.deleteMany(),
+    prisma.cart.deleteMany(),
+    prisma.customerRequest.deleteMany(),
+    prisma.activeOrderChunkItem.deleteMany(),
+    prisma.activeOrderChunk.deleteMany(),
+    prisma.activeOrder.deleteMany(),
+    prisma.activeTableSession.deleteMany(),
+    prisma.table.deleteMany(),
+    prisma.customizationOption.deleteMany(),
+    prisma.customizationGroup.deleteMany(),
+    prisma.menuItem.deleteMany(),
+    prisma.category.deleteMany(),
+    prisma.storeSetting.deleteMany(),
+    prisma.storeInformation.deleteMany(),
+    prisma.userStore.deleteMany(),
+    prisma.store.deleteMany(),
+    prisma.user.deleteMany(),
+  ]);
+  console.log('   Existing data cleaned.');
+  console.log('--------------------------------------------------');
+
+  console.log('👤 Step 2: Creating Users...');
   const users = await Promise.all(
     Array.from({ length: 5 }).map(async (_, i) => {
-      const userEmail = i === 0 ? 'owner@test.com' : faker.internet.email(); // Ensure at least one known user
+      const userEmail =
+        i === 0 ? 'owner@test.com' : faker.internet.email().toLowerCase();
       const hashedPassword = await bcrypt.hash('test1234', SALT_ROUNDS);
       return prisma.user.create({
         data: {
           email: userEmail,
           password: hashedPassword,
           name: faker.person.fullName(),
-          verified: true, // Assume verified for seeding
+          verified: true,
         },
       });
     }),
   );
-  console.log(`Created ${users.length} users.`);
+  console.log(`   Created ${users.length} users.`);
+  console.log('--------------------------------------------------');
 
-  console.log('Step 3: Creating Stores...');
+  console.log('🏪 Step 3: Creating Stores...');
   const stores = await Promise.all(
-    Array.from({ length: 3 }).map((_, i) =>
+    Array.from({ length: 2 }).map((_, i) =>
       prisma.store.create({
         data: {
-          // Use specific names for easier testing if needed
-          slug: i === 0 ? 'demo-cafe' : faker.lorem.slug(3), // Add slug based on schema
-          // Nested create for StoreInformation
+          slug:
+            i === 0
+              ? 'demo-cafe'
+              : faker.lorem.slug(2).toLowerCase() + '-diner',
           information: {
             create: {
-              name:
-                i === 0 ? 'Demo Cafe (Info)' : faker.company.name() + ' Info',
+              name: i === 0 ? 'The Demo Cafe' : `${faker.company.name()} Diner`,
               address: faker.location.streetAddress(),
               phone: faker.phone.number(),
-              email: faker.internet.email(),
-              website: faker.internet.url(),
+              email: faker.internet.email().toLowerCase(),
+              website:
+                i === 0 ? 'https://demo.example.com' : faker.internet.url(),
+              logoUrl: faker.image.urlLoremFlickr({
+                category: 'food',
+                width: 200,
+                height: 200,
+              }),
+            },
+          },
+          setting: {
+            create: {
+              currency: faker.helpers.arrayElement([
+                Currency.USD,
+                Currency.THB,
+                Currency.EUR,
+              ]),
+              vatRate:
+                i === 0
+                  ? 0.07
+                  : faker.number.float({
+                      min: 0,
+                      max: 0.15,
+                      multipleOf: 0.001,
+                    }),
+              serviceChargeRate:
+                i === 0
+                  ? 0.05
+                  : faker.number.float({ min: 0, max: 0.1, multipleOf: 0.001 }),
             },
           },
         },
+        include: { setting: true, information: true },
       }),
     ),
   );
-  console.log(`Created ${stores.length} stores.`);
+  console.log(
+    `   Created ${stores.length} stores: [${stores.map((s) => s.information?.name).join(', ')}]`,
+  );
+  const storeSettingsMap = new Map(stores.map((s) => [s.id, s.setting]));
+  console.log('--------------------------------------------------');
 
-  console.log('Step 4: Creating User-Store relationships...');
+  console.log('👥 Step 4: Creating User-Store relationships...');
   await Promise.all(
     stores.flatMap((store, storeIndex) =>
       users.map((user, userIndex) => {
-        // Assign first user as OWNER of first store for predictability
-        let role = faker.helpers.arrayElement(Object.values(Role));
-        if (userIndex === 0 && storeIndex === 0) {
-          role = Role.OWNER;
-        }
+        let role = faker.helpers.arrayElement([
+          Role.SERVER,
+          Role.CASHIER,
+          Role.CHEF,
+        ] as Role[]);
+        if (userIndex === 0 && storeIndex === 0) role = Role.OWNER;
+        else if (userIndex === 1 && storeIndex === 0) role = Role.ADMIN;
+        else if (userIndex === 0 && storeIndex > 0) role = Role.OWNER;
+
         return prisma.userStore.create({
-          data: {
-            userId: user.id, // user.id is now a String (UUID)
-            storeId: store.id, // store.id is now a String (UUID)
-            role: role,
-          },
+          data: { userId: user.id, storeId: store.id, role: role },
         });
       }),
     ),
   );
-  console.log('Created user-store relationships.');
+  console.log('   Created user-store relationships.');
+  console.log('--------------------------------------------------');
 
-  console.log('Step 5: Creating Store Settings...');
-  // --- Fetch settings AFTER creating them ---
-  const storeSettingsData = stores.map((store) => ({
-    storeId: store.id,
-    currency: faker.helpers.arrayElement(Object.values(Currency)),
-    vatRate: faker.number.float({ min: 0, max: 0.2, multipleOf: 0.001 }),
-    serviceChargeRate: faker.number.float({
-      min: 0,
-      max: 0.1,
-      multipleOf: 0.001,
-    }),
-  }));
-  await prisma.storeSetting.createMany({ data: storeSettingsData });
-  // Create a map for easy lookup later
-  const storeSettingsMap = new Map(
-    storeSettingsData.map((s) => [s.storeId, s]),
-  );
-  // -----------------------------------------
-  console.log('Created store settings.');
-
-  console.log('Step 6: Creating Categories...');
+  console.log('📚 Step 5: Creating Categories...');
   const categories = await Promise.all(
     stores.flatMap((store) =>
-      Array.from({ length: 5 }).map((_, i) =>
-        prisma.category.create({
-          data: {
-            name: faker.company.name(),
-            storeId: store.id, // store.id is now a String (UUID)
-            sortOrder: i, // Use index for predictable sort order
-          },
-        }),
+      ['Appetizers', 'Main Courses', 'Desserts', 'Drinks', 'Specials'].map(
+        (name, i) =>
+          prisma.category.create({
+            data: { name: name, storeId: store.id, sortOrder: i },
+          }),
       ),
     ),
   );
-  console.log(`Created ${categories.length} categories.`);
+  console.log(`   Created ${categories.length} categories.`);
+  console.log('--------------------------------------------------');
 
-  console.log('Step 7: Creating Menu Items with Customizations...');
+  console.log('🍔 Step 6: Creating Menu Items with Customizations...');
   const menuItems = await Promise.all(
     categories.flatMap((category) =>
-      Array.from({ length: faker.number.int({ min: 5, max: 15 }) }).map(
-        (
-          _,
-          i, // Create variable number of items
-        ) =>
+      Array.from({ length: faker.number.int({ min: 4, max: 12 }) }).map(
+        (_, i) =>
           prisma.menuItem.create({
             data: {
               name: faker.commerce.productName(),
               description: faker.commerce.productDescription(),
-              // Prisma handles string -> Decimal conversion here
-              basePrice: faker.commerce.price({ min: 5, max: 50, dec: 2 }),
-              imageUrl: faker.datatype.boolean(0.8) // 80% chance of having an image
-                ? `https://picsum.photos/seed/${faker.string.uuid()}/600/400` // Get random image from Picsum with fixed size
+              basePrice: faker.commerce.price({ min: 3, max: 40, dec: 2 }),
+              imageUrl: faker.datatype.boolean(0.8)
+                ? faker.image.urlLoremFlickr({
+                    category: 'food',
+                    width: 600,
+                    height: 400,
+                  })
                 : null,
-              isHidden: faker.datatype.boolean(0.1), // 10% chance of being hidden
-              categoryId: category.id, // category.id is now String (UUID)
-              storeId: category.storeId, // category.storeId is now String (UUID)
-              sortOrder: i, // Use index for predictable sort order within category
-              // Nested creation of customization groups and options
+              isHidden: faker.datatype.boolean(0.05),
+              categoryId: category.id,
+              storeId: category.storeId,
+              sortOrder: i,
               customizationGroups: {
                 create: Array.from({
-                  length: faker.number.int({ min: 0, max: 3 }),
-                }).map(() => ({
-                  name: faker.commerce.productAdjective(),
-                  minSelectable: faker.number.int({ min: 0, max: 2 }),
-                  // Ensure max >= min
-                  maxSelectable: faker.number.int({ min: 1, max: 5 }),
-                  customizationOptions: {
-                    create: Array.from({
-                      length: faker.number.int({ min: 2, max: 5 }),
-                    }).map(() => ({
-                      name: faker.commerce.productMaterial(),
-                      // Prisma handles string|null -> Decimal? conversion
-                      additionalPrice: faker.datatype.boolean()
-                        ? faker.commerce.price({ min: 0.5, max: 5, dec: 2 }) // Ensure > 0 for actual price
-                        : null,
-                    })),
-                  },
-                })),
+                  length: faker.number.int({ min: 0, max: 2 }),
+                }).map(() => {
+                  const minSel = faker.helpers.arrayElement([0, 1]);
+                  const maxSel = faker.number.int({ min: minSel, max: 4 });
+                  return {
+                    name: faker.helpers.arrayElement([
+                      'Size',
+                      'Spice Level',
+                      'Add Ons',
+                      'Options',
+                      'Temp',
+                    ]),
+                    minSelectable: minSel,
+                    maxSelectable: maxSel === 0 ? 1 : maxSel,
+                    customizationOptions: {
+                      create: Array.from({
+                        length: faker.number.int({ min: 2, max: 5 }),
+                      }).map(() => ({
+                        name: faker.commerce.productMaterial(),
+                        additionalPrice: faker.datatype.boolean(0.7)
+                          ? faker.commerce.price({ min: 0.5, max: 4, dec: 2 })
+                          : null,
+                      })),
+                    },
+                  };
+                }),
               },
             },
-            // Include nested data to easily access options later if needed
-            // (Though not strictly necessary for this seed script)
             include: {
-              customizationGroups: {
-                include: { customizationOptions: true },
-              },
+              customizationGroups: { include: { customizationOptions: true } },
             },
           }),
       ),
     ),
   );
-  console.log(`Created ${menuItems.length} menu items.`);
+  console.log(`   Created ${menuItems.length} menu items.`);
+  console.log('--------------------------------------------------');
 
-  console.log('Step 8: Creating Restaurant Tables...');
+  console.log('🪑 Step 7: Creating Tables...');
   const tables = await Promise.all(
     stores.flatMap((store) =>
-      Array.from({ length: 10 }).map((_, i) =>
-        prisma.restaurantTable.create({
-          data: {
-            number: `T${i + 1}`, // More realistic table numbers
-            storeId: store.id, // store.id is now String (UUID)
-          },
-        }),
+      Array.from({ length: faker.number.int({ min: 8, max: 20 }) }).map(
+        (_, i) =>
+          prisma.table.create({
+            data: { name: `T-${i + 1}`, storeId: store.id },
+          }),
       ),
     ),
   );
-  console.log(`Created ${tables.length} tables.`);
+  console.log(`   Created ${tables.length} tables.`);
+  console.log('--------------------------------------------------');
 
-  console.log('Step 9: Creating Table Sessions...');
-  const tableSessions = await Promise.all(
-    // Create only a few active sessions for seeding
-    faker.helpers.arrayElements(tables, { min: 5, max: 15 }).map((table) =>
-      prisma.tableSession.create({
+  console.log(
+    '⚡ Step 8: Creating Active Sessions, Carts, Orders, Requests...',
+  );
+  const activeSessionPromises: Promise<any>[] = [];
+  const tablesToUseForActive = faker.helpers.arrayElements(
+    tables,
+    Math.ceil(tables.length * 0.6),
+  );
+
+  for (const table of tablesToUseForActive) {
+    activeSessionPromises.push(
+      prisma.activeTableSession.create({
         data: {
-          sessionUuid: faker.string.uuid(), // This is still String @unique
-          storeId: table.storeId, // table.storeId is now String (UUID)
-          tableId: table.id, // table.id is now String (UUID)
-          status: TableSessionStatus.ACTIVE, // Seed active sessions
+          storeId: table.storeId,
+          tableId: table.id,
+          sessionUuid: faker.string.uuid(),
+          cart: {
+            create: {
+              items: {
+                create: Array.from({
+                  length: faker.number.int({ min: 0, max: 3 }),
+                })
+                  .map(() => {
+                    const storeMenuItems = menuItems.filter(
+                      (mi) =>
+                        mi.storeId === table.storeId &&
+                        !mi.deletedAt &&
+                        !mi.isHidden,
+                    );
+                    if (storeMenuItems.length === 0) return null;
+                    const menuItem = faker.helpers.arrayElement(storeMenuItems);
+                    const availableGroups = menuItem.customizationGroups;
+                    const chosenOptions = selectCustomizations(availableGroups);
+                    return {
+                      menuItemId: menuItem.id,
+                      quantity: faker.number.int({ min: 1, max: 2 }),
+                      notes: faker.datatype.boolean(0.1)
+                        ? faker.lorem.sentence()
+                        : null,
+                      selectedOptions: {
+                        connect: chosenOptions.map((opt) => ({ id: opt.id })),
+                      },
+                    };
+                  })
+                  .filter(
+                    (item) => item !== null,
+                  ) as Prisma.CartItemCreateWithoutCartInput[],
+              },
+            },
+          },
+          activeOrder: faker.datatype.boolean(0.8)
+            ? {
+                create: {
+                  chunks: {
+                    create: Array.from({
+                      length: faker.number.int({ min: 1, max: 2 }),
+                    }).map(() => ({
+                      chunkItems: {
+                        create: Array.from({
+                          length: faker.number.int({ min: 1, max: 4 }),
+                        })
+                          .map(() => {
+                            const storeMenuItems = menuItems.filter(
+                              (mi) =>
+                                mi.storeId === table.storeId &&
+                                !mi.deletedAt &&
+                                !mi.isHidden,
+                            );
+                            if (storeMenuItems.length === 0) return null;
+                            const menuItem =
+                              faker.helpers.arrayElement(storeMenuItems);
+                            const availableGroups =
+                              menuItem.customizationGroups;
+                            const chosenOptions =
+                              selectCustomizations(availableGroups);
+                            return {
+                              menuItemId: menuItem.id,
+                              quantity: faker.number.int({ min: 1, max: 2 }),
+                              notes: faker.datatype.boolean(0.1)
+                                ? faker.lorem.sentence()
+                                : null,
+                              status: faker.helpers.arrayElement(
+                                Object.values(PreparationStatus),
+                              ),
+                              selectedOptions: {
+                                connect: chosenOptions.map((opt) => ({
+                                  id: opt.id,
+                                })),
+                              },
+                            };
+                          })
+                          .filter(
+                            (item) => item !== null,
+                          ) as Prisma.ActiveOrderChunkItemCreateWithoutActiveOrderChunkInput[],
+                      },
+                    })),
+                  },
+                },
+              }
+            : undefined,
+          customerRequests: {
+            create: Array.from({
+              length: faker.number.int({ min: 0, max: 1 }),
+            }).map(() => ({
+              requestType: faker.helpers.arrayElement(
+                Object.values(CustomerRequestType),
+              ),
+              status: faker.helpers.arrayElement(
+                Object.values(CustomerRequestStatus),
+              ),
+            })),
+          },
         },
       }),
-    ),
+    );
+  }
+
+  await Promise.all(activeSessionPromises);
+  console.log(
+    `   Created ${activeSessionPromises.length} Active Table Sessions.`,
   );
-  console.log(`Created ${tableSessions.length} table sessions.`);
+  console.log('--------------------------------------------------');
 
-  console.log('Step 10: Creating Orders, Chunks, Items, Customizations...');
-  await Promise.all(
-    tableSessions.map(async (session) => {
-      for (let o = 0; o < faker.number.int({ min: 1, max: 2 }); o++) {
-        // --- Calculate approximate totals for the Order ---
-        const storeSetting = storeSettingsMap.get(session.storeId);
-        // Use Prisma.Decimal for calculations to maintain precision if needed
-        const vatRate = storeSetting?.vatRate
-          ? new Prisma.Decimal(storeSetting.vatRate)
-          : new Prisma.Decimal(0);
-        const serviceRate = storeSetting?.serviceChargeRate
-          ? new Prisma.Decimal(storeSetting.serviceChargeRate)
-          : new Prisma.Decimal(0);
+  console.log('🧾 Step 9: Creating Historical Orders...');
+  const historicalOrderPromises: Promise<any>[] = [];
+  const tablesForHistoricalOrders = faker.helpers.arrayElements(
+    tables,
+    Math.ceil(tables.length * 0.5),
+  );
 
-        // Generate a plausible subTotal
-        const subTotalDecimal = new Prisma.Decimal(
-          faker.commerce.price({ min: 15, max: 200, dec: 2 }),
+  for (const table of tablesForHistoricalOrders) {
+    for (let h = 0; h < faker.number.int({ min: 1, max: 3 }); h++) {
+      const storeSetting = storeSettingsMap.get(table.storeId);
+      const vatRate = storeSetting?.vatRate
+        ? new Prisma.Decimal(storeSetting.vatRate.toString())
+        : new Prisma.Decimal(0);
+      const serviceRate = storeSetting?.serviceChargeRate
+        ? new Prisma.Decimal(storeSetting.serviceChargeRate.toString())
+        : new Prisma.Decimal(0);
+      let historicalSubTotal = new Prisma.Decimal(0);
+      const historicalItemsData: Prisma.OrderItemCreateWithoutOrderInput[] = [];
+      const numberOfItems = faker.number.int({ min: 1, max: 7 });
+
+      for (let i = 0; i < numberOfItems; i++) {
+        const storeMenuItems = menuItems.filter(
+          (mi) => mi.storeId === table.storeId,
         );
+        if (storeMenuItems.length === 0) continue;
+        const menuItem = faker.helpers.arrayElement(storeMenuItems);
+        const availableGroups = menuItem.customizationGroups;
+        const chosenOptions = selectCustomizations(availableGroups);
 
-        // Calculate amounts using Decimal methods
-        const vatAmountDecimal = subTotalDecimal
-          .times(vatRate)
-          .toDecimalPlaces(2); // Ensure 2 decimal places
-        const serviceChargeAmountDecimal = subTotalDecimal
-          .times(serviceRate)
-          .toDecimalPlaces(2); // Ensure 2 decimal places
-        const grandTotalDecimal = subTotalDecimal
-          .plus(vatAmountDecimal)
-          .plus(serviceChargeAmountDecimal);
-        // --- End Calculation ---
+        const chosenHistoricalCustomizations = chosenOptions.map((opt) => ({
+          customizationOptionId: opt.id,
+          finalPrice: opt.additionalPrice,
+        }));
 
-        const order = await prisma.order.create({
-          data: {
-            tableSessionId: session.id,
-            status: faker.helpers.arrayElement([
-              OrderStatus.OPEN,
-              OrderStatus.PAID,
-              OrderStatus.CANCELLED,
-            ]), // Add some variety
-            paidAt: faker.datatype.boolean(0.6)
-              ? faker.date.recent({ days: 7 })
-              : null, // 60% chance paid recently
+        let customizationTotal = new Prisma.Decimal(0);
+        chosenOptions.forEach(
+          (opt) =>
+            (customizationTotal = customizationTotal.plus(
+              opt.additionalPrice ?? 0,
+            )),
+        );
+        const quantity = faker.number.int({ min: 1, max: 2 });
+        const itemBasePrice = new Prisma.Decimal(menuItem.basePrice.toString());
+        const finalPrice = itemBasePrice
+          .plus(customizationTotal)
+          .times(quantity)
+          .toDecimalPlaces(2);
 
-            // --- Assign calculated values ---
-            subTotal: subTotalDecimal,
-            vatRateSnapshot: storeSetting?.vatRate ?? null, // Store the rate used
-            serviceChargeRateSnapshot: storeSetting?.serviceChargeRate ?? null, // Store the rate used
-            vatAmount: vatAmountDecimal,
-            serviceChargeAmount: serviceChargeAmountDecimal,
-            grandTotal: grandTotalDecimal,
-            // ------------------------------
+        historicalSubTotal = historicalSubTotal.plus(finalPrice);
+
+        historicalItemsData.push({
+          menuItem: {
+            connect: { id: menuItem.id },
+          },
+          price: menuItem.basePrice,
+          quantity: quantity,
+          finalPrice: finalPrice,
+          notes: faker.datatype.boolean(0.1) ? faker.lorem.sentence() : null,
+          customizations: {
+            create: chosenHistoricalCustomizations,
           },
         });
+      }
 
-        // --- Create Chunks, Items, Customizations (as before) ---
-        if (order.status !== OrderStatus.CANCELLED) {
-          // Only add items if order not cancelled
-          for (let c = 0; c < faker.number.int({ min: 1, max: 2 }); c++) {
-            const chunk = await prisma.orderChunk.create({
-              data: {
-                orderId: order.id,
-                status: faker.helpers.arrayElement(Object.values(ChunkStatus)),
-              },
-            });
+      if (historicalItemsData.length > 0) {
+        const vatAmount = historicalSubTotal.times(vatRate).toDecimalPlaces(2);
+        const serviceChargeAmount = historicalSubTotal
+          .times(serviceRate)
+          .toDecimalPlaces(2);
+        const grandTotal = historicalSubTotal
+          .plus(vatAmount)
+          .plus(serviceChargeAmount);
 
-            for (
-              let itemIdx = 0;
-              itemIdx < faker.number.int({ min: 1, max: 5 });
-              itemIdx++
-            ) {
-              const storeMenuItems = menuItems.filter(
-                (mi) => mi.storeId === session.storeId,
-              );
-              if (storeMenuItems.length === 0) continue;
-              const menuItem = faker.helpers.arrayElement(storeMenuItems);
-              const availableGroups = menuItem.customizationGroups;
-              // Simulate choosing some customizations
-              const chosenCustomizations = availableGroups.flatMap((group) => {
-                if (group.customizationOptions.length === 0) return [];
-                const numToSelect = faker.number.int({
-                  min: 1,
-                  max: 2,
-                });
-                if (numToSelect === 0) return []; // Can skip optional with min 0
+        historicalOrderPromises.push(
+          prisma.order.create({
+            data: {
+              storeId: table.storeId,
+              tableName: table.name,
+              paidAt: faker.date.recent({ days: 180 }),
 
-                // Ensure required groups have at least minSelectable selected
-                const minRequired = group.minSelectable;
-                const finalNumToSelect = Math.max(numToSelect, minRequired);
+              subTotal: historicalSubTotal,
+              vatRateSnapshot: storeSetting?.vatRate ?? null,
+              serviceChargeRateSnapshot:
+                storeSetting?.serviceChargeRate ?? null,
+              vatAmount: vatAmount,
+              serviceChargeAmount: serviceChargeAmount,
+              grandTotal: grandTotal,
+              orderItems: { create: historicalItemsData },
+            },
+          }),
+        );
+      }
+    }
+  }
 
-                return faker.helpers
-                  .arrayElements(group.customizationOptions, finalNumToSelect)
-                  .map((option) => ({
-                    customizationOptionId: option.id, // option.id is now String (UUID)
-                    quantity: 1, // Keep quantity simple
-                    // Use option's price, Prisma handles string|null -> Decimal?
-                    finalPrice: option.additionalPrice,
-                  }));
-              });
-
-              await prisma.orderChunkItem.create({
-                data: {
-                  orderChunkId: chunk.id,
-                  menuItemId: menuItem.id,
-                  price: menuItem.basePrice, // Store base price at time of order
-                  quantity: faker.number.int({ min: 1, max: 3 }),
-                  notes: faker.datatype.boolean(0.2)
-                    ? faker.lorem.sentence()
-                    : null,
-                  // Calculate finalPrice for Item (base + customizations * quantity)
-                  // This is complex for seed, maybe just estimate or store base * quantity
-                  // finalPrice: calculatedItemFinalPrice; // Assign calculated value if needed
-                  customizations: { create: chosenCustomizations },
-                },
-              });
-            } // end item loop
-          } // end chunk loop
-        } // end check if not cancelled
-      } // end order loop
-    }),
+  await Promise.all(historicalOrderPromises);
+  console.log(
+    `   Created ${historicalOrderPromises.length} Historical Orders.`,
   );
+  console.log('--------------------------------------------------');
 
-  console.log('Created orders, chunks, items, and customizations.');
-
-  console.log('Seeding finished.');
+  console.log('🌱 Seeding finished.');
 }
 
 main()
   .catch((e) => {
-    console.error('Seeding failed:');
+    console.error('❌ Seeding failed:');
     console.error(e);
     process.exit(1);
   })
+
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   .finally(async () => {
-    console.log('Disconnecting Prisma Client...');
+    console.log('🔌 Disconnecting Prisma Client...');
     await prisma.$disconnect();
   });
