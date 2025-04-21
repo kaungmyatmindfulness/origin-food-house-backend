@@ -286,7 +286,6 @@ async function main() {
         data: {
           storeId: table.storeId,
           tableId: table.id,
-          sessionUuid: faker.string.uuid(),
           cart: {
             create: {
               items: {

@@ -31,12 +31,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   private readonly logger = new Logger(JwtStrategy.name);
 
   constructor(private readonly configService: ConfigService) {
-    const secret = configService.get<string>('SECRET_KEY');
+    const secret = configService.get<string>('JWT_SECRET');
     let effectiveSecret = secret;
     let isFallbackSecret = false;
 
     if (!secret) {
-      effectiveSecret = 'SECRET_KEY';
+      effectiveSecret = 'JWT_SECRET';
       isFallbackSecret = true;
     }
 
@@ -48,10 +48,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     if (isFallbackSecret) {
       this.logger.error(
-        '!!! SECURITY ALERT: SECRET_KEY not found in environment variables. Using insecure default fallback "SECRET_KEY". Configure SECRET_KEY immediately! !!!',
+        '!!! SECURITY ALERT: JWT_SECRET not found in environment variables. Using insecure default fallback "JWT_SECRET". Configure JWT_SECRET immediately! !!!',
       );
     } else {
-      this.logger.log('JWT Strategy initialized with configured SECRET_KEY.');
+      this.logger.log('JWT Strategy initialized with configured JWT_SECRET.');
     }
     this.logger.log('JWT Strategy constructor finished.');
   }

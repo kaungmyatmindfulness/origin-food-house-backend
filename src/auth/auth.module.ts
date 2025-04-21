@@ -10,21 +10,30 @@ import { JwtStrategy } from './jwt.strategy';
 
 import { UserModule } from '../user/user.module';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { CustomerSessionJwtStrategy } from 'src/auth/customer-session-jwt.strategy';
 
 @Module({
   imports: [
     UserModule,
-    PassportModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('SECRET_KEY') || 'SECRET_KEY',
-        signOptions: { expiresIn: '1h' },
+        secret: configService.getOrThrow<string>('JWT_SECRET') || 'JWT_SECRET',
+        signOptions: {
+          expiresIn: configService.getOrThrow<string>('JWT_EXPIRY') || '20h',
+        },
       }),
       inject: [ConfigService],
     }),
   ],
-  providers: [PrismaService, AuthService, LocalStrategy, JwtStrategy],
+  providers: [
+    PrismaService,
+    AuthService,
+    LocalStrategy,
+    JwtStrategy,
+    CustomerSessionJwtStrategy,
+  ],
   controllers: [AuthController],
   exports: [AuthService],
 })
