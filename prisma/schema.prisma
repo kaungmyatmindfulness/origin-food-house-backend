@@ -54,17 +54,18 @@ model UserStore {
 }
 
 model StoreInformation {
-  id        String   @id @default(uuid(7))
-  storeId   String   @unique
-  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  name      String
-  logoUrl   String?
-  address   String?
-  phone     String?
-  email     String?
-  website   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  id            String   @id @default(uuid(7))
+  storeId       String   @unique
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name          String
+  logoUrl       String?
+  coverPhotoUrl String?
+  address       String?
+  phone         String?
+  email         String?
+  website       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
 }
 
 model StoreSetting {

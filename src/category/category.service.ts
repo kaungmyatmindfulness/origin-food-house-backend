@@ -106,36 +106,74 @@ export class CategoryService {
   }
 
   /**
-   * Finds all categories for a given store, ordered by sortOrder.
-   * Optionally includes MenuItems ordered by their sortOrder.
-   * @param storeId The ID (UUID) of the store.
+   * Finds all active categories for a given store (identified by ID or slug), ordered by sortOrder.
+   * Optionally includes active MenuItems ordered by their sortOrder.
+   * @param identifier Object containing either storeId OR storeSlug.
    * @param includeItems Whether to include associated menu items.
-   * @returns Array of categories, potentially with nested menu items.
+   * @returns Array of categories, potentially with nested menu items payload.
+   * @throws {NotFoundException} If store identified by slug/id doesn't exist.
    */
   async findAll(
-    storeId: string,
-    includeItems = false,
+    identifier: { storeId?: string; storeSlug?: string },
+    includeItems = true,
   ): Promise<CategoryResponseDto[]> {
+    const method = this.findAll.name;
+    const { storeId, storeSlug } = identifier;
+
+    if (!storeId && !storeSlug) {
+      throw new BadRequestException(
+        'Either storeId or storeSlug must be provided.',
+      );
+    }
+
+    const identifierLog = storeId ? `ID ${storeId}` : `Slug ${storeSlug}`;
     this.logger.verbose(
-      `Finding all categories for Store ${storeId}, includeItems: ${includeItems}.`,
+      `[${method}] Finding active categories for Store [${identifierLog}], includeItems: ${includeItems}.`,
     );
+
+    const whereClause: Prisma.CategoryWhereInput = {
+      deletedAt: null,
+    };
+
+    if (storeId) {
+      whereClause.storeId = storeId;
+    } else if (storeSlug) {
+      whereClause.store = { slug: storeSlug };
+    }
+
     try {
+      const storeExists = await this.prisma.store.count({
+        where: storeId ? { id: storeId } : { slug: storeSlug! },
+      });
+      if (storeExists === 0) {
+        throw new NotFoundException(
+          `Store with ${storeId ? `ID ${storeId}` : `Slug ${storeSlug}`} not found.`,
+        );
+      }
+
+      const includeClause = includeItems
+        ? this.categoryWithItemsInclude
+        : undefined;
+
       const categories = await this.prisma.category.findMany({
-        where: {
-          storeId: storeId,
-          deletedAt: null,
-        },
-        include: {
-          menuItems: includeItems
-            ? this.categoryWithItemsInclude.menuItems
-            : undefined,
-        },
+        where: whereClause,
+        include: includeClause,
         orderBy: { sortOrder: 'asc' },
       });
-      return categories;
+
+      this.logger.verbose(
+        `[${method}] Found ${categories.length} categories for Store [${identifierLog}].`,
+      );
+      return categories as unknown as CategoryResponseDto[];
     } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
       this.logger.error(
-        `Failed to find categories for Store ${storeId}.`,
+        `[${method}] Failed to find categories for Store [${identifierLog}].`,
         error,
       );
       throw new InternalServerErrorException('Could not retrieve categories.');
@@ -207,17 +245,15 @@ export class CategoryService {
       Role.ADMIN,
     ]);
 
-    // 1. Ensure the category being updated exists and is active
-    await this.findOne(categoryId, storeId); // This already includes deletedAt: null check
+    await this.findOne(categoryId, storeId);
 
-    // 2. Check if ANOTHER active category with the new name exists
     if (dto.name) {
       const conflictingCategory = await this.prisma.category.findFirst({
         where: {
           storeId: storeId,
           name: dto.name,
-          id: { not: categoryId }, // Exclude the current category
-          deletedAt: null, // Check only active categories
+          id: { not: categoryId },
+          deletedAt: null,
         },
         select: { id: true },
       });
@@ -268,14 +304,12 @@ export class CategoryService {
       Role.ADMIN,
     ]);
 
-    // 1. Ensure category exists and is active before trying to delete
-    await this.findOne(categoryId, storeId); // Includes deletedAt: null check
+    await this.findOne(categoryId, storeId);
 
-    // 2. Check for ACTIVE child MenuItems
     const menuItemCount = await this.prisma.menuItem.count({
       where: {
         categoryId: categoryId,
-        deletedAt: null, // <-- Check only ACTIVE menu items
+        deletedAt: null,
       },
     });
 
@@ -293,15 +327,12 @@ export class CategoryService {
     );
 
     try {
-      // 3. Perform soft delete (via middleware)
-      // The actual DB operation will be an UPDATE by the middleware
       await this.prisma.category.delete({
         where: { id: categoryId },
       });
       this.logger.log(`Category ID ${categoryId} soft deleted successfully.`);
       return { id: categoryId };
     } catch (error) {
-      // Handle errors *other* than not found (which findOne handles) or FK constraints (which menuItemCount check handles)
       this.logger.error(
         `Failed to soft delete category ID ${categoryId}`,
         error,

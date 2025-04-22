@@ -1,9 +1,11 @@
 import { RequestWithUser } from 'src/auth/types';
+import { GetCategoriesQueryDto } from 'src/category/dto/get-categories-query.dto';
 import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
 import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
 import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
 
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -84,35 +86,52 @@ export class CategoryController {
     );
   }
 
+  /**
+   * GET All Categories for a Store (by ID or Slug)
+   */
   @Get()
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Get all categories (with items) for a specific store (Public)',
-  })
-  @ApiQuery({
-    name: 'storeId',
-    required: true,
-    type: String,
-    format: 'uuid',
-    description: 'ID (UUID) of the store',
-    example: '018ebc9a-7e1c-7f5e-b48a-3f4f72c55a1e',
+    summary:
+      'Get all active categories (with items) for a specific store (Public)',
+    description:
+      'Retrieves categories for a store using EITHER storeId OR storeSlug query parameter. Query parameters are defined in the GetCategoriesQueryDto schema.',
   })
   @ApiSuccessResponse(CategoryResponseDto, {
     isArray: true,
-    description: 'List of categories with included menu items.',
+    description: 'List of active categories with included active menu items.',
   })
   async findAll(
-    @Query('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
+    @Query() query: GetCategoriesQueryDto,
   ): Promise<StandardApiResponse<CategoryResponseDto[]>> {
     const method = this.findAll.name;
+
+    const identifier: { storeId?: string; storeSlug?: string } = {};
+    let identifierLog: string;
+
+    if (query.storeId) {
+      identifier.storeId = query.storeId;
+      identifierLog = `ID ${query.storeId}`;
+    } else if (query.storeSlug) {
+      identifier.storeSlug = query.storeSlug;
+      identifierLog = `Slug ${query.storeSlug}`;
+    } else {
+      throw new BadRequestException(
+        'Internal error: No store identifier found after validation.',
+      );
+    }
+
     const includeItems = true;
 
     this.logger.log(
-      `[${method}] Fetching categories for Store ${storeId}, includeItems: ${includeItems}`,
+      `[${method}] Fetching categories for Store [${identifierLog}], includeItems: ${includeItems}`,
     );
+
     const categories = await this.categoryService.findAll(
-      storeId,
+      identifier,
       includeItems,
     );
+
     return StandardApiResponse.success(
       categories,
       'Categories retrieved successfully.',
