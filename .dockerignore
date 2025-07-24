@@ -1,0 +1,47 @@
+# Dependencies
+node_modules
+npm-debug.log*
+
+# Production build
+dist
+build
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Testing
+coverage
+*.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Documentation
+README.md
+docs
+
+# Other
+.husky
+.lint-staged
+.prettier*
+eslint.config.*

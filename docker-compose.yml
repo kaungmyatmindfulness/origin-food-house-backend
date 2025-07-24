@@ -12,6 +12,53 @@ services:
       - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U myuser -d mydb']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://myuser:mypassword@postgres:5432/mydb
+      - PORT=3000
+      # Add other environment variables as needed
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - JWT_REFRESH_SECRET=your-super-secret-refresh-jwt-key-change-in-production
+      - CORS_ORIGIN=http://localhost:3001,http://localhost:3002
+      # AWS S3 Configuration (optional)
+      # - AWS_ACCESS_KEY_ID=your-access-key
+      # - AWS_SECRET_ACCESS_KEY=your-secret-key
+      # - AWS_REGION=us-east-1
+      # - AWS_S3_BUCKET=your-bucket-name
+      # Email Configuration (optional)
+      # - SMTP_HOST=smtp.gmail.com
+      # - SMTP_PORT=587
+      # - SMTP_USER=your-email@gmail.com
+      # - SMTP_PASS=your-app-password
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # Optional: Mount uploads directory for local file storage
+      - app-uploads:/app/uploads
+
+  # Optional: Redis for session management/caching
+  # redis:
+  #   image: redis:7-alpine
+  #   restart: always
+  #   ports:
+  #     - '6379:6379'
+  #   volumes:
+  #     - redis-data:/data
 
 volumes:
   postgres-data:
+  app-uploads:
