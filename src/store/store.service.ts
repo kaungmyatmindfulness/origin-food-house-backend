@@ -324,42 +324,59 @@ export class StoreService {
       );
     }
 
-    const targetUser = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-      select: { id: true },
-    });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const targetUser = await tx.user.findUnique({
+          where: { email: dto.email },
+          select: { id: true },
+        });
 
-    if (!targetUser) {
-      this.logger.warn(
-        `Assign role failed: Target user with email ${dto.email} not found.`,
+        if (!targetUser) {
+          this.logger.warn(
+            `Assign role failed: Target user with email ${dto.email} not found.`,
+          );
+          throw new NotFoundException(
+            `No user found with email ${dto.email}. User must register first.`,
+          );
+        }
+
+        this.logger.log(
+          `Assigning role ${dto.role} to User ID ${targetUser.id} in Store ${storeId}.`,
+        );
+        const userStore = await tx.userStore.upsert({
+          where: {
+            userId_storeId: {
+              userId: targetUser.id,
+              storeId,
+            },
+          },
+          update: { role: dto.role },
+          create: {
+            userId: targetUser.id,
+            storeId,
+            role: dto.role,
+          },
+        });
+
+        this.logger.log(
+          `Role ${dto.role} successfully assigned to User ID ${targetUser.id} in Store ID ${storeId}. Membership ID: ${userStore.id}`,
+        );
+
+        return userStore;
+      });
+    } catch (error) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+      this.logger.error(
+        `Failed to assign role ${dto.role} to email ${dto.email} in Store ${storeId}`,
+        error,
       );
-      throw new NotFoundException(
-        `No user found with email ${dto.email}. User must register first.`,
-      );
+      throw new InternalServerErrorException('Could not assign role to user.');
     }
-
-    this.logger.log(
-      `Assigning role ${dto.role} to User ID ${targetUser.id} in Store ${storeId}.`,
-    );
-    const userStore = await this.prisma.userStore.upsert({
-      where: {
-        userId_storeId: {
-          userId: targetUser.id,
-          storeId,
-        },
-      },
-      update: { role: dto.role },
-      create: {
-        userId: targetUser.id,
-        storeId,
-        role: dto.role,
-      },
-    });
-
-    this.logger.log(
-      `Role ${dto.role} successfully assigned to User ID ${targetUser.id} in Store ID ${storeId}. Membership ID: ${userStore.id}`,
-    );
-
-    return userStore;
   }
 }

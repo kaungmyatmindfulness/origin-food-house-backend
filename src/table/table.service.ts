@@ -12,6 +12,7 @@ import { CreateTableDto } from './dto/create-table.dto';
 import { UpdateTableDto } from './dto/update-table.dto';
 import { BatchUpsertTableDto } from './dto/batch-upsert-table.dto'; // Use correct DTO
 import { Role, Table, Prisma } from '@prisma/client';
+import { StandardErrorHandler } from 'src/common/decorators/standard-error-handler.decorator';
 
 /**
  * Natural sort comparator function for strings containing numbers.
@@ -118,6 +119,7 @@ export class TableService {
   }
 
   /** Creates a single table */
+  @StandardErrorHandler('create table')
   async createTable(
     userId: string,
     storeId: string,
@@ -128,33 +130,16 @@ export class TableService {
       Role.ADMIN,
     ]);
     // Use transaction for check + create consistency
-    try {
-      return await this.prisma.$transaction(async (tx) => {
-        await this.checkDuplicateTableName(tx, storeId, dto.name);
-        const newTable = await tx.table.create({
-          data: { name: dto.name, storeId },
-        });
-        this.logger.log(
-          `Table "${newTable.name}" (ID: ${newTable.id}) created in Store ${storeId}`,
-        );
-        return newTable;
+    return await this.prisma.$transaction(async (tx) => {
+      await this.checkDuplicateTableName(tx, storeId, dto.name);
+      const newTable = await tx.table.create({
+        data: { name: dto.name, storeId },
       });
-    } catch (error) {
-      if (error instanceof BadRequestException) throw error; // Re-throw validation errors
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new BadRequestException(
-          `Table name "${dto.name}" already exists.`,
-        );
-      }
-      this.logger.error(
-        `Failed to create table "${dto.name}" in Store ${storeId}`,
-        error,
+      this.logger.log(
+        `Table "${newTable.name}" (ID: ${newTable.id}) created in Store ${storeId}`,
       );
-      throw new InternalServerErrorException('Could not create table.'); // Throw generic for unexpected
-    }
+      return newTable;
+    });
   }
 
   /** Finds all tables for a store, sorted naturally by name */
@@ -179,30 +164,13 @@ export class TableService {
   }
 
   /** Finds a single table ensuring it belongs to the store */
+  @StandardErrorHandler('find table')
   async findOne(storeId: string, tableId: string): Promise<Table> {
-    try {
-      // Use findFirstOrThrow for combined check
-      const table = await this.prisma.table.findFirstOrThrow({
-        where: { id: tableId, storeId },
-      });
-      return table;
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException(
-          `Table with ID ${tableId} not found in store ${storeId}.`,
-        );
-      }
-      this.logger.error(
-        `Error fetching table ${tableId} for Store ${storeId}`,
-        error,
-      );
-      throw new InternalServerErrorException(
-        'Could not retrieve table details.',
-      );
-    }
+    // Use findFirstOrThrow for combined check
+    const table = await this.prisma.table.findFirstOrThrow({
+      where: { id: tableId, storeId },
+    });
+    return table;
   }
 
   /** Updates a single table's name */
