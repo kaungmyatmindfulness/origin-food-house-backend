@@ -17,7 +17,7 @@ async function bootstrap() {
     });
   } else {
     app.enableCors({
-      origin: 'https://your-production-domain.com', // TODO: replace with your production domain
+      origin: process.env.CORS_ORIGIN || 'https://origin-food-house.com',
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       credentials: true,
     });
