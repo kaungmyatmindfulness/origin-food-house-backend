@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsUUID, Min } from 'class-validator';
+import { IsUUID } from 'class-validator';
 
 export class ChooseStoreDto {
   @ApiProperty({

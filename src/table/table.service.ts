@@ -80,8 +80,8 @@ export class TableService {
     excludeTableId?: string,
   ): Promise<void> {
     const where: Prisma.TableWhereInput = {
-      storeId: storeId,
-      name: name,
+      storeId,
+      name,
       id: excludeTableId ? { not: excludeTableId } : undefined,
     };
     const conflictingTable = await tx.table.findFirst({
@@ -132,7 +132,7 @@ export class TableService {
       return await this.prisma.$transaction(async (tx) => {
         await this.checkDuplicateTableName(tx, storeId, dto.name);
         const newTable = await tx.table.create({
-          data: { name: dto.name, storeId: storeId },
+          data: { name: dto.name, storeId },
         });
         this.logger.log(
           `Table "${newTable.name}" (ID: ${newTable.id}) created in Store ${storeId}`,
@@ -167,7 +167,7 @@ export class TableService {
       throw new NotFoundException(`Store with ID ${storeId} not found.`);
     }
     const tables = await this.prisma.table.findMany({
-      where: { storeId: storeId },
+      where: { storeId },
       // Fetch potentially unsorted or rely on default DB order
     });
     // Apply natural sort
@@ -183,7 +183,7 @@ export class TableService {
     try {
       // Use findFirstOrThrow for combined check
       const table = await this.prisma.table.findFirstOrThrow({
-        where: { id: tableId, storeId: storeId },
+        where: { id: tableId, storeId },
       });
       return table;
     } catch (error) {
@@ -326,7 +326,7 @@ export class TableService {
         throw new BadRequestException(
           `Table name cannot be empty (at index ${index}).`,
         );
-      inputNames.set(name, (inputNames.get(name) || 0) + 1);
+      inputNames.set(name, (inputNames.get(name) ?? 0) + 1);
     });
     const duplicateInputNames = [...inputNames.entries()]
       .filter(([, count]) => count > 1)
@@ -382,7 +382,7 @@ export class TableService {
               // --- CREATE ---
               await this.checkDuplicateTableName(tx, storeId, trimmedName);
               const createdTable = await tx.table.create({
-                data: { name: trimmedName, storeId: storeId },
+                data: { name: trimmedName, storeId },
               });
               processedTableIds.add(createdTable.id);
               upsertResults.push(createdTable);
@@ -410,7 +410,7 @@ export class TableService {
 
           // Return the final state AFTER upserts and deletes
           const finalTableList = await tx.table.findMany({
-            where: { storeId: storeId },
+            where: { storeId },
           });
           // Apply natural sort outside transaction
           finalTableList.sort((a, b) =>

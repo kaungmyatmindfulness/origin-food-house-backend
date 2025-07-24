@@ -62,7 +62,7 @@ export class CartGateway extends BaseGateway {
   ): Promise<void> {
     const method = this.handleGetCart.name;
     const sessionContext = this.getSessionContext(client);
-    const sessionId = sessionContext.sessionId;
+    const { sessionId } = sessionContext;
     this.logger.log(
       `[${method}] Received from Session ${sessionId} (Client: ${client.id})`,
     );
@@ -92,7 +92,7 @@ export class CartGateway extends BaseGateway {
   ): Promise<void> {
     const method = this.handleAddItem.name;
     const sessionContext = this.getSessionContext(client);
-    const sessionId = sessionContext.sessionId;
+    const { sessionId } = sessionContext;
     this.logger.log(
       `[${method}] Session ${sessionId} adding item: ${payload.menuItemId}`,
     );
@@ -107,7 +107,7 @@ export class CartGateway extends BaseGateway {
       );
       client.emit(CART_ERROR_EVENT, {
         event: ADD_ITEM_EVENT,
-        message: error.message || 'Failed to add item to cart.',
+        message: (error as Error).message ?? 'Failed to add item to cart.',
         details:
           error instanceof BadRequestException ||
           error instanceof NotFoundException
@@ -128,7 +128,7 @@ export class CartGateway extends BaseGateway {
   ): Promise<void> {
     const method = this.handleUpdateItem.name;
     const sessionContext = this.getSessionContext(client);
-    const sessionId = sessionContext.sessionId;
+    const { sessionId } = sessionContext;
     this.logger.log(
       `[${method}] Session ${sessionId} updating item: ${payload.cartItemId}`,
     );
@@ -146,7 +146,7 @@ export class CartGateway extends BaseGateway {
       );
       client.emit(CART_ERROR_EVENT, {
         event: UPDATE_ITEM_EVENT,
-        message: error.message || 'Failed to update cart item.',
+        message: (error as Error).message ?? 'Failed to update cart item.',
         details:
           error instanceof BadRequestException ||
           error instanceof NotFoundException
@@ -167,7 +167,7 @@ export class CartGateway extends BaseGateway {
   ): Promise<void> {
     const method = this.handleRemoveItem.name;
     const sessionContext = this.getSessionContext(client);
-    const sessionId = sessionContext.sessionId;
+    const { sessionId } = sessionContext;
     this.logger.log(
       `[${method}] Session ${sessionId} removing item: ${payload.cartItemId}`,
     );
@@ -182,7 +182,7 @@ export class CartGateway extends BaseGateway {
       );
       client.emit(CART_ERROR_EVENT, {
         event: REMOVE_ITEM_EVENT,
-        message: error.message || 'Failed to remove cart item.',
+        message: (error as Error).message ?? 'Failed to remove cart item.',
         details:
           error instanceof NotFoundException ? error.getResponse() : undefined,
       });
@@ -198,7 +198,7 @@ export class CartGateway extends BaseGateway {
     @ConnectedSocket() client: SocketWithSession,
   ): Promise<void> {
     const sessionContext = this.getSessionContext(client);
-    const sessionId = sessionContext.sessionId;
+    const { sessionId } = sessionContext;
     this.logger.log(`[${CLEAR_CART_EVENT}] Session ${sessionId} clearing cart`);
     await this.joinSessionRoom(client, sessionId);
 
@@ -211,7 +211,7 @@ export class CartGateway extends BaseGateway {
       );
       client.emit(CART_ERROR_EVENT, {
         event: CLEAR_CART_EVENT,
-        message: error.message || 'Failed to clear cart.',
+        message: (error as Error).message ?? 'Failed to clear cart.',
         details:
           error instanceof NotFoundException ? error.getResponse() : undefined,
       });

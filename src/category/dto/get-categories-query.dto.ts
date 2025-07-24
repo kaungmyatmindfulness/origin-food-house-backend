@@ -27,7 +27,7 @@ export class IsOnlyOneIdentifierPresentConstraint
     return idProvided !== slugProvided;
   }
 
-  defaultMessage(args: ValidationArguments) {
+  defaultMessage(_args: ValidationArguments) {
     return 'Please provide either storeId OR storeSlug, but not both.';
   }
 }

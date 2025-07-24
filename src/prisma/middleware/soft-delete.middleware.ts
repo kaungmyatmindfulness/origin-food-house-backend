@@ -14,7 +14,7 @@ export function softDeleteMiddleware(): Prisma.Middleware {
     next: (params: Prisma.MiddlewareParams) => Promise<unknown>,
   ) => {
     if (!params.model || !SOFT_DELETE_MODELS.has(params.model)) {
-      return next(params);
+      return await next(params);
     }
 
     if (params.action === 'delete') {
@@ -44,6 +44,6 @@ export function softDeleteMiddleware(): Prisma.Middleware {
       } satisfies Prisma.MenuItemUpdateManyArgs;
     }
 
-    return next(params);
+    return await next(params);
   };
 }

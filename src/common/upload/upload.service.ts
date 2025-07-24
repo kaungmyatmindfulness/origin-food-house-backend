@@ -305,10 +305,7 @@ export class UploadService {
       `Attempting to delete generated versions for base key: ${baseKeyWithoutExt}`,
     );
 
-    if (
-      !baseKeyWithoutExt ||
-      !baseKeyWithoutExt.startsWith(IMAGE_UPLOAD_PREFIX)
-    ) {
+    if (!baseKeyWithoutExt?.startsWith(IMAGE_UPLOAD_PREFIX)) {
       this.logger.error(
         `Invalid baseKey format provided for deletion: ${baseKeyWithoutExt}`,
       );

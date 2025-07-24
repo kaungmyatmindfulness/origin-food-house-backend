@@ -172,8 +172,8 @@ export class StoreController {
       id: updatedSettings.id,
       storeId: updatedSettings.storeId,
       currency: updatedSettings.currency,
-      vatRate: updatedSettings.vatRate?.toString() || null,
-      serviceChargeRate: updatedSettings.serviceChargeRate?.toString() || null,
+      vatRate: updatedSettings.vatRate?.toString() ?? null,
+      serviceChargeRate: updatedSettings.serviceChargeRate?.toString() ?? null,
       createdAt: updatedSettings.createdAt,
       updatedAt: updatedSettings.updatedAt,
     };

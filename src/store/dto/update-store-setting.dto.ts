@@ -1,13 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Currency } from '@prisma/client';
 
-import {
-  IsEnum,
-  IsNumberString,
-  IsOptional,
-  Matches,
-  ValidateIf,
-} from 'class-validator';
+import { IsEnum, IsOptional } from 'class-validator';
 import { IsNonNegativeNumericString } from 'src/common/decorators/is-non-negative-numeric-string.decorator';
 
 export class UpdateStoreSettingDto {

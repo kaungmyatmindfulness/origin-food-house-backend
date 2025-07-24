@@ -21,7 +21,6 @@ import {
   userSelectWithStores,
   UserWithStoresPublicPayload,
 } from 'src/user/types/user-payload.types';
-import { UserProfileResponse } from 'src/user/types/user-profile.response';
 import { UserProfileResponseDto } from 'src/user/dto/user-profile-response.dto';
 
 @Injectable()
@@ -42,7 +41,7 @@ export class UserService {
    * Hashes a password using bcrypt.
    */
   private async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, this.BCRYPT_SALT_ROUNDS);
+    return await bcrypt.hash(password, this.BCRYPT_SALT_ROUNDS);
   }
 
   /**
@@ -89,8 +88,8 @@ export class UserService {
         password: hashedPassword,
         name: dto.name,
         verified: false,
-        verificationToken: verificationToken,
-        verificationExpiry: verificationExpiry,
+        verificationToken,
+        verificationExpiry,
       },
       select: userSelectPublic,
     });
@@ -125,7 +124,7 @@ export class UserService {
   async findUserForAuth(email: string): Promise<User | null> {
     this.logger.verbose(`Auth lookup requested for email: ${email}`);
 
-    return this.prisma.user.findUnique({
+    return await this.prisma.user.findUnique({
       where: { email },
     });
   }
@@ -136,7 +135,7 @@ export class UserService {
   async findByEmail(
     email: string,
   ): Promise<UserWithStoresPublicPayload | null> {
-    return this.prisma.user.findUnique({
+    return await this.prisma.user.findUnique({
       where: { email },
       select: userSelectWithStores,
     });
@@ -146,7 +145,7 @@ export class UserService {
    * Finds a user by ID, excluding the password. Includes store memberships.
    */
   async findById(id: string): Promise<UserWithStoresPublicPayload | null> {
-    return this.prisma.user.findUnique({
+    return await this.prisma.user.findUnique({
       where: { id },
       select: userSelectWithStores,
     });
@@ -174,7 +173,7 @@ export class UserService {
    * Finds a user by their active email verification token.
    */
   async findByVerificationToken(token: string): Promise<User | null> {
-    return this.prisma.user.findFirst({
+    return await this.prisma.user.findFirst({
       where: {
         verificationToken: token,
       },
@@ -187,7 +186,7 @@ export class UserService {
    */
   async markUserVerified(userId: string): Promise<UserPublicPayload> {
     this.logger.log(`Marking user ID ${userId} as verified.`);
-    return this.prisma.user.update({
+    return await this.prisma.user.update({
       where: { id: userId },
       data: {
         verified: true,
@@ -249,7 +248,7 @@ export class UserService {
   async getUserStores(
     userId: string,
   ): Promise<Array<UserStore & { store: Prisma.StoreGetPayload<true> }>> {
-    return this.prisma.userStore.findMany({
+    return await this.prisma.userStore.findMany({
       where: { userId },
       include: { store: true },
     });
@@ -321,7 +320,7 @@ export class UserService {
    * Finds a user by their active password reset token.
    */
   async findByResetToken(token: string): Promise<User | null> {
-    return this.prisma.user.findFirst({
+    return await this.prisma.user.findFirst({
       where: {
         resetToken: token,
       },

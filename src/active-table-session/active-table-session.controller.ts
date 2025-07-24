@@ -173,7 +173,7 @@ export class ActiveTableSessionController {
     this.logger.log(
       `Returning session context for Session ID: ${sessionCtx?.sessionId}`,
     );
-    if (!sessionCtx || !sessionCtx.sessionId) {
+    if (!sessionCtx?.sessionId) {
       throw new InternalServerErrorException(
         'Session context not found after guard.',
       );

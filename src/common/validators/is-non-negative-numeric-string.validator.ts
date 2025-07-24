@@ -13,7 +13,7 @@ export class IsNonNegativeNumericStringConstraint
 {
   private readonly minValue = new Decimal('0.00');
 
-  validate(value: any, args: ValidationArguments): boolean {
+  validate(value: any, _args: ValidationArguments): boolean {
     if (typeof value !== 'string') {
       return false;
     }

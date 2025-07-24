@@ -414,6 +414,6 @@ export class AuthService {
    * @returns The hashed password string.
    */
   private async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, this.BCRYPT_SALT_ROUNDS);
+    return await bcrypt.hash(password, this.BCRYPT_SALT_ROUNDS);
   }
 }

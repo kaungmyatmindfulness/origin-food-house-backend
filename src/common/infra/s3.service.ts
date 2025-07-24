@@ -144,7 +144,7 @@ export class S3Service {
    */
   async listAllObjectKeys(prefix?: string): Promise<string[]> {
     this.logger.verbose(
-      `Listing all object keys with prefix "${prefix || 'none'}" from bucket ${this.bucket}`,
+      `Listing all object keys with prefix "${prefix ?? 'none'}" from bucket ${this.bucket}`,
     );
     const keys: string[] = [];
     let continuationToken: string | undefined = undefined;
@@ -169,12 +169,12 @@ export class S3Service {
         }
         continuationToken = response.NextContinuationToken;
         this.logger.verbose(
-          `Listed ${response.Contents?.length || 0} keys, NextContinuationToken: ${!!continuationToken}`,
+          `Listed ${response.Contents?.length ?? 0} keys, NextContinuationToken: ${!!continuationToken}`,
         );
       } while (continuationToken);
 
       this.logger.log(
-        `Finished listing objects. Found ${keys.length} keys with prefix "${prefix || 'none'}".`,
+        `Finished listing objects. Found ${keys.length} keys with prefix "${prefix ?? 'none'}".`,
       );
       return keys;
     } catch (error) {

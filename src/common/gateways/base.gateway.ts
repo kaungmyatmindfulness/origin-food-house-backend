@@ -20,7 +20,7 @@ export const AUTH_ERROR_EVENT = 'authError';
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.FRONTEND_URL || '*',
+    origin: process.env.FRONTEND_URL ?? '*',
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -35,11 +35,11 @@ export abstract class BaseGateway
     this.logger = new Logger(loggerName);
   }
 
-  afterInit(server: Server) {
+  afterInit(_server: Server) {
     this.logger.log(`WebSocket Gateway Initialized: ${this.constructor.name}`);
   }
 
-  handleConnection(client: SocketWithSession, ...args: any[]) {
+  handleConnection(client: SocketWithSession, ..._args: any[]) {
     this.logger.log(`Client connected: ${client.id}`);
   }
 
@@ -52,7 +52,7 @@ export abstract class BaseGateway
 
   protected getSessionContext(client: SocketWithSession): SessionContext {
     const context = client.sessionContext;
-    if (!context || !context.sessionId) {
+    if (!context?.sessionId) {
       this.logger.error(
         `Session context missing for client ${client.id} in protected handler! Should have been attached by guard.`,
       );

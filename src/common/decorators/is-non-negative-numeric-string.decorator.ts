@@ -14,7 +14,7 @@ export function IsNonNegativeNumericString(
     registerDecorator({
       name: 'isNonNegativeNumericString',
       target: object.constructor,
-      propertyName: propertyName,
+      propertyName,
       options: validationOptions,
       constraints: [],
       validator: IsNonNegativeNumericStringConstraint,

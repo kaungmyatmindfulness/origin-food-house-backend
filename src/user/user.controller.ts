@@ -14,7 +14,6 @@ import {
   Logger,
   NotFoundException,
   Param,
-  ParseIntPipe,
   ParseUUIDPipe,
   Post,
   Query,
@@ -172,7 +171,7 @@ export class UserController {
     @Query() query: GetProfileQueryDto,
   ): Promise<StandardApiResponse<UserProfileResponseDto>> {
     const userId = req.user.sub;
-    const storeId = query.storeId;
+    const { storeId } = query;
     const method = this.getCurrentUser.name;
 
     if (storeId) {

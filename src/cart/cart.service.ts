@@ -50,7 +50,7 @@ export class CartService {
     sessionId: string,
     tx?: Prisma.TransactionClient,
   ): Promise<Cart> {
-    const prismaClient = tx || this.prisma;
+    const prismaClient = tx ?? this.prisma;
     const method = this.findOrCreateCart.name;
     this.logger.debug(
       `[${method}] Finding or creating cart for session ${sessionId}`,
@@ -153,7 +153,7 @@ export class CartService {
               : undefined,
           },
         });
-        return tx.cart.findUniqueOrThrow({
+        return await tx.cart.findUniqueOrThrow({
           where: { id: cart.id },
           include: cartInclude,
         });
@@ -212,7 +212,7 @@ export class CartService {
           }
           throw e;
         }
-        return tx.cart.findUniqueOrThrow({
+        return await tx.cart.findUniqueOrThrow({
           where: { id: cart.id },
           include: cartInclude,
         });
@@ -262,7 +262,7 @@ export class CartService {
           }
           throw e;
         }
-        return tx.cart.findUniqueOrThrow({
+        return await tx.cart.findUniqueOrThrow({
           where: { id: cart.id },
           include: cartInclude,
         });
@@ -291,7 +291,7 @@ export class CartService {
         await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
         this.logger.log(`[${method}] Removed items from cart ${cart.id}`);
         // Fetch the cart again to get the empty items array structure
-        return tx.cart.findUniqueOrThrow({
+        return await tx.cart.findUniqueOrThrow({
           where: { id: cart.id },
           include: cartInclude,
         });
@@ -366,7 +366,7 @@ export class CartService {
             throw new InternalServerErrorException(
               `Data inconsistency: MenuItem null for CartItem ${cartItem.id}`,
             ); // Should be filtered by query
-          const basePrice = cartItem.menuItem.basePrice ?? new Decimal(0);
+          const _basePrice = cartItem.menuItem.basePrice ?? new Decimal(0);
           let optionsTotal = new Decimal(0);
           cartItem.selectedOptions.forEach((opt) => {
             optionsTotal = optionsTotal.plus(opt.additionalPrice ?? 0);

@@ -23,7 +23,7 @@ export class UnusedImageCleanupService {
    * (e.g., "uploads/uuid-thumb.webp"). Returns null if format doesn't match.
    */
   private getBaseIdentifierFromS3Key(s3Key: string): string | null {
-    if (!s3Key || !s3Key.startsWith(S3_IMAGE_PREFIX)) {
+    if (!s3Key?.startsWith(S3_IMAGE_PREFIX)) {
       return null;
     }
     // Remove suffix and extension (e.g., "-thumb.webp")
@@ -49,7 +49,7 @@ export class UnusedImageCleanupService {
   private getBaseIdentifierFromDbKey(
     dbKey: string | null | undefined,
   ): string | null {
-    if (!dbKey || !dbKey.startsWith(S3_IMAGE_PREFIX)) {
+    if (!dbKey?.startsWith(S3_IMAGE_PREFIX)) {
       return null;
     }
     try {

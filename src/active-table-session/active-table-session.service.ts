@@ -64,8 +64,8 @@ export class ActiveTableSessionService {
     try {
       const newSession = await this.prisma.activeTableSession.create({
         data: {
-          tableId: tableId,
-          storeId: storeId,
+          tableId,
+          storeId,
 
           cart: { create: {} },
           activeOrder: { create: {} },
@@ -83,7 +83,7 @@ export class ActiveTableSessionService {
       ) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         const target = (error.meta as any)?.target as string[] | undefined;
-        if (target && target.includes('tableId')) {
+        if (target?.includes('tableId')) {
           this.logger.warn(
             `[${method}] Failed to create session for Table ${tableId}: Table already occupied.`,
           );
@@ -141,11 +141,11 @@ export class ActiveTableSessionService {
     try {
       // 2. Atomically find or create the session using upsert
       activeSession = await this.prisma.activeTableSession.upsert({
-        where: { tableId: tableId }, // Find based on the unique tableId constraint
+        where: { tableId }, // Find based on the unique tableId constraint
         update: {}, // No update needed if found
         create: {
           // Data to create if not found
-          tableId: tableId,
+          tableId,
           storeId: table?.storeId, // Use storeId from fetched table
           cart: { create: {} }, // Create an empty cart automatically
           // Create an empty ActiveOrder immediately upon session start
@@ -229,7 +229,7 @@ export class ActiveTableSessionService {
     sessionId: string,
   ): Promise<ActiveTableSession | null> {
     this.logger.debug(`Finding active session by ID: ${sessionId}`);
-    return this.prisma.activeTableSession.findUnique({
+    return await this.prisma.activeTableSession.findUnique({
       where: { id: sessionId },
     });
   }
@@ -241,7 +241,7 @@ export class ActiveTableSessionService {
     sessionId: string,
     tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    const prismaClient = tx || this.prisma;
+    const prismaClient = tx ?? this.prisma;
     const method = this.deleteSession.name;
     this.logger.log(`[${method}] Deleting ActiveTableSession ID: ${sessionId}`);
     try {

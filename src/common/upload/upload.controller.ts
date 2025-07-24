@@ -8,7 +8,6 @@ import {
   FileTypeValidator,
   MaxFileSizeValidator,
   Logger,
-  HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';

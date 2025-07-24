@@ -102,12 +102,12 @@ export class WsJwtGuard implements CanActivate {
       return true;
     } catch (error) {
       this.logger.warn(
-        `WS Auth: Token validation failed for client ${client.id}: ${error.message || error.name}. Disconnecting.`,
+        `WS Auth: Token validation failed for client ${client.id}: ${(error as Error).message ?? (error as Error).name}. Disconnecting.`,
       );
       let disconnectMsg = 'Authentication failed.';
-      if (error.name === 'TokenExpiredError') {
+      if ((error as Error).name === 'TokenExpiredError') {
         disconnectMsg = 'Session token expired.';
-      } else if (error.name === 'JsonWebTokenError') {
+      } else if ((error as Error).name === 'JsonWebTokenError') {
         disconnectMsg = 'Invalid session token.';
       }
       this.disconnectClient(client, disconnectMsg);

@@ -60,7 +60,7 @@ export class MenuService {
    */
   async getStoreMenuItems(storeId: string): Promise<MenuItem[]> {
     this.logger.log(`Workspaceing menu items for store ID: ${storeId}`);
-    return this.prisma.menuItem.findMany({
+    return await this.prisma.menuItem.findMany({
       where: { storeId },
       orderBy: [{ category: { sortOrder: 'asc' } }, { sortOrder: 'asc' }],
       include: this.menuItemInclude,
@@ -99,7 +99,7 @@ export class MenuService {
       Role.ADMIN,
     ]);
 
-    if (!dto.category || !dto.category.name) {
+    if (!dto.category?.name) {
       throw new BadRequestException(
         'Category information (including name) is required when creating a menu item.',
       );
@@ -141,7 +141,7 @@ export class MenuService {
         this.logger.debug(
           `[Transaction] Fetching created item ${menuItem.id} with includes`,
         );
-        return tx.menuItem.findUniqueOrThrow({
+        return await tx.menuItem.findUniqueOrThrow({
           where: { id: menuItem.id },
           include: this.menuItemInclude,
         });
@@ -255,7 +255,7 @@ export class MenuService {
         this.logger.debug(
           `[Transaction] Fetching updated item ${itemId} with includes`,
         );
-        return tx.menuItem.findUniqueOrThrow({
+        return await tx.menuItem.findUniqueOrThrow({
           where: { id: itemId },
           include: this.menuItemInclude,
         });
@@ -367,7 +367,7 @@ export class MenuService {
 
       const group = await tx.customizationGroup.create({
         data: {
-          menuItemId: menuItemId,
+          menuItemId,
           name: groupDto.name,
           minSelectable: groupDto.minSelectable ?? (groupDto.required ? 1 : 0),
           maxSelectable: groupDto.maxSelectable ?? 1,
@@ -401,7 +401,7 @@ export class MenuService {
         );
       }
       const result = await tx.category.updateMany({
-        where: { id: catDto.id, storeId: storeId },
+        where: { id: catDto.id, storeId },
         data: { name: catDto.name },
       });
 
@@ -423,7 +423,7 @@ export class MenuService {
 
       const existingCategory = await tx.category.findFirst({
         where: {
-          storeId: storeId,
+          storeId,
           name: catDto.name,
           deletedAt: { not: null },
         },
@@ -470,7 +470,7 @@ export class MenuService {
     );
     const dtoGroupsMap = new Map(
       (groupDtos ?? [])
-        .filter((g) => g != null)
+        .filter((g) => g !== null)
         .map((g) => [g.id ?? Symbol(`new_${g.name}_${Math.random()}`), g]),
     );
     const existingGroupIds = new Set(existingGroups.map((g) => g.id));
@@ -535,7 +535,7 @@ export class MenuService {
         );
         const newGroup = await tx.customizationGroup.create({
           data: {
-            menuItemId: menuItemId,
+            menuItemId,
             name: groupDto.name,
             minSelectable:
               groupDto.minSelectable ?? (groupDto.required ? 1 : 0),
@@ -582,7 +582,7 @@ export class MenuService {
     );
     const dtoOptionsMap = new Map(
       (optionDtos ?? [])
-        .filter((o) => o != null)
+        .filter((o) => o !== null)
         .map((o) => [o.id ?? Symbol(`new_${o.name}_${Math.random()}`), o]),
     );
     const existingOptionIds = new Set(existingOptions.map((o) => o.id));

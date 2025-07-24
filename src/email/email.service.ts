@@ -29,7 +29,7 @@ export class EmailService {
     }
 
     this.transporter = nodemailer.createTransport({
-      service: service, // Use configured service
+      service, // Use configured service
       auth: {
         user,
         pass,

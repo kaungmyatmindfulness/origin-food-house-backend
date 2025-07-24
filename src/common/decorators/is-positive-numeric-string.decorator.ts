@@ -11,7 +11,7 @@ export function IsPositiveNumericString(validationOptions?: ValidationOptions) {
     registerDecorator({
       name: 'isPositiveNumericString',
       target: object.constructor,
-      propertyName: propertyName,
+      propertyName,
       options: validationOptions,
       constraints: [],
       validator: IsPositiveNumericStringConstraint,

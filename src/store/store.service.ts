@@ -98,12 +98,11 @@ export class StoreService {
     try {
       const { nanoid } = await import('nanoid');
       const result = await this.prisma.$transaction(async (tx) => {
-        const slug =
-          slugify(dto.name, {
-            lower: true,
-            strict: true,
-            remove: /[*+~.()'"!:@]/g,
-          }) + `-${nanoid(6)}`;
+        const slug = `${slugify(dto.name, {
+          lower: true,
+          strict: true,
+          remove: /[*+~.()'"!:@]/g,
+        })}-${nanoid(6)}`;
 
         const existingStore = await tx.store.findUnique({
           where: { slug },
@@ -117,7 +116,7 @@ export class StoreService {
 
         const store = await tx.store.create({
           data: {
-            slug: slug,
+            slug,
 
             information: {
               create: {
@@ -183,7 +182,7 @@ export class StoreService {
 
     try {
       const result = await this.prisma.storeInformation.update({
-        where: { storeId: storeId },
+        where: { storeId },
         data: {
           name: dto.name,
           logoUrl: dto.logoUrl,
@@ -247,7 +246,7 @@ export class StoreService {
 
     try {
       const updatedSettings = await this.prisma.storeSetting.update({
-        where: { storeId: storeId },
+        where: { storeId },
         data: {
           currency: dto.currency,
           vatRate: dto.vatRate,

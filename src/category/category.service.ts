@@ -64,7 +64,7 @@ export class CategoryService {
     try {
       const existingActiveCategory = await this.prisma.category.findFirst({
         where: {
-          storeId: storeId,
+          storeId,
           name: dto.name,
           deletedAt: null,
         },
@@ -203,7 +203,7 @@ export class CategoryService {
       const category = await this.prisma.category.findFirstOrThrow({
         where: {
           id: categoryId,
-          storeId: storeId,
+          storeId,
           deletedAt: null,
         },
       });
@@ -257,7 +257,7 @@ export class CategoryService {
     if (dto.name) {
       const conflictingCategory = await this.prisma.category.findFirst({
         where: {
-          storeId: storeId,
+          storeId,
           name: dto.name,
           id: { not: categoryId },
           deletedAt: null,
@@ -315,7 +315,7 @@ export class CategoryService {
 
     const menuItemCount = await this.prisma.menuItem.count({
       where: {
-        categoryId: categoryId,
+        categoryId,
         deletedAt: null,
       },
     });
