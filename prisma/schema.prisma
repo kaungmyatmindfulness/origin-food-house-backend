@@ -97,18 +97,19 @@ model Category {
 }
 
 model MenuItem {
-  id          String    @id @default(uuid(7))
-  name        String
-  description String?
-  basePrice   Decimal   @db.Decimal(10, 2)
-  imageUrl    String?
-  categoryId  String
-  storeId     String
-  sortOrder   Int       @default(0)
-  isHidden    Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now()) @updatedAt
-  deletedAt   DateTime?
+  id           String    @id @default(uuid(7))
+  name         String
+  description  String?
+  basePrice    Decimal   @db.Decimal(10, 2)
+  imageUrl     String?
+  categoryId   String
+  storeId      String
+  sortOrder    Int       @default(0)
+  isOutOfStock Boolean   @default(false)
+  isHidden     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+  deletedAt    DateTime?
 
   category            Category             @relation(fields: [categoryId], references: [id])
   store               Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -120,7 +121,6 @@ model MenuItem {
 
   @@index([storeId, categoryId, sortOrder])
   @@index([deletedAt])
-  @@index([isHidden])
 }
 
 model CustomizationGroup {

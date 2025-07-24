@@ -68,6 +68,7 @@ export class ActiveTableSessionService {
           storeId: storeId,
 
           cart: { create: {} },
+          activeOrder: { create: {} },
         },
       });
 
@@ -113,40 +114,103 @@ export class ActiveTableSessionService {
    * @param tableId The ID of the table the customer wants to join.
    * @returns Object containing the JWT string and the ActiveTableSession data.
    */
-  async joinSessionByTable(
-    tableId: string,
-  ): Promise<{ token: string; session: ActiveTableSession }> {
+  async joinSessionByTable(tableId: string): Promise<{
+    token: string;
+    session: ActiveTableSession;
+    storeSlug: string;
+  }> {
     const method = this.joinSessionByTable.name;
     this.logger.log(
       `[${method}] Customer attempting to join session for Table ID ${tableId}`,
     );
 
-    const activeSession = await this.prisma.activeTableSession.findUnique({
-      where: { tableId: tableId },
+    let activeSession: ActiveTableSession | null = null;
+
+    const table = await this.prisma.table.findUnique({
+      where: { id: tableId },
+      select: { storeId: true },
     });
 
-    if (!activeSession) {
+    if (!table) {
       this.logger.warn(
-        `[${method}] Active session for Table ID ${tableId} not found.`,
+        `[${method}] Table ID ${tableId} not found. Cannot join session.`,
       );
+      throw new NotFoundException(`Table with ID ${tableId} not found.`);
+    }
 
-      const table = await this.prisma.table.findUnique({
-        where: { id: tableId },
-        select: { name: true },
+    try {
+      // 2. Atomically find or create the session using upsert
+      activeSession = await this.prisma.activeTableSession.upsert({
+        where: { tableId: tableId }, // Find based on the unique tableId constraint
+        update: {}, // No update needed if found
+        create: {
+          // Data to create if not found
+          tableId: tableId,
+          storeId: table?.storeId, // Use storeId from fetched table
+          cart: { create: {} }, // Create an empty cart automatically
+          // Create an empty ActiveOrder immediately upon session start
+          activeOrder: { create: {} },
+        },
+        // Include necessary fields for the return value
+        // include: { cart: true, activeOrder: true } // Optional: include if needed in response/JWT
       });
-      throw new NotFoundException(
-        `Table "${table?.name || tableId}" is not currently active or does not exist.`,
+
+      if (!activeSession) {
+        // Should not happen with upsert unless there's a deeper issue
+        throw new InternalServerErrorException(
+          'Failed to find or create session.',
+        );
+      }
+      this.logger.log(
+        `[${method}] Ensured ActiveTableSession ${activeSession.id} exists for Table ${tableId}`,
+      );
+    } catch (error) {
+      // Handle potential errors during upsert (e.g., DB connection issues)
+      this.logger.error(
+        `[${method}] Error during upsert for Table ${tableId}`,
+        error,
+      );
+      throw new InternalServerErrorException(
+        'Could not initiate table session.',
       );
     }
 
     const payload = { sub: activeSession.id };
+
+    let storeSlug: string;
+    try {
+      const store = await this.prisma.store.findUnique({
+        where: { id: activeSession.storeId },
+        select: { slug: true },
+      });
+      if (!store) {
+        this.logger.warn(
+          `[${method}] Store ID ${activeSession.storeId} not found for Table ID ${tableId}.`,
+        );
+        throw new NotFoundException(`Store not found for Table ID ${tableId}.`);
+      }
+
+      this.logger.log(
+        `[${method}] Found active session for Table ID ${tableId} (Session ID: ${activeSession.id})`,
+      );
+      storeSlug = store.slug;
+    } catch (error) {
+      this.logger.error(
+        `[${method}] Failed to find store for ActiveTableSession ID ${activeSession.id}`,
+        error,
+      );
+      throw new InternalServerErrorException(
+        'Could not retrieve store information for session.',
+      );
+    }
 
     try {
       const token = await this.jwtService.signAsync(payload);
       this.logger.log(
         `[${method}] Generated session token for Session ID ${activeSession.id} (Table ID: ${tableId})`,
       );
-      return { token, session: activeSession };
+
+      return { token, session: activeSession, storeSlug };
     } catch (error) {
       this.logger.error(
         `[${method}] Failed to sign session token for Session ID ${activeSession.id}`,

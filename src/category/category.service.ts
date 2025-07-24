@@ -21,8 +21,15 @@ export class CategoryService {
   private readonly categoryWithItemsInclude =
     Prisma.validator<Prisma.CategoryInclude>()({
       menuItems: {
-        where: { deletedAt: null },
+        where: { deletedAt: null }, // todo: also include is hidden if admin use
         orderBy: { sortOrder: 'asc' },
+        include: {
+          customizationGroups: {
+            include: {
+              customizationOptions: true,
+            },
+          },
+        },
       },
     });
 

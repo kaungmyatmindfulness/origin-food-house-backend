@@ -128,12 +128,12 @@ export class ActiveTableSessionController {
       `Customer attempting to join session for Table ID: ${tableId}`,
     );
 
-    const { token, session } =
+    const { token, session, storeSlug } =
       await this.sessionService.joinSessionByTable(tableId);
 
     response.cookie('session_token', token, {
       httpOnly: true,
-      secure: this.configService.get<string>('NODE_ENV') !== 'development',
+      secure: this.configService.get<string>('NODE_ENV') !== 'dev',
       sameSite: 'strict',
       path: '/',
     });
@@ -143,6 +143,7 @@ export class ActiveTableSessionController {
       sessionId: session.id,
       tableId: session.tableId,
       storeId: session.storeId,
+      storeSlug,
     };
 
     return StandardApiResponse.success(responseData, responseData.message);

@@ -18,6 +18,7 @@ import { AppService } from './app.service';
 import { PrismaService } from './prisma/prisma.service';
 import { TableModule } from 'src/table/table.module';
 import { ActiveTableSessionModule } from 'src/active-table-session/active-table-session.module';
+import { CartModule } from 'src/cart/cart.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { ActiveTableSessionModule } from 'src/active-table-session/active-table-
     UserModule,
     TableModule,
     ActiveTableSessionModule,
+    CartModule,
   ],
   controllers: [],
   providers: [

@@ -23,4 +23,10 @@ export class JoinSessionResponseDto {
   @ApiProperty({ format: 'uuid', description: 'ID of the associated store' })
   @Expose()
   storeId: string;
+
+  @ApiProperty({
+    description: 'Slug of the store associated with the session',
+  })
+  @Expose()
+  storeSlug: string;
 }

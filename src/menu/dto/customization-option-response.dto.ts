@@ -1,25 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Expose, Type } from 'class-transformer';
 
 export class CustomizationOptionResponseDto {
-  @ApiProperty({ example: 737 })
+  @ApiProperty({ format: 'uuid' })
+  @Expose()
   id: string;
 
-  @ApiProperty({ example: 'Bamboo' })
+  @ApiProperty()
+  @Expose()
   name: string;
 
-  @ApiPropertyOptional({
-    description: 'Additional price for this option, formatted as string.',
-    example: '3.25',
-    type: String,
-    nullable: true,
-  })
-  additionalPrice: string | null;
-
-  @ApiProperty({ example: 219 })
-  customizationGroupId: string;
-
-  @ApiProperty()
-  createdAt: Date;
-  @ApiProperty()
-  updatedAt: Date;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  @Expose()
+  @Type(() => String)
+  additionalPrice?: string | null;
 }

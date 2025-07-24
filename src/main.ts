@@ -1,16 +1,17 @@
-import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
-import { NestFactory, Reflector } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
 import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
 import * as cookieParser from 'cookie-parser';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   if (process.env.NODE_ENV === 'dev') {
     app.enableCors({
-      origin: 'http://localhost:3002',
+      origin: ['http://localhost:3001', 'http://localhost:3002'],
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       credentials: true,
     });
