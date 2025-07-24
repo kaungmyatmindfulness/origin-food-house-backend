@@ -54,7 +54,7 @@ export default tseslint.config(
     rules: {
       // --- TypeScript Rules ---
       '@typescript-eslint/no-explicit-any': 'warn', // Warn instead of error for 'any' type
-      '@typescript-eslint/no-floating-promises': 'warn', // Warn about unhandled promises
+      '@typescript-eslint/no-floating-promises': 'error', // Error for unhandled promises (critical for transactions)
       '@typescript-eslint/no-unsafe-argument': 'warn', // Warn about unsafe 'any' usage in arguments
       '@typescript-eslint/no-unsafe-assignment': 'warn', // Warn about unsafe 'any' assignments
       '@typescript-eslint/no-unsafe-call': 'warn', // Warn about unsafe 'any' calls
@@ -71,14 +71,36 @@ export default tseslint.config(
       '@typescript-eslint/require-await': 'warn', // Warn if async function lacks await
       '@typescript-eslint/restrict-template-expressions': [
         'warn',
-        { allowNumber: true },
-      ], // Allow numbers in template strings
+        { allowNumber: true, allowBoolean: true },
+      ], // Allow numbers and booleans in template strings
+      '@typescript-eslint/prefer-nullish-coalescing': 'error', // Use ?? instead of ||
+      '@typescript-eslint/prefer-optional-chain': 'error', // Use optional chaining
+      '@typescript-eslint/no-misused-promises': 'error', // Prevent Promise misuse in conditionals
 
-      // --- Standard ESLint Rules ---
-      'no-console': 'warn', // Warn about console.log statements
+      // --- NestJS/Backend Specific Rules ---
+      'no-console': 'error', // Error for console.log (use Logger instead)
       'no-unused-vars': 'off', // Disable base rule, use @typescript-eslint version instead
-      // Add any other specific rule overrides here
-      // 'eqeqeq': ['error', 'always'], // Example: enforce strict equality
+      eqeqeq: ['error', 'always'], // Enforce strict equality
+      'prefer-const': 'error', // Prefer const over let when possible
+      'no-var': 'error', // Disallow var keyword
+      'object-shorthand': 'error', // Prefer object shorthand syntax
+      'prefer-destructuring': ['warn', { object: true, array: false }], // Encourage destructuring
+
+      // --- Async/Promise Rules (Critical for DB operations) ---
+      'no-return-await': 'off', // Disable base rule
+      '@typescript-eslint/return-await': ['error', 'always'], // Always return await for better stack traces
+      'require-await': 'off', // Disable base rule
+
+      // --- Import/Export Rules ---
+      'no-duplicate-imports': 'error', // Prevent duplicate imports
+
+      // --- Security Rules ---
+      'no-eval': 'error', // Prevent eval usage
+      'no-implied-eval': 'error', // Prevent implied eval
+      'no-new-func': 'error', // Prevent Function constructor
+
+      // --- Database/Prisma Specific Patterns ---
+      'prefer-template': 'error', // Use template literals instead of concatenation
     },
   },
 );
