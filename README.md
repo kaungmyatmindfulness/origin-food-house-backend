@@ -1,7 +1,3 @@
-Below is an example **README** that gives new contributors (or stakeholders) a high-level overview of the **business logic** (restaurant context, sessions, orders) and the **tech stack** (NestJS + Prisma + S3, etc.). You can adapt it as needed for your specific project details.
-
----
-
 # Restaurant Ordering System
 
 This repository is a **NestJS-based** application for managing **table sessions** in a restaurant, creating & paying **orders**, and **uploading images** (e.g., for menu items).
