@@ -365,7 +365,7 @@ Pizza Customization:
 5. System deletes cart (fresh start for next order)
 6. System broadcasts order update to kitchen
 7. Chef receives order notification
-8. Chef updates item status: PENDING ’ IN_PROGRESS ’ COMPLETED
+8. Chef updates item status: PENDING ï¿½ IN_PROGRESS ï¿½ COMPLETED
 9. Server delivers completed items
 
 **Business Rules:**
@@ -382,9 +382,9 @@ Pizza Customization:
 1. Customer requests bill (via app or to server)
 2. Cashier/Server retrieves session order summary
 3. System calculates totals:
-   - Subtotal: Sum of all item prices × quantities
-   - VAT Amount: Subtotal × VAT rate
-   - Service Charge: Subtotal × Service charge rate
+   - Subtotal: Sum of all item prices ï¿½ quantities
+   - VAT Amount: Subtotal ï¿½ VAT rate
+   - Service Charge: Subtotal ï¿½ Service charge rate
    - Grand Total: Subtotal + VAT + Service Charge
 4. Cashier processes payment (external to system)
 5. Cashier marks orders as paid
@@ -409,20 +409,25 @@ Pizza Customization:
 - CALL_STAFF: Customer needs assistance
 - REQUEST_BILL: Customer ready to pay
 
+**Request Statuses:**
+- PENDING: Newly created, awaiting staff attention
+- RESOLVED: Completed by staff member
+
 **Workflow Steps:**
 1. Customer submits request via WebSocket
-2. System creates customer request record
+2. System creates customer request record with PENDING status
 3. System notifies relevant staff members
-4. Staff views pending requests
+4. Staff views pending requests filtered by status
 5. Staff responds to customer
 6. Staff marks request as RESOLVED
-7. System updates request status
+7. System updates request status and timestamp
 
 **Business Rules:**
 - Multiple requests can be active simultaneously
 - Requests are associated with specific table session
-- Staff can filter by request type and status
-- Resolved requests remain in history
+- Staff can filter by request type (CALL_STAFF, REQUEST_BILL) and status (PENDING, RESOLVED)
+- Resolved requests remain in history with timestamp
+- Status transitions only allowed from PENDING to RESOLVED (no reversal)
 
 ---
 
@@ -595,9 +600,9 @@ Pizza Customization:
 
 1. **Bill Calculation**
    ```
-   Subtotal = £(item.basePrice + £(option.additionalPrice)) × quantity
-   VAT Amount = Subtotal × vatRate
-   Service Charge = Subtotal × serviceChargeRate
+   Subtotal = ï¿½(item.basePrice + ï¿½(option.additionalPrice)) ï¿½ quantity
+   VAT Amount = Subtotal ï¿½ vatRate
+   Service Charge = Subtotal ï¿½ serviceChargeRate
    Grand Total = Subtotal + VAT Amount + Service Charge
    ```
 
@@ -917,7 +922,7 @@ Pizza Customization:
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-01-11
+**Document Version:** 1.1
+**Last Updated:** 2025-10-11
 **Maintained By:** Development Team
-**Next Review:** Q2 2025
+**Next Review:** Q1 2026

@@ -43,8 +43,9 @@ A comprehensive **multi-tenant restaurant management system** built with NestJS,
 - **Order Processing**: Complete order lifecycle from cart to kitchen to payment with status tracking
 - **Image Management**: AWS S3 integration for menu item images with automatic cleanup of unused files
 - **Soft Delete Pattern**: Non-destructive deletion preserving audit trails and historical data
-- **Customer Requests**: In-session customer service requests (call staff, request bill)
+- **Customer Requests**: In-session customer service requests (call staff, request bill) with status tracking
 - **Payment Processing**: Automated billing with VAT and service charge calculations with rate snapshots
+- **Pagination Support**: Built-in pagination with metadata for list endpoints
 
 ### Business Features
 
@@ -75,11 +76,11 @@ A comprehensive **multi-tenant restaurant management system** built with NestJS,
 ### Key Dependencies
 
 - **Validation**: class-validator, class-transformer
-- **Security**: bcrypt, @nestjs/throttler (rate limiting)
+- **Security**: bcrypt (12 salt rounds), @nestjs/throttler (rate limiting)
 - **Image Processing**: Sharp
 - **Scheduling**: @nestjs/schedule (cron jobs)
 - **API Documentation**: @nestjs/swagger
-- **Utilities**: slugify, nanoid, uuid v7
+- **Utilities**: slugify, nanoid, uuid v7, centralized password utilities
 
 ### Development Tools
 
@@ -133,7 +134,7 @@ Origin Food House follows a **modular monolithic architecture** with clear separ
 - **TableModule**: Physical table management
 - **ActiveTableSessionModule**: Table session lifecycle
 - **CartModule**: Real-time shopping cart with WebSocket
-- **CommonModule**: Shared utilities, S3 service, error handling
+- **CommonModule**: Shared utilities, S3 service, error handling, pagination, password utilities
 - **EmailModule**: Email notifications and verification
 
 ---

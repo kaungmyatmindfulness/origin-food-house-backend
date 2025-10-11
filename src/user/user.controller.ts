@@ -32,6 +32,7 @@ import {
   ApiQuery,
   ApiResponse,
   ApiTags,
+  ApiExtraModels,
 } from '@nestjs/swagger';
 import { Prisma, UserStore } from '@prisma/client';
 
@@ -39,9 +40,15 @@ import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserPublicPayload } from './types/user-payload.types';
 import { UserService } from './user.service';
+import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
 
 @ApiTags('Users')
 @Controller('users')
+@ApiExtraModels(
+  StandardApiResponse,
+  StandardApiErrorDetails,
+  UserProfileResponseDto,
+)
 export class UserController {
   private readonly logger = new Logger(UserController.name);
 

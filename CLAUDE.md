@@ -100,6 +100,10 @@ for (const group of groups) {
 
 ### Supporting Modules
 - **CommonModule**: Shared utilities, decorators, and infrastructure services
+  - Password utilities (hashPassword, comparePassword)
+  - Pagination DTOs (PaginatedResponseDto, PaginationQueryDto)
+  - Standard error handler decorator
+  - Logger middleware
 - **EmailModule**: Email notifications and password reset functionality
 - **UserModule**: User profile and store membership management
 
@@ -314,7 +318,16 @@ beforeEach(async () => {
 - Use parameterized Prisma queries—avoid string interpolation
 - Never construct SQL queries with string concatenation
 - Implement proper RBAC (Role-Based Access Control) checks
-- Use bcrypt for password hashing with appropriate salt rounds
+- Use centralized password utilities from `common/utils/password.util.ts` (bcrypt with 12 salt rounds)
+```typescript
+import { hashPassword, comparePassword } from 'src/common/utils/password.util';
+
+// Hash password
+const hashed = await hashPassword(plainPassword);
+
+// Compare password
+const isValid = await comparePassword(plainPassword, hashedPassword);
+```
 
 ### Performance
 - Use Prisma `select`/`include` carefully to prevent overfetching:
@@ -330,6 +343,49 @@ prisma.user.findMany({
 ```
 - Consider caching (Redis, in-memory) for read-heavy endpoints
 - Use database indexes for frequently queried fields
-- Implement pagination for list endpoints
+- Implement pagination for list endpoints (see Pagination Pattern below)
 - Use connection pooling for database connections
 - Monitor and optimize N+1 query problems
+
+### Pagination Pattern
+For endpoints returning lists of items, use the standardized pagination pattern:
+
+```typescript
+import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
+import { PaginatedResponseDto } from 'src/common/dto/paginated-response.dto';
+
+// In Controller
+@Get()
+async getItems(@Query() query: PaginationQueryDto) {
+  return this.itemService.getPaginatedItems(query);
+}
+
+// In Service
+async getPaginatedItems(query: PaginationQueryDto) {
+  const { page = 1, limit = 20 } = query;
+  const skip = (page - 1) * limit;
+
+  // Use Promise.all for concurrent queries
+  const [items, total] = await Promise.all([
+    this.prisma.item.findMany({
+      where: { storeId, deletedAt: null },
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' }
+    }),
+    this.prisma.item.count({
+      where: { storeId, deletedAt: null }
+    })
+  ]);
+
+  // Return paginated response with metadata
+  return PaginatedResponseDto.create(items, total, page, limit);
+}
+```
+
+**Key Points:**
+- Use `PaginationQueryDto` for query parameters (page, limit)
+- Default page = 1, limit = 20
+- Maximum limit = 100 (enforced by validation)
+- Use `PaginatedResponseDto.create()` helper for consistent responses
+- Include pagination metadata (total, totalPages, hasNext, hasPrev)
