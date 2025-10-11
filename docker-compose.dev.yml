@@ -2,45 +2,153 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:13
-    restart: always
+    image: postgres:16-alpine
+    container_name: origin-food-house-postgres-dev
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: mydb
+      POSTGRES_USER: ${POSTGRES_USER:-myuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mypassword}
+      POSTGRES_DB: ${POSTGRES_DB:-mydb}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U myuser -d mydb']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-myuser} -d ${POSTGRES_DB:-mydb}']
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    networks:
+      - origin-food-house-network-dev
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   app:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    restart: always
+    container_name: origin-food-house-app-dev
+    restart: unless-stopped
     ports:
-      - '3000:3000'
+      - '${APP_PORT:-3000}:3000'
+      # Expose debugger port
+      - '${DEBUG_PORT:-9229}:9229'
     environment:
-      - NODE_ENV=dev
-      - DATABASE_URL=postgresql://myuser:mypassword@postgres:5432/mydb
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-myuser}:${POSTGRES_PASSWORD:-mypassword}@postgres:5432/${POSTGRES_DB:-mydb}
       - PORT=3000
-      - JWT_SECRET=dev-jwt-secret
-      - JWT_REFRESH_SECRET=dev-refresh-jwt-secret
-      - CORS_ORIGIN=http://localhost:3001,http://localhost:3002
+      - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-dev-refresh-jwt-secret}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3001,http://localhost:3002}
+      # AWS S3 Configuration (optional)
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET:-}
+      # Email Configuration (optional)
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
+      # Bind mount source code for hot reload
       - .:/app
+      # Use named volume for node_modules to avoid conflicts
       - /app/node_modules
       - app-uploads:/app/uploads
+    networks:
+      - origin-food-house-network-dev
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     command: npm run dev
+
+  redis:
+    image: redis:7-alpine
+    container_name: origin-food-house-redis-dev
+    restart: unless-stopped
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - origin-food-house-network-dev
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: redis-server --appendonly yes
+
+  # Optional: Prisma Studio for database management
+  # Uncomment to enable Prisma Studio in development
+  # studio:
+  #   image: node:20-alpine
+  #   container_name: origin-food-house-studio
+  #   working_dir: /app
+  #   command: npx prisma studio
+  #   volumes:
+  #     - .:/app
+  #   ports:
+  #     - '5555:5555'
+  #   environment:
+  #     - DATABASE_URL=postgresql://${POSTGRES_USER:-myuser}:${POSTGRES_PASSWORD:-mypassword}@postgres:5432/${POSTGRES_DB:-mydb}
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   networks:
+  #     - origin-food-house-network-dev
+
+networks:
+  origin-food-house-network-dev:
+    driver: bridge
 
 volumes:
   postgres-data:
+    driver: local
   app-uploads:
+    driver: local
+  redis-data:
+    driver: local

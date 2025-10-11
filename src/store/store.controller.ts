@@ -21,6 +21,7 @@ import {
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
   ApiParam,
+  ApiExtraModels,
 } from '@nestjs/swagger';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -28,6 +29,7 @@ import { StoreService } from './store.service';
 
 import { InviteOrAssignRoleDto } from './dto/invite-or-assign-role.dto';
 import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
+import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
 import { RequestWithUser } from 'src/auth/types';
 import { CreateStoreDto } from 'src/store/dto/create-store.dto';
 import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
@@ -35,9 +37,17 @@ import { UpdateStoreInformationDto } from 'src/store/dto/update-store-informatio
 import { StoreSettingResponseDto } from 'src/store/dto/store-setting-response.dto';
 import { UpdateStoreSettingDto } from 'src/store/dto/update-store-setting.dto';
 import { GetStoreDetailsResponseDto } from 'src/store/dto/get-store-details-response.dto';
+import { StoreInformationResponseDto } from 'src/store/dto/store-information-response.dto';
 
 @ApiTags('Stores')
 @Controller('stores')
+@ApiExtraModels(
+  StandardApiResponse,
+  StandardApiErrorDetails,
+  GetStoreDetailsResponseDto,
+  StoreInformationResponseDto,
+  StoreSettingResponseDto,
+)
 export class StoreController {
   private readonly logger = new Logger(StoreController.name);
 

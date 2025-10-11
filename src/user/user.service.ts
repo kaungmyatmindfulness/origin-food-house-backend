@@ -1,4 +1,3 @@
-import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import * as disposableDomains from 'disposable-email-domains';
 
@@ -22,12 +21,12 @@ import {
   UserWithStoresPublicPayload,
 } from 'src/user/types/user-payload.types';
 import { UserProfileResponseDto } from 'src/user/dto/user-profile-response.dto';
+import { hashPassword } from 'src/common/utils/password.util';
 
 @Injectable()
 export class UserService {
   private readonly logger = new Logger(UserService.name);
 
-  private readonly BCRYPT_SALT_ROUNDS = 12;
   private readonly EMAIL_VERIFICATION_EXPIRY_MS = 1000 * 60 * 60 * 24;
   private readonly PASSWORD_RESET_EXPIRY_MS = 1000 * 60 * 60;
   private readonly ALLOW_DISPOSABLE_EMAILS = process.env.NODE_ENV === 'dev';
@@ -36,13 +35,6 @@ export class UserService {
     private prisma: PrismaService,
     private emailService: EmailService,
   ) {}
-
-  /**
-   * Hashes a password using bcrypt.
-   */
-  private async hashPassword(password: string): Promise<string> {
-    return await bcrypt.hash(password, this.BCRYPT_SALT_ROUNDS);
-  }
 
   /**
    * Creates a new user, hashes password, sends verification email.
@@ -62,38 +54,42 @@ export class UserService {
       );
     }
 
-    const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-      select: { id: true },
-    });
-    if (existing) {
-      this.logger.warn(
-        `Registration failed: Email ${dto.email} already in use.`,
-      );
-      throw new BadRequestException(
-        'An account with this email address already exists.',
-      );
-    }
-
-    const hashedPassword = await this.hashPassword(dto.password);
+    const hashedPassword = await hashPassword(dto.password);
 
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const verificationExpiry = new Date(
       Date.now() + this.EMAIL_VERIFICATION_EXPIRY_MS,
     );
 
-    const newUser = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        password: hashedPassword,
-        name: dto.name,
-        verified: false,
-        verificationToken,
-        verificationExpiry,
-      },
-      select: userSelectPublic,
-    });
-    this.logger.log(`User created successfully with ID: ${newUser.id}`);
+    let newUser: UserPublicPayload;
+    try {
+      newUser = await this.prisma.user.create({
+        data: {
+          email: dto.email,
+          password: hashedPassword,
+          name: dto.name,
+          verified: false,
+          verificationToken,
+          verificationExpiry,
+        },
+        select: userSelectPublic,
+      });
+      this.logger.log(`User created successfully with ID: ${newUser.id}`);
+    } catch (error) {
+      // Handle unique constraint violation for email
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        this.logger.warn(
+          `Registration failed: Email ${dto.email} already in use.`,
+        );
+        throw new BadRequestException(
+          'An account with this email address already exists.',
+        );
+      }
+      throw error;
+    }
 
     try {
       await this.emailService.sendVerificationEmail(
@@ -206,40 +202,49 @@ export class UserService {
       `Attempting to add/update User ID ${dto.userId} in Store ID ${dto.storeId} with Role ${dto.role}`,
     );
 
-    const [userExists, storeExists] = await Promise.all([
-      this.prisma.user.count({ where: { id: dto.userId } }),
-      this.prisma.store.count({ where: { id: dto.storeId } }),
-    ]);
+    try {
+      const userStore = await this.prisma.userStore.upsert({
+        where: {
+          userId_storeId: { userId: dto.userId, storeId: dto.storeId },
+        },
+        update: { role: dto.role },
+        create: {
+          userId: dto.userId,
+          storeId: dto.storeId,
+          role: dto.role,
+        },
+      });
 
-    if (userExists === 0) {
-      this.logger.warn(
-        `addUserToStore failed: User ID ${dto.userId} not found.`,
+      this.logger.log(
+        `User ID ${dto.userId} successfully assigned Role ${dto.role} in Store ID ${dto.storeId}. Membership ID: ${userStore.id}`,
       );
-      throw new BadRequestException(`User with ID ${dto.userId} not found.`);
+      return userStore;
+    } catch (error) {
+      // Handle foreign key constraint violations
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2003') {
+          // Foreign key constraint failed
+          const target = error.meta?.field_name as string;
+          if (target?.includes('userId')) {
+            this.logger.warn(
+              `addUserToStore failed: User ID ${dto.userId} not found.`,
+            );
+            throw new BadRequestException(
+              `User with ID ${dto.userId} not found.`,
+            );
+          }
+          if (target?.includes('storeId')) {
+            this.logger.warn(
+              `addUserToStore failed: Store ID ${dto.storeId} not found.`,
+            );
+            throw new BadRequestException(
+              `Store with ID ${dto.storeId} not found.`,
+            );
+          }
+        }
+      }
+      throw error;
     }
-    if (storeExists === 0) {
-      this.logger.warn(
-        `addUserToStore failed: Store ID ${dto.storeId} not found.`,
-      );
-      throw new BadRequestException(`Store with ID ${dto.storeId} not found.`);
-    }
-
-    const userStore = await this.prisma.userStore.upsert({
-      where: {
-        userId_storeId: { userId: dto.userId, storeId: dto.storeId },
-      },
-      update: { role: dto.role },
-      create: {
-        userId: dto.userId,
-        storeId: dto.storeId,
-        role: dto.role,
-      },
-    });
-
-    this.logger.log(
-      `User ID ${dto.userId} successfully assigned Role ${dto.role} in Store ID ${dto.storeId}. Membership ID: ${userStore.id}`,
-    );
-    return userStore;
   }
 
   /**
@@ -264,7 +269,7 @@ export class UserService {
     currentStoreId?: string,
   ): Promise<UserProfileResponseDto> {
     this.logger.log(
-      `Workspaceing profile for User ID: ${userId}, Current Store ID: ${currentStoreId ?? 'None'}`,
+      `Fetching profile for User ID: ${userId}, Current Store ID: ${currentStoreId ?? 'None'}`,
     );
 
     const userProfile = await this.prisma.user.findUnique({

@@ -1,6 +1,9 @@
 # Multi-stage build for production optimization
 FROM node:20-alpine AS base
 
+# Install necessary dependencies for Prisma and native modules
+RUN apk add --no-cache libc6-compat openssl
+
 # Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
@@ -9,38 +12,42 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
 
-# Install dependencies
+# Install dependencies with optimizations
 RUN npm ci --only=production --ignore-scripts && \
-    npm uninstall sharp && \
-    npm install --platform=linux --arch=x64 sharp && \
     npm cache clean --force
 
-# Rebuild the source code only when needed
+# Generate Prisma client in deps stage
+RUN npx prisma generate
+
+# Build stage - compile TypeScript
 FROM base AS builder
 WORKDIR /app
 
-# Copy package files and source
+# Copy package files
 COPY package.json package-lock.json* ./
-COPY . .
 
 # Install all dependencies (including dev dependencies)
-RUN npm ci
+RUN npm ci --ignore-scripts
+
+# Copy source code
+COPY . .
 
 # Generate Prisma client
 RUN npx prisma generate
 
 # Build the application
-RUN npm run build
+RUN npm run build && \
+    npm prune --production
 
 # Production image, copy all the files and run nest
 FROM base AS runner
 WORKDIR /app
 
 # Don't run production as root
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nestjs
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nestjs
 
-# Copy the standalone output
+# Copy necessary files from previous stages
 COPY --from=deps --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nestjs:nodejs /app/prisma ./prisma
@@ -50,12 +57,19 @@ COPY --from=builder --chown=nestjs:nodejs /app/package.json ./package.json
 COPY --chown=nestjs:nodejs docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
+# Create uploads directory
+RUN mkdir -p /app/uploads && chown -R nestjs:nodejs /app/uploads
+
 USER nestjs
 
 EXPOSE 3000
 
-ENV PORT=3000
-ENV NODE_ENV=production
+ENV PORT=3000 \
+    NODE_ENV=production \
+    NODE_OPTIONS="--max-old-space-size=2048"
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Use startup script that handles migrations
 ENTRYPOINT ["./docker-entrypoint.sh"]

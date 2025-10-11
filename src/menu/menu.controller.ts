@@ -4,6 +4,9 @@ import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-detai
 import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
 import { MenuItemDeletedResponseDto } from 'src/menu/dto/menu-item-deleted-response.dto';
 import { MenuItemResponseDto } from 'src/menu/dto/menu-item-response.dto';
+import { CategoryResponseDto } from 'src/menu/dto/category-response.dto';
+import { CustomizationGroupResponseDto } from 'src/menu/dto/customization-group-response.dto';
+import { CustomizationOptionResponseDto } from 'src/menu/dto/customization-option-response.dto';
 
 import {
   Body,
@@ -40,7 +43,9 @@ import { MenuService } from './menu.service';
 @ApiExtraModels(
   MenuItemDeletedResponseDto,
   MenuItemResponseDto,
-  MenuItemResponseDto,
+  CategoryResponseDto,
+  CustomizationGroupResponseDto,
+  CustomizationOptionResponseDto,
   StandardApiErrorDetails,
   StandardApiResponse,
 )

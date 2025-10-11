@@ -1,173 +1,636 @@
-# Restaurant Ordering System
+# Origin Food House - Backend
 
-This repository is a **NestJS-based** application for managing **table sessions** in a restaurant, creating & paying **orders**, and **uploading images** (e.g., for menu items).
+A comprehensive **multi-tenant restaurant management system** built with NestJS, Prisma ORM, and PostgreSQL. The platform enables restaurant owners to manage multiple locations, handle table-based dining sessions, process orders in real-time, and maintain complete control over their operations through role-based access.
 
-## 1. Business Logic Overview
-
-1. **Table Sessions**
-
-   - Each physical table can have multiple sessions over time.
-   - A session is created when new diners arrive. It’s identified by a unique `sessionUuid`.
-   - Orders belong to a particular session. Once **all** orders in that session are paid, the session is automatically closed.
-
-2. **Menu Items & Orders**
-
-   - Menu items are created/updated by **OWNER** or **ADMIN** roles.
-   - When a customer is seated (i.e., a table session is active), they can place orders for that session.
-   - Each **Order** can have multiple **OrderItems**; once paid, the order is marked “paid.”
-   - If all orders in a session are paid, the table session is closed.
-
-3. **Image Uploads**
-
-   - We have a **common upload** endpoint (`POST /upload`) that uploads a file to **Amazon S3**.
-   - The system can generate a unique image key (e.g., `uploads/<uuid>`) and store it in the DB for referencing images in menu items or other resources.
-
-4. **Auto-Cleanup**
-   - A scheduled job runs weekly to remove unused images from S3 if they’re no longer referenced in the database.
-
-### Typical Flow
-
-1. **Admin** sets up menu items with names, base price, optional variations (e.g., sizes, add-ons).
-2. **Customers** arrive, a new **TableSession** is created for their table.
-3. **Customers** place one or more **Orders** in that session. Each order has items.
-4. **Checkout** (pay) an order. Once all orders for the session are paid, the system **auto-closes** the session.
+[![NestJS](https://img.shields.io/badge/NestJS-11.x-E0234E?logo=nestjs)](https://nestjs.com/)
+[![Prisma](https://img.shields.io/badge/Prisma-6.x-2D3748?logo=prisma)](https://www.prisma.io/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql)](https://www.postgresql.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![Socket.IO](https://img.shields.io/badge/Socket.IO-Enabled-010101?logo=socket.io)](https://socket.io/)
 
 ---
 
-## 2. Tech Stack
+## Table of Contents
 
-1. **NestJS**
-
-   - A progressive Node.js framework for building efficient and scalable server-side applications.
-   - We use Nest modules to organize features (e.g., `MenuModule`, `OrderModule`, `TableSessionModule`, `CommonModule`).
-
-2. **Prisma**
-
-   - ORM for TypeScript/JavaScript, providing a **type-safe** and easy approach to database interactions.
-   - We define our data models (e.g., `TableSession`, `Order`, `MenuItem`) in `schema.prisma` and generate the Prisma client.
-
-3. **AWS S3**
-
-   - Used to store uploaded images (like menu item photos).
-   - The **S3Service** handles listing, uploading, and deleting files.
-   - A **weekly job** auto-removes orphaned images.
-
-4. **PostgreSQL/MySQL** (or any DB that Prisma supports)
-
-   - Our database that stores all the restaurant data: tables, sessions, orders, items, etc.
-   - Migrations and schema evolution are managed via Prisma.
-
-5. **JWT Auth**
-   - We rely on **JWT** for user authentication.
-   - Roles like OWNER, ADMIN, CASHIER, CHEF define who can create or update resources.
+- [Features](#features)
+- [Technology Stack](#technology-stack)
+- [Architecture](#architecture)
+- [Getting Started](#getting-started)
+- [Development Commands](#development-commands)
+- [Environment Variables](#environment-variables)
+- [API Documentation](#api-documentation)
+- [Database Schema](#database-schema)
+- [Authentication & Authorization](#authentication--authorization)
+- [Real-Time Features](#real-time-features)
+- [Testing](#testing)
+- [Docker Deployment](#docker-deployment)
+- [Project Structure](#project-structure)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-## 3. Repository Structure
+## Features
 
-- **`/src/common`**
+### Core Functionality
 
-  - **`infra/s3.service.ts`**: The S3Service for uploading & deleting files on AWS.
-  - **`upload/upload.service.ts`**: Logic for handling file uploads (possibly resizing images).
-  - **`upload/upload.controller.ts`**: A generic endpoint for image/file uploads.
+- **Multi-Store Management**: Manage multiple restaurant locations from a single platform with unique slugs and isolated data
+- **Real-Time Cart Synchronization**: WebSocket-based live updates for cart changes across all devices in a session
+- **Complex Menu Customization**: Support for nested customization groups with min/max selection constraints and dynamic pricing
+- **Table Session Management**: QR code-based customer sessions with automatic table assignment
+- **Role-Based Access Control**: Granular permissions for Owner, Admin, Chef, Cashier, and Server roles
+- **Order Processing**: Complete order lifecycle from cart to kitchen to payment with status tracking
+- **Image Management**: AWS S3 integration for menu item images with automatic cleanup of unused files
+- **Soft Delete Pattern**: Non-destructive deletion preserving audit trails and historical data
+- **Customer Requests**: In-session customer service requests (call staff, request bill)
+- **Payment Processing**: Automated billing with VAT and service charge calculations with rate snapshots
 
-- **`/src/menu`**
+### Business Features
 
-  - **`menu.controller.ts`**: Endpoints for creating/updating/deleting menu items; reading them.
-  - **`menu.service.ts`**: Business logic for menu items (price, variations, etc.).
-  - **`dto`** folder: e.g., `create-menu-item.dto.ts`.
-
-- **`/src/table-session`**
-
-  - **`table-session.controller.ts`**: Create/close sessions, retrieve session by UUID.
-  - **`table-session.service.ts`**: DB logic (status updates, auto-closing, etc.).
-
-- **`/src/order`**
-
-  - **`order.controller.ts`**: For creating orders & checkout (pay) an order.
-  - **`order.service.ts`**: Contains the logic for item additions, marking orders “paid,” auto-closing the session if all orders are paid.
-
-- **`prisma/schema.prisma`**
-
-  - The data model definitions (e.g., `TableSession`, `MenuItem`, `Order`, `OrderItem`).
-
-- **`/src/cleanup`**
-
-  - **`unused-image-cleanup.service.ts`**: A scheduled job that runs weekly to remove S3 objects not referenced in the DB.
-
-- **`app.module.ts`**
-  - Root module that imports other modules (like `TableSessionModule`, `MenuModule`, `OrderModule`, `CommonModule`).
+- **Customer Self-Service**: Contactless ordering via QR codes
+- **Kitchen Display Integration**: Real-time order status updates for kitchen workflow
+- **Staff Management**: Invite users and assign roles per store
+- **Menu Organization**: Categories with drag-and-drop sorting
+- **Price Locking**: Historical price accuracy with snapshots
+- **Multi-Currency Support**: THB, USD, EUR, JPY, CNY, SGD, HKD, MMK
 
 ---
 
-## 4. Getting Started
+## Technology Stack
 
-1. **Install Dependencies**
+### Core Technologies
+
+| Category | Technology | Version |
+|----------|-----------|---------|
+| **Framework** | NestJS | 11.x |
+| **Language** | TypeScript | 5.x |
+| **ORM** | Prisma | 6.x |
+| **Database** | PostgreSQL | 16+ |
+| **Real-Time** | Socket.IO | Latest |
+| **Authentication** | JWT + Passport | Latest |
+| **File Storage** | AWS S3 | SDK v3 |
+| **Email** | Nodemailer | 7.x |
+
+### Key Dependencies
+
+- **Validation**: class-validator, class-transformer
+- **Security**: bcrypt, @nestjs/throttler (rate limiting)
+- **Image Processing**: Sharp
+- **Scheduling**: @nestjs/schedule (cron jobs)
+- **API Documentation**: @nestjs/swagger
+- **Utilities**: slugify, nanoid, uuid v7
+
+### Development Tools
+
+- **Testing**: Jest, Supertest
+- **Code Quality**: ESLint, Prettier
+- **Git Hooks**: Husky, lint-staged
+- **API Testing**: Postman collection sync
+
+---
+
+## Architecture
+
+### System Design
+
+Origin Food House follows a **modular monolithic architecture** with clear separation of concerns:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Client Applications                      │
+│         (Web App, Mobile App, QR Code Scanner)               │
+└────────────────────┬────────────────────────────────────────┘
+                     │ HTTP/REST & WebSocket
+┌────────────────────▼────────────────────────────────────────┐
+│                    API Gateway Layer                         │
+│        (Controllers, Guards, Middleware, Pipes)              │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────────┐
+│                 Business Logic Layer                         │
+│    (Services, Domain Logic, Validation, Events)              │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────────┐
+│                  Data Access Layer                           │
+│              (Prisma ORM, Repositories)                      │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────────┐
+│                Infrastructure Layer                          │
+│        (PostgreSQL, AWS S3, Email Service)                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Core Modules
+
+- **AuthModule**: JWT authentication, role-based access control, password management
+- **UserModule**: User profiles, registration, store membership
+- **StoreModule**: Multi-store management, settings, staff assignment
+- **MenuModule**: Menu items with complex customizations
+- **CategoryModule**: Menu category organization
+- **TableModule**: Physical table management
+- **ActiveTableSessionModule**: Table session lifecycle
+- **CartModule**: Real-time shopping cart with WebSocket
+- **CommonModule**: Shared utilities, S3 service, error handling
+- **EmailModule**: Email notifications and verification
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- **Node.js**: 18.x or 20.x
+- **npm**: 9.x or higher
+- **PostgreSQL**: 14+ (16+ recommended)
+- **Docker** (optional): For containerized deployment
+- **AWS Account** (optional): For S3 image storage
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd origin-food-house-backend
+   ```
+
+2. **Install dependencies**
    ```bash
    npm install
    ```
-2. **Configure Environment**
-   - `.env` file with DB connection (`DATABASE_URL`), AWS S3 credentials, etc.
-   ```
-   AWS_S3_REGION=...
-   AWS_ACCESS_KEY_ID=...
-   AWS_SECRET_ACCESS_KEY=...
-   AWS_S3_BUCKET=...
-   ```
-3. **Prisma Migrate**
+
+3. **Set up environment variables**
    ```bash
-   npx prisma migrate dev
+   cp .env.example .env
+   # Edit .env with your configuration
    ```
-4. **Run the App**
+
+4. **Start PostgreSQL** (via Docker or local installation)
    ```bash
-   npm run start:dev
+   # Using Docker Compose
+   docker-compose up -d postgres
+
+   # Or use your local PostgreSQL instance
    ```
-5. **Swagger Docs**
-   - If you enable them in `main.ts`, open `http://localhost:3000/api-docs`.
+
+5. **Run database migrations**
+   ```bash
+   npm run migrate:db
+   ```
+
+6. **Generate Prisma Client**
+   ```bash
+   npm run generate:db
+   ```
+
+7. **Seed the database** (optional, creates test data)
+   ```bash
+   npm run seed:db
+   # Default credentials: owner@test.com / test1234
+   ```
+
+8. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+
+9. **Access the application**
+   - API: http://localhost:3000
+   - Swagger Docs: http://localhost:3000/api-docs
+   - Prisma Studio: `npm run studio:db`
 
 ---
 
-## 5. Key Endpoints
+## Development Commands
 
-1. **Table Sessions**
+### Database Operations
 
-   - `POST /table-sessions` → Create session.
-   - `GET /table-sessions/:uuid` → Retrieve session.
-   - `PATCH /table-sessions/:id` → Update session (close or other status).
+| Command | Description |
+|---------|-------------|
+| `npm run migrate:db` | Run Prisma migrations |
+| `npm run generate:db` | Generate Prisma client |
+| `npm run studio:db` | Open Prisma Studio GUI |
+| `npm run seed:db` | Seed database with demo data |
+| `npm run reset:db` | Reset database (⚠️ removes all data) |
+| `npm run drop:db` | Drop and recreate schema (⚠️ destructive) |
 
-2. **Menu Items**
+### Development & Build
 
-   - `GET /menu?storeId=...` → Public listing of items.
-   - `POST /menu` → Create item (OWNER/ADMIN).
-   - `PUT /menu/:id` → Update item.
-   - `DELETE /menu/:id` → Delete item.
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server with hot reload (port 3000) |
+| `npm run build` | Build for production |
+| `npm run start:prod` | Start production server |
+| `npm run lint` | Run ESLint with auto-fix |
+| `npm run format` | Format code with Prettier |
 
-3. **Orders**
+### Testing
 
-   - `POST /orders/create` → Create order for a session.
-   - `POST /orders/checkout` → Pay an order (auto-close session if all orders are paid).
+| Command | Description |
+|---------|-------------|
+| `npm run test` | Run unit tests |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run test:cov` | Generate test coverage report |
+| `npm run test:e2e` | Run end-to-end tests |
 
-4. **Images**
-   - `POST /upload` → Generic image upload, returning S3 keys.
-   - Weekly job removes orphaned images from S3 if not found in DB references.
+### Utilities
 
----
-
-## 6. Contributing
-
-1. **Fork** the repo & create a branch for new features/fixes.
-2. **Update** the `prisma/schema.prisma` if you need new models or changes. Then run `prisma migrate`.
-3. **Write** or update unit/integration tests.
-4. **Submit** a PR for review.
-
----
-
-## 7. Further Notes
-
-- **Auto-Close Logic**: Once an order is “paid,” the system checks if **all** orders for that table session are paid. If so, it sets `TableSession.status = 'closed'`.
-- **Extensibility**: You can easily add new roles, add discount logic, multiple branches/stores, or advanced seat management if needed.
-- **Authentication**: Adjust your NestJS guards for each endpoint to ensure correct user roles can create/close table sessions, edit menu items, etc.
+| Command | Description |
+|---------|-------------|
+| `npm run sync:postman` | Sync Postman collection |
 
 ---
 
-**Enjoy building and maintaining this restaurant ordering system!** If you have any questions, refer to the **Swagger docs** or the code in `/src`.
+## Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+### Required Variables
+
+```env
+# Database Configuration
+DATABASE_URL="postgresql://user:password@localhost:5432/origin_food_house?schema=public"
+
+# Application
+NODE_ENV="dev"
+PORT=3000
+
+# JWT Authentication
+JWT_SECRET="your-super-secret-jwt-key-change-in-production"
+JWT_REFRESH_SECRET="your-super-secret-refresh-key-change-in-production"
+JWT_EXPIRES_IN="1d"
+JWT_REFRESH_EXPIRES_IN="7d"
+
+# CORS Configuration
+CORS_ORIGIN="http://localhost:3001,http://localhost:3002"
+```
+
+### Optional Variables (AWS S3)
+
+```env
+# AWS S3 Configuration (Optional - for image uploads)
+AWS_ACCESS_KEY_ID="your-aws-access-key"
+AWS_SECRET_ACCESS_KEY="your-aws-secret-key"
+AWS_REGION="us-east-1"
+AWS_S3_BUCKET="your-bucket-name"
+```
+
+### Optional Variables (Email)
+
+```env
+# SMTP Email Configuration (Optional - for email notifications)
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER="your-email@gmail.com"
+SMTP_PASS="your-app-password"
+EMAIL_FROM="noreply@originfoodhouse.com"
+```
+
+> **Note**: See `.env.example` for a complete template
+
+---
+
+## API Documentation
+
+### Interactive Swagger Documentation
+
+Once the server is running, access the interactive API documentation:
+
+**URL**: http://localhost:3000/api-docs
+
+The Swagger UI provides:
+- Complete API endpoint listing
+- Request/response schemas
+- Authentication bearer token testing
+- Try-it-out functionality
+
+### Key Endpoints
+
+#### Authentication
+- `POST /auth/login` - Step 1: Email/password login
+- `POST /auth/login/store` - Step 2: Store selection
+- `POST /auth/forgot-password` - Request password reset
+- `POST /auth/reset-password` - Complete password reset
+- `GET /auth/verify?token=...` - Email verification
+
+#### Store Management
+- `POST /stores` - Create new store (Owner)
+- `GET /stores/:storeId` - Get store details (Public)
+- `PATCH /stores/:storeId/information` - Update store info (Owner/Admin)
+- `PATCH /stores/:storeId/settings` - Update settings (Owner/Admin)
+- `POST /stores/:storeId/invite` - Invite user to store (Owner)
+
+#### Menu Management
+- `GET /menu?storeId=...` - Public menu listing
+- `POST /menu/:storeId` - Create menu item (Owner/Admin)
+- `PUT /menu/:storeId/item/:itemId` - Update menu item (Owner/Admin)
+- `DELETE /menu/:storeId/item/:itemId` - Delete menu item (Owner/Admin)
+
+#### Table Sessions
+- `POST /active-table-sessions/:storeId` - Create session (Staff)
+- `POST /active-table-sessions/join-by-table/:tableId` - Join session (Customer)
+- `DELETE /active-table-sessions/:sessionId` - Close session (Staff)
+
+#### WebSocket Events (Cart)
+- `cart:get` - Retrieve current cart
+- `cart:add` - Add item to cart
+- `cart:update` - Update cart item
+- `cart:remove` - Remove cart item
+- `cart:clear` - Clear all items
+- `cart:updated` - (Server → Client) Cart state changed
+
+---
+
+## Database Schema
+
+### Key Entity Relationships
+
+```
+User ←→ UserStore ←→ Store
+                      ├── StoreInformation (1:1)
+                      ├── StoreSetting (1:1)
+                      ├── Category (1:N)
+                      │   └── MenuItem (1:N)
+                      │       └── CustomizationGroup (1:N)
+                      │           └── CustomizationOption (1:N)
+                      ├── Table (1:N)
+                      │   └── ActiveTableSession (1:1)
+                      │       ├── Cart (1:1)
+                      │       │   └── CartItem (1:N)
+                      │       ├── ActiveOrder (1:1)
+                      │       │   └── ActiveOrderChunk (1:N)
+                      │       │       └── ActiveOrderChunkItem (1:N)
+                      │       └── CustomerRequest (1:N)
+                      └── Order (1:N)
+                          └── OrderItem (1:N)
+                              └── OrderItemCustomization (1:N)
+```
+
+### Important Design Patterns
+
+- **UUID v7**: All entities use time-sortable UUIDs
+- **Soft Delete**: `deletedAt` timestamp for non-destructive deletion
+- **Multi-Tenancy**: Every entity scoped to `storeId`
+- **Price Snapshots**: Historical accuracy with immutable order records
+- **Decimal Precision**: Prisma.Decimal for all monetary values
+
+---
+
+## Authentication & Authorization
+
+### Two-Step Login Flow
+
+1. **Step 1**: Email/password authentication → Returns basic JWT
+2. **Step 2**: Store selection → Returns full JWT with storeId
+
+### Role Hierarchy
+
+| Role | Permissions |
+|------|-------------|
+| **OWNER** | Full access to store, can assign all roles |
+| **ADMIN** | Manage menu, categories, invite staff (except OWNER) |
+| **CHEF** | View orders, update preparation status |
+| **CASHIER** | Create sessions, process payments |
+| **SERVER** | Create sessions, manage customer requests |
+
+### Customer Session Authentication
+
+- QR code scan → Automatic session join/creation
+- Session JWT contains only session ID (no user identity)
+- Used for cart operations and customer requests
+
+---
+
+## Real-Time Features
+
+### WebSocket Implementation
+
+**Technology**: Socket.IO with NestJS WebSockets
+
+**Features**:
+- Room-based broadcasting (session-specific)
+- Automatic reconnection
+- Event-driven architecture
+- Real-time cart synchronization
+
+**Connection Flow**:
+1. Customer scans QR code
+2. Receives session JWT token
+3. Connects to WebSocket with token
+4. Joins session-specific room
+5. Receives live updates for cart/order changes
+
+**Events**:
+- Cart operations: add, update, remove, clear
+- Cart updates: broadcast to all devices in session
+- Error handling: client-specific error messages
+
+---
+
+## Testing
+
+### Unit Tests
+
+```bash
+# Run all unit tests
+npm run test
+
+# Run in watch mode
+npm run test:watch
+
+# Generate coverage report
+npm run test:cov
+```
+
+### E2E Tests
+
+```bash
+# Run end-to-end tests
+npm run test:e2e
+```
+
+### Test Coverage Goals
+
+- Services: 80%+
+- Controllers: 70%+
+- Critical paths (auth, payments): 100%
+
+---
+
+## Docker Deployment
+
+### Using Docker Compose
+
+1. **Build and start services**
+   ```bash
+   docker-compose up -d
+   ```
+
+2. **Run migrations** (first time only)
+   ```bash
+   docker-compose exec backend npx prisma migrate deploy
+   ```
+
+3. **Seed database** (optional)
+   ```bash
+   docker-compose exec backend npm run seed:db
+   ```
+
+4. **View logs**
+   ```bash
+   docker-compose logs -f backend
+   ```
+
+5. **Stop services**
+   ```bash
+   docker-compose down
+   ```
+
+### Production Deployment
+
+See `Dockerfile` and `Dockerfile.dev` for production and development builds.
+
+**Key considerations**:
+- Set `NODE_ENV=production`
+- Use strong JWT secrets
+- Configure CORS for your domain
+- Set up AWS S3 for file uploads
+- Configure SMTP for email notifications
+- Use connection pooling for database
+- Set up health checks and monitoring
+
+---
+
+## Project Structure
+
+```
+origin-food-house-backend/
+├── prisma/
+│   ├── migrations/          # Database migrations
+│   ├── schema.prisma        # Prisma schema definition
+│   └── seed.ts              # Database seeding script
+├── src/
+│   ├── active-table-session/  # Table session management
+│   ├── auth/                  # Authentication & authorization
+│   ├── cart/                  # Shopping cart + WebSocket
+│   ├── category/              # Menu categories
+│   ├── common/                # Shared utilities, S3, decorators
+│   ├── email/                 # Email service
+│   ├── menu/                  # Menu items + customizations
+│   ├── store/                 # Store management
+│   ├── table/                 # Physical table management
+│   ├── user/                  # User profiles
+│   ├── app.module.ts          # Root application module
+│   └── main.ts                # Application entry point
+├── test/                    # E2E tests
+├── docs/                    # Detailed documentation
+│   ├── BUSINESS_DOC_V1.md   # Business logic & workflows
+│   └── TECHNICAL_DOC_V1.md  # Technical architecture
+├── docker-compose.yml       # Docker services configuration
+├── Dockerfile               # Production Docker image
+├── Dockerfile.dev           # Development Docker image
+├── .env.example             # Environment variables template
+├── CLAUDE.md                # AI development guidance
+└── package.json             # Dependencies & scripts
+```
+
+---
+
+## Documentation
+
+### Comprehensive Guides
+
+- **[Business Documentation](docs/BUSINESS_DOC_V1.md)**: Business logic, workflows, user roles, and use cases
+- **[Technical Documentation](docs/TECHNICAL_DOC_V1.md)**: Architecture, database schema, design patterns, and implementation details
+- **[CLAUDE.md](CLAUDE.md)**: Development guidelines and patterns for AI-assisted development
+
+### Quick Links
+
+- **API Docs**: http://localhost:3000/api-docs
+- **Prisma Studio**: `npm run studio:db`
+- **Swagger JSON**: http://localhost:3000/api-docs-json
+
+---
+
+## Contributing
+
+### Development Workflow
+
+1. **Fork** the repository
+2. **Create** a feature branch
+3. **Update** the database schema if needed (Prisma migrations)
+4. **Write** or update tests
+5. **Run** linting and tests
+6. **Commit** with conventional commit messages
+7. **Submit** a pull request
+
+### Code Quality
+
+- ESLint for code linting
+- Prettier for code formatting
+- Husky for git hooks (pre-commit, commit-msg)
+- lint-staged for staged file validation
+
+### Commit Message Convention
+
+```
+type(scope): subject
+
+feat: add new feature
+fix: bug fix
+docs: documentation changes
+style: formatting changes
+refactor: code refactoring
+test: add tests
+chore: maintenance tasks
+```
+
+---
+
+## License
+
+**UNLICENSED** - Private/proprietary project
+
+---
+
+## Support
+
+For questions, issues, or feature requests:
+- Open an issue on GitHub
+- Check the [Technical Documentation](docs/TECHNICAL_DOC_V1.md)
+- Review the [Business Documentation](docs/BUSINESS_DOC_V1.md)
+
+---
+
+## Roadmap
+
+### Phase 2: Enhanced Operations (Q2 2025)
+- Kitchen display system integration
+- Table occupancy analytics
+- Staff performance tracking
+- Inventory management basics
+
+### Phase 3: Customer Experience (Q3 2025)
+- Customer accounts and profiles
+- Order history and favorites
+- Loyalty points program
+- Reservations system
+
+### Phase 4: Advanced Analytics (Q4 2025)
+- Sales reporting dashboard
+- Menu item performance analysis
+- Peak hours identification
+- Financial projections
+
+### Phase 5: Ecosystem Integration (Q1 2026)
+- POS system integration
+- Third-party delivery platforms
+- Accounting software sync
+- Payment gateway integration
+
+---
+
+**Built with ❤️ using NestJS, Prisma, and TypeScript**

@@ -13,6 +13,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { AppService } from './app.service';
 import { PrismaService } from './prisma/prisma.service';
@@ -33,6 +34,7 @@ import { CartModule } from 'src/cart/cart.module';
       envFilePath: '.env',
     }),
     ScheduleModule.forRoot(),
+    EventEmitterModule.forRoot(),
     AuthModule,
     CategoryModule,
     CommonModule,

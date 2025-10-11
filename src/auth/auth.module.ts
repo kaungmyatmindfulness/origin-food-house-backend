@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { AuthService } from './auth.service';
@@ -18,12 +18,19 @@ import { CustomerSessionJwtStrategy } from 'src/auth/customer-session-jwt.strate
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.getOrThrow<string>('JWT_SECRET') || 'JWT_SECRET',
-        signOptions: {
-          expiresIn: configService.getOrThrow<string>('JWT_EXPIRY') || '20h',
-        },
-      }),
+      useFactory: (configService: ConfigService): JwtModuleOptions => {
+        const secret =
+          configService.getOrThrow<string>('JWT_SECRET') || 'JWT_SECRET';
+        const expiresIn =
+          configService.getOrThrow<string>('JWT_EXPIRY') || '20h';
+        return {
+          secret,
+          signOptions: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expiresIn: expiresIn as any,
+          },
+        };
+      },
       inject: [ConfigService],
     }),
   ],

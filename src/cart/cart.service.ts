@@ -9,7 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, PreparationStatus, Cart } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { AddItemToCartDto } from './dto/add-item-to-cart.dto';
-import { CartGateway } from './cart.gateway'; // Import Gateway and event name
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 // Define necessary includes/selects used across methods
 const cartItemInclude = Prisma.validator<Prisma.CartItemInclude>()({
@@ -42,7 +42,7 @@ export class CartService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly cartGateway: CartGateway,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /** Finds or creates Cart */
@@ -55,21 +55,26 @@ export class CartService {
     this.logger.debug(
       `[${method}] Finding or creating cart for session ${sessionId}`,
     );
-    const sessionExists = await prismaClient.activeTableSession.count({
-      where: { id: sessionId },
-    });
-    if (sessionExists === 0) {
-      throw new NotFoundException(`Active session ${sessionId} not found.`);
+    try {
+      const cart = await prismaClient.cart.upsert({
+        where: { activeTableSessionId: sessionId },
+        update: {},
+        create: { activeTableSessionId: sessionId },
+      });
+      this.logger.verbose(
+        `[${method}] Ensured cart ${cart.id} exists for session ${sessionId}`,
+      );
+      return cart;
+    } catch (error) {
+      // Handle foreign key constraint violation (session doesn't exist)
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003'
+      ) {
+        throw new NotFoundException(`Active session ${sessionId} not found.`);
+      }
+      throw error;
     }
-    const cart = await prismaClient.cart.upsert({
-      where: { activeTableSessionId: sessionId },
-      update: {},
-      create: { activeTableSessionId: sessionId },
-    });
-    this.logger.verbose(
-      `[${method}] Ensured cart ${cart.id} exists for session ${sessionId}`,
-    );
-    return cart;
   }
 
   /** Retrieves cart details */
@@ -128,18 +133,42 @@ export class CartService {
             `Available MenuItem with ID ${dto.menuItemId} not found.`,
           );
         }
-        // TODO: Validate options and min/max selectable
+        // Validate customization options
         const validOptionIds = new Set(
           menuItem.customizationGroups.flatMap((g) =>
             g.customizationOptions.map((o) => o.id),
           ),
         );
+
+        // Check for invalid option IDs
         const invalidIds =
           dto.selectedOptionIds?.filter((id) => !validOptionIds.has(id)) ?? [];
         if (invalidIds.length > 0) {
           throw new BadRequestException(
             `Invalid customization option IDs provided: ${invalidIds.join(', ')}`,
           );
+        }
+
+        // Validate min/max selectable constraints for each group
+        for (const group of menuItem.customizationGroups) {
+          const selectedInGroup =
+            dto.selectedOptionIds?.filter((id) =>
+              group.customizationOptions.some((opt) => opt.id === id),
+            ).length ?? 0;
+
+          // Check minimum selection requirement
+          if (selectedInGroup < group.minSelectable) {
+            throw new BadRequestException(
+              `Customization group "${group.name}" requires at least ${group.minSelectable} selection(s), but only ${selectedInGroup} provided.`,
+            );
+          }
+
+          // Check maximum selection limit
+          if (selectedInGroup > group.maxSelectable) {
+            throw new BadRequestException(
+              `Customization group "${group.name}" allows maximum ${group.maxSelectable} selection(s), but ${selectedInGroup} provided.`,
+            );
+          }
         }
 
         await tx.cartItem.create({
@@ -160,7 +189,7 @@ export class CartService {
       });
 
       // Emit update AFTER transaction succeeds
-      this.cartGateway.emitCartUpdate(sessionId, updatedCart);
+      this.eventEmitter.emit('cart.updated', { sessionId, cart: updatedCart });
       return updatedCart;
     } catch (error) {
       this.logger.error(
@@ -219,7 +248,7 @@ export class CartService {
       });
 
       // Emit update AFTER transaction succeeds
-      this.cartGateway.emitCartUpdate(sessionId, updatedCart);
+      this.eventEmitter.emit('cart.updated', { sessionId, cart: updatedCart });
       return updatedCart;
     } catch (error) {
       this.logger.error(
@@ -269,7 +298,7 @@ export class CartService {
       });
 
       // Emit update AFTER transaction succeeds
-      this.cartGateway.emitCartUpdate(sessionId, updatedCart);
+      this.eventEmitter.emit('cart.updated', { sessionId, cart: updatedCart });
       return updatedCart;
     } catch (error) {
       this.logger.error(
@@ -298,7 +327,7 @@ export class CartService {
       });
 
       // Emit update AFTER transaction succeeds
-      this.cartGateway.emitCartUpdate(sessionId, updatedCart);
+      this.eventEmitter.emit('cart.updated', { sessionId, cart: updatedCart });
       return updatedCart;
     } catch (error) {
       this.logger.error(

@@ -1,6 +1,5 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { softDeleteMiddleware } from './middleware/soft-delete.middleware';
 
 @Injectable()
 export class PrismaService
@@ -9,7 +8,6 @@ export class PrismaService
 {
   async onModuleInit() {
     await this.$connect();
-    this.$use(softDeleteMiddleware());
   }
 
   async onModuleDestroy() {

@@ -51,6 +51,7 @@ model UserStore {
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@unique([userId, storeId])
+  @@index([userId])
 }
 
 model StoreInformation {
@@ -121,6 +122,7 @@ model MenuItem {
 
   @@index([storeId, categoryId, sortOrder])
   @@index([deletedAt])
+  @@index([deletedAt, isHidden])
 }
 
 model CustomizationGroup {

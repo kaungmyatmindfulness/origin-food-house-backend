@@ -9,6 +9,8 @@ import { UpdateCartItemDto } from 'src/cart/dto/update-cart-item.dto';
 import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
 import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
 import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
+import { MenuItemBasicResponseDto } from 'src/menu/dto/menu-item-basic-response.dto';
+import { CustomizationOptionResponseDto } from 'src/menu/dto/customization-option-response.dto';
 
 import {
   Body,
@@ -59,6 +61,8 @@ function getSessionCtx(req: Request): SessionContext {
   StandardApiErrorDetails,
   CartResponseDto,
   CartItemResponseDto,
+  MenuItemBasicResponseDto,
+  CustomizationOptionResponseDto,
 )
 export class CartController {
   private readonly logger = new Logger(CartController.name);

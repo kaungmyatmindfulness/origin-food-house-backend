@@ -2,8 +2,6 @@ import {
   UseGuards,
   UsePipes,
   ValidationPipe,
-  Inject,
-  forwardRef,
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
@@ -22,6 +20,7 @@ import { CartService, CartWithDetails } from './cart.service';
 import { AddItemToCartDto } from './dto/add-item-to-cart.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { RemoveCartItemDto } from './dto/remove-cart-item.dto';
+import { OnEvent } from '@nestjs/event-emitter';
 
 const CART_EVENT_PREFIX = 'cart:';
 const GET_CART_EVENT = `${CART_EVENT_PREFIX}get`;
@@ -36,20 +35,16 @@ const CART_ERROR_EVENT = `${CART_EVENT_PREFIX}error`;
 @UsePipes(new ValidationPipe())
 @WebSocketGateway({})
 export class CartGateway extends BaseGateway {
-  constructor(
-    @Inject(forwardRef(() => CartService))
-    private readonly cartService: CartService,
-  ) {
+  constructor(private readonly cartService: CartService) {
     super(CartGateway.name);
   }
 
   /**
-   * Public method for the CartService to call to emit updates.
-   * @param sessionId The session ID to target the room.
-   * @param cartData The updated cart data (consider mapping to DTO).
+   * Listen for cart update events and emit to appropriate session
    */
-  emitCartUpdate(sessionId: string, cartData: CartWithDetails | null) {
-    this.emitToSession(sessionId, CART_UPDATED_EVENT, cartData);
+  @OnEvent('cart.updated')
+  handleCartUpdateEvent(payload: { sessionId: string; cart: CartWithDetails }) {
+    this.emitToSession(payload.sessionId, CART_UPDATED_EVENT, payload.cart);
   }
 
   /**

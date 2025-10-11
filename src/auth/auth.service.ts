@@ -1,39 +1,33 @@
-import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
 import { UserService } from '../user/user.service';
-import { Role, User } from '@prisma/client'; // Import User type
+import { Role, User } from '@prisma/client';
 
 import {
   BadRequestException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
-  InternalServerErrorException, // Added for potential issues
+  InternalServerErrorException,
   Logger,
-  ForbiddenException, // Added for logging
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { hashPassword, comparePassword } from 'src/common/utils/password.util';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
-  // --- Configuration Values (Ideally from ConfigService) ---
-  // Example: Inject ConfigService in constructor: constructor(private configService: ConfigService) {}
-  // Then use: this.configService.get<number>('BCRYPT_SALT_ROUNDS', 12)
-  private readonly BCRYPT_SALT_ROUNDS = 12;
-  private readonly JWT_EXPIRATION_TIME = '1d'; // Matches previous cookie maxAge logic
-  private readonly JWT_EXPIRATION_MS = 1000 * 60 * 60 * 24; // For potential cookie maxAge alignment
-  private readonly EMAIL_VERIFICATION_EXPIRY_MS = 1000 * 60 * 60 * 24; // Example: 1 day
-  private readonly PASSWORD_RESET_EXPIRY_MS = 1000 * 60 * 60; // 1 hour
+  private readonly JWT_EXPIRATION_TIME = '1d';
+  private readonly EMAIL_VERIFICATION_EXPIRY_MS = 1000 * 60 * 60 * 24;
+  private readonly PASSWORD_RESET_EXPIRY_MS = 1000 * 60 * 60;
 
   constructor(
     private userService: UserService,
     private jwtService: JwtService,
-    private readonly prisma: PrismaService, // PrismaService for DB access
-    // private configService: ConfigService, // Uncomment if using ConfigService
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -126,7 +120,7 @@ export class AuthService {
     }
 
     // Compare password - user.password now exists
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await comparePassword(password, user.password);
     if (!isMatch) {
       this.logger.warn(
         `Validation failed: Invalid password for user ID: ${user.id}`,
@@ -247,43 +241,83 @@ export class AuthService {
     resetInfo?: { userId: string; token: string; email: string; expiry: Date };
   }> {
     this.logger.log(`Password reset requested for email: ${email}`);
+
+    // Always perform the same operations to prevent timing attacks
     const user = await this.userService.findByEmail(email);
 
-    if (!user) {
-      // Security: Do not reveal if the email exists in the system.
-      this.logger.warn(
-        `Password reset request for non-existent email: ${email}`,
-      );
-      return {
-        message:
-          'If an account with that email address exists, a password reset link has been sent.',
-      };
-    }
-
-    // Proceed only if user exists
+    // Always generate token and expiry to ensure consistent timing
     const token = crypto.randomBytes(32).toString('hex');
     const expiry = new Date(Date.now() + this.PASSWORD_RESET_EXPIRY_MS);
 
-    try {
-      await this.userService.setResetToken(user.id, token, expiry);
-      this.logger.log(`Password reset token generated for User ID: ${user.id}`);
+    // Create a consistent delay for both existing and non-existing users
+    const startTime = Date.now();
 
-      // Return necessary info for the email sending mechanism (e.g., MailService)
-      // IMPORTANT: Do NOT include the token directly in the API response payload itself.
-      // The caller (e.g., controller -> mail service) should handle this info.
+    try {
+      if (user) {
+        // User exists - update database with reset token
+        await this.userService.setResetToken(user.id, token, expiry);
+        this.logger.log(
+          `Password reset token generated for User ID: ${user.id}`,
+        );
+      } else {
+        // User doesn't exist - perform a dummy database operation for timing consistency
+        // This ensures similar execution time whether user exists or not
+        this.logger.warn(
+          `Password reset request for non-existent email: ${email}`,
+        );
+        // Simulate database operation delay
+        await this.prisma.user.findFirst({
+          where: { email: 'dummy-non-existent-email-for-timing-consistency' },
+          select: { id: true },
+        });
+      }
+
+      // Ensure minimum consistent response time (e.g., 100ms)
+      const elapsedTime = Date.now() - startTime;
+      const minResponseTime = 100; // milliseconds
+      if (elapsedTime < minResponseTime) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, minResponseTime - elapsedTime),
+        );
+      }
+
+      // Always return the same message structure
+      const response: {
+        message: string;
+        resetInfo?: {
+          userId: string;
+          token: string;
+          email: string;
+          expiry: Date;
+        };
+      } = {
+        message:
+          'If an account with that email address exists, a password reset link has been sent.',
+      };
+
+      // Only include resetInfo if user exists (for internal email sending)
+      if (user) {
+        response.resetInfo = {
+          userId: user.id,
+          token,
+          email: user.email,
+          expiry,
+        };
+      }
+
+      return response;
+    } catch (error) {
+      // Handle errors consistently
+      this.logger.error(
+        `Error during password reset process for email: ${email}`,
+        error,
+      );
+
+      // Still return a generic message on error to avoid information leakage
       return {
         message:
           'If an account with that email address exists, a password reset link has been sent.',
-        resetInfo: { userId: user.id, token, email: user.email, expiry },
       };
-    } catch (error) {
-      this.logger.error(
-        `Failed to set reset token for User ID: ${user.id}`,
-        error,
-      );
-      throw new InternalServerErrorException(
-        'Failed to initiate password reset. Please try again later.',
-      );
     }
   }
 
@@ -318,7 +352,7 @@ export class AuthService {
     }
 
     // Hash the new password
-    const hashedPass = await this.hashPassword(newPassword);
+    const hashedPass = await hashPassword(newPassword);
 
     try {
       // Update password and clear the token atomically
@@ -377,7 +411,7 @@ export class AuthService {
       );
     }
 
-    const isMatch = await bcrypt.compare(
+    const isMatch = await comparePassword(
       oldPassword,
       userWithPassword.password,
     );
@@ -399,21 +433,10 @@ export class AuthService {
       );
     }
 
-    const hashedNewPassword = await this.hashPassword(newPassword);
-    await this.userService.updatePassword(userId, hashedNewPassword); // Assumes updatePassword only changes the password field
+    const hashedNewPassword = await hashPassword(newPassword);
+    await this.userService.updatePassword(userId, hashedNewPassword);
 
     this.logger.log(`Password changed successfully for User ID: ${userId}`);
     return { message: 'Password changed successfully.' };
-  }
-
-  // --- Private Helper Methods ---
-
-  /**
-   * Hashes a password using bcrypt.
-   * @param password The plain text password.
-   * @returns The hashed password string.
-   */
-  private async hashPassword(password: string): Promise<string> {
-    return await bcrypt.hash(password, this.BCRYPT_SALT_ROUNDS);
   }
 }

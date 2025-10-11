@@ -59,7 +59,7 @@ export class MenuService {
    * NOTE: Currently assumes public read access. Add auth check if needed.
    */
   async getStoreMenuItems(storeId: string): Promise<MenuItem[]> {
-    this.logger.log(`Workspaceing menu items for store ID: ${storeId}`);
+    this.logger.log(`Fetching menu items for store ID: ${storeId}`);
     return await this.prisma.menuItem.findMany({
       where: { storeId },
       orderBy: [{ category: { sortOrder: 'asc' } }, { sortOrder: 'asc' }],
@@ -425,7 +425,7 @@ export class MenuService {
         where: {
           storeId,
           name: catDto.name,
-          deletedAt: { not: null },
+          deletedAt: null,
         },
         select: { id: true },
       });

@@ -2,6 +2,7 @@ import { Response as ExpressResponse, CookieOptions } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
 import { EmailService } from 'src/email/email.service';
+import { Throttle } from '@nestjs/throttler';
 
 import {
   BadRequestException,
@@ -65,6 +66,7 @@ export class AuthController {
    * Step 1: Login with email/password.
    * Validates credentials, generates a basic JWT (sub=userId), sets it in an HttpOnly cookie.
    */
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @ApiOperation({ summary: 'Login with email/password (Step 1)' })
@@ -197,6 +199,7 @@ export class AuthController {
   /**
    * Request a password reset email.
    */
+  @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
   @Post('forgot-password')
   @ApiOperation({ summary: 'Request password reset token via email' })
   @ApiOkResponse({
@@ -242,6 +245,7 @@ export class AuthController {
   /**
    * Reset password using a valid token.
    */
+  @Throttle({ default: { limit: 5, ttl: 300000 } }) // 5 attempts per 5 minutes
   @Post('reset-password')
   @ApiOperation({ summary: 'Reset password using reset token from email' })
   @ApiOkResponse({
@@ -272,6 +276,7 @@ export class AuthController {
   /**
    * Change password for an authenticated (logged-in) user.
    */
+  @Throttle({ default: { limit: 3, ttl: 60000 } }) // 3 attempts per minute
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
   @ApiBearerAuth()
