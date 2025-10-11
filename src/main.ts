@@ -44,6 +44,7 @@ async function bootstrap() {
     .setDescription('API documentation for the Restaurant POS system')
     .setVersion('1.0')
     .addBearerAuth()
+    .setOpenAPIVersion('3.1.0')
     .build();
   const document = SwaggerModule.createDocument(app, config, {
     extraModels: [StandardApiResponse, StandardApiErrorDetails],
