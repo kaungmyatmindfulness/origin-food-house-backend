@@ -1,8 +1,5 @@
 import * as crypto from 'crypto';
 
-import { UserService } from '../user/user.service';
-import { Role, User } from '@prisma/client';
-
 import {
   BadRequestException,
   Injectable,
@@ -13,8 +10,12 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { Role, User } from '@prisma/client';
+
 import { hashPassword, comparePassword } from 'src/common/utils/password.util';
+import { PrismaService } from 'src/prisma/prisma.service';
+
+import { UserService } from '../user/user.service';
 
 @Injectable()
 export class AuthService {

@@ -1,17 +1,18 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { MenuService } from './menu.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { AuthService } from '../auth/auth.service';
+import { Test, TestingModule } from '@nestjs/testing';
 import { Role, Prisma } from '@prisma/client';
+
+import { MenuService } from './menu.service';
+import { AuthService } from '../auth/auth.service';
 import {
   createPrismaMock,
   PrismaMock,
 } from '../common/testing/prisma-mock.helper';
+import { PrismaService } from '../prisma/prisma.service';
 
 describe('MenuService', () => {
   let service: MenuService;

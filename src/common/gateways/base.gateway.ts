@@ -39,7 +39,7 @@ export abstract class BaseGateway
     this.logger.log(`WebSocket Gateway Initialized: ${this.constructor.name}`);
   }
 
-  handleConnection(client: SocketWithSession, ..._args: any[]) {
+  handleConnection(client: SocketWithSession, ..._args: unknown[]) {
     this.logger.log(`Client connected: ${client.id}`);
   }
 
@@ -64,7 +64,7 @@ export abstract class BaseGateway
     return context;
   }
 
-  protected emitToSession(sessionId: string, event: string, data: any) {
+  protected emitToSession(sessionId: string, event: string, data: unknown) {
     const roomName = `session_${sessionId}`;
     this.logger.debug(`Emitting event '${event}' to room '${roomName}'`);
     this.server.to(roomName).emit(event, data);

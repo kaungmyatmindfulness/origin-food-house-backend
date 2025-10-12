@@ -1,13 +1,14 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { CartService } from './cart.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { Test, TestingModule } from '@nestjs/testing';
 import { Prisma, PreparationStatus } from '@prisma/client';
+
+import { CartService } from './cart.service';
 import {
   createPrismaMock,
   PrismaMock,
 } from '../common/testing/prisma-mock.helper';
+import { PrismaService } from '../prisma/prisma.service';
 
 describe('CartService', () => {
   let service: CartService;

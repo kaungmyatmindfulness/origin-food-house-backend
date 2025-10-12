@@ -1,8 +1,8 @@
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
+import { PassportStrategy } from '@nestjs/passport';
 import { Request } from 'express';
+import { Strategy } from 'passport-jwt';
 
 interface SessionJwtPayload {
   sub: string;

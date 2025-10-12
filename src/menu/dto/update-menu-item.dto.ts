@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -6,9 +7,8 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
-import { IsPositiveNumericString } from 'src/common/decorators/is-positive-numeric-string.decorator';
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsPositiveNumericString } from 'src/common/decorators/is-positive-numeric-string.decorator';
 
 import { UpsertCategoryDto } from './upsert-category.dto';
 import { UpsertCustomizationGroupDto } from './upsert-customization-group.dto';

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
+
 export class MenuItemBasicResponseDto {
   @ApiProperty({ format: 'uuid' }) @Expose() id: string;
   @ApiProperty() @Expose() name: string;

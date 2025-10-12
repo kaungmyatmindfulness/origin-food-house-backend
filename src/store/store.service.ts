@@ -6,8 +6,6 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { InviteOrAssignRoleDto } from './dto/invite-or-assign-role.dto';
 import {
   Prisma,
   Role,
@@ -16,11 +14,15 @@ import {
   StoreSetting,
   UserStore,
 } from '@prisma/client';
-import { UpdateStoreInformationDto } from 'src/store/dto/update-store-information.dto';
 import slugify from 'slugify';
-import { CreateStoreDto } from 'src/store/dto/create-store.dto';
+
 import { AuthService } from 'src/auth/auth.service';
+import { CreateStoreDto } from 'src/store/dto/create-store.dto';
+import { UpdateStoreInformationDto } from 'src/store/dto/update-store-information.dto';
 import { UpdateStoreSettingDto } from 'src/store/dto/update-store-setting.dto';
+
+import { InviteOrAssignRoleDto } from './dto/invite-or-assign-role.dto';
+import { PrismaService } from '../prisma/prisma.service';
 
 const storeWithDetailsInclude = Prisma.validator<Prisma.StoreInclude>()({
   information: true,

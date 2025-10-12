@@ -20,14 +20,15 @@ import {
   ApiBody,
   ApiExtraModels,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { UploadService } from './upload.service';
-import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
 import { Express } from 'express';
-import { UploadImageResponseDto } from './dto/upload-image-response.dto';
 
-import { imageFileFilter } from 'src/common/utils/file-filter.utils';
 import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
+import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
+import { imageFileFilter } from 'src/common/utils/file-filter.utils';
+
+import { UploadImageResponseDto } from './dto/upload-image-response.dto';
+import { UploadService } from './upload.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB;
 

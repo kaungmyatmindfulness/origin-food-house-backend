@@ -1,10 +1,4 @@
 import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
-import {
   S3Client,
   PutObjectCommand,
   PutObjectCommandInput,
@@ -22,6 +16,12 @@ import {
   DeleteObjectsCommandOutput,
   _Error as S3Error,
 } from '@aws-sdk/client-s3';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()

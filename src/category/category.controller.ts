@@ -1,9 +1,3 @@
-import { RequestWithUser } from 'src/auth/types';
-import { GetCategoriesQueryDto } from 'src/category/dto/get-categories-query.dto';
-import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
-import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
-import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
-
 import {
   BadRequestException,
   Body,
@@ -30,7 +24,12 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RequestWithUser } from 'src/auth/types';
+import { GetCategoriesQueryDto } from 'src/category/dto/get-categories-query.dto';
+import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
+import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
+import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
+
 import { CategoryService } from './category.service';
 import { CategoryBasicResponseDto } from './dto/category-basic-response.dto';
 import { CategoryDeletedResponseDto } from './dto/category-deleted-response.dto';
@@ -41,6 +40,7 @@ import { CustomizationOptionResponseDto } from './dto/customization-option-respo
 import { MenuItemNestedResponseDto } from './dto/menu-item-nested-response.dto';
 import { SortCategoriesPayloadDto } from './dto/sort-categories-payload.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Categories')
 @Controller('categories')

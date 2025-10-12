@@ -1,18 +1,19 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { TableService } from './table.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { AuthService } from '../auth/auth.service';
+import { Test, TestingModule } from '@nestjs/testing';
 import { Role, Prisma } from '@prisma/client';
+
+import { TableService } from './table.service';
+import { AuthService } from '../auth/auth.service';
 import {
   createPrismaMock,
   PrismaMock,
 } from '../common/testing/prisma-mock.helper';
+import { PrismaService } from '../prisma/prisma.service';
 
 describe('TableService', () => {
   let service: TableService;

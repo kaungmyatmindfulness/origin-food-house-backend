@@ -1,5 +1,5 @@
-import { IsString, IsOptional, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, IsUUID } from 'class-validator';
 
 export class UpsertCategoryDto {
   @ApiPropertyOptional({

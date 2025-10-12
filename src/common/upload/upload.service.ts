@@ -1,6 +1,4 @@
 import * as path from 'path';
-import * as sharp from 'sharp';
-import { v4 as uuidv4 } from 'uuid';
 
 import {
   BadRequestException,
@@ -9,6 +7,8 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import * as sharp from 'sharp';
+import { v4 as uuidv4 } from 'uuid';
 
 import { S3Service } from '../infra/s3.service';
 

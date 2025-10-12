@@ -13,7 +13,7 @@ import {
 export class IsOnlyOneIdentifierPresentConstraint
   implements ValidatorConstraintInterface
 {
-  validate(value: any, args: ValidationArguments) {
+  validate(value: unknown, args: ValidationArguments) {
     const object = args.object as GetCategoriesQueryDto;
     const idProvided =
       object.storeId !== undefined &&

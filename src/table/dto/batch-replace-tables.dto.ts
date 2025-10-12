@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsArray, ValidateNested, ArrayMaxSize } from 'class-validator'; // Removed ArrayMinSize(0) as empty is allowed implicitly
+
 import { BatchCreateTableDto } from './batch-create-table.dto';
 
 export class BatchReplaceTablesDto {

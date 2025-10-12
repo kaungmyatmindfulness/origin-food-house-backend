@@ -1,4 +1,5 @@
 import { Request } from 'express';
+
 import { SessionContext } from 'src/auth/customer-session-jwt.strategy';
 
 export interface RequestWithUser extends Request {

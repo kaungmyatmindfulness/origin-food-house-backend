@@ -5,11 +5,12 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma, PreparationStatus, Cart } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+
+import { PrismaService } from '../prisma/prisma.service';
 import { AddItemToCartDto } from './dto/add-item-to-cart.dto';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 
 // Define necessary includes/selects used across methods
 const cartItemInclude = Prisma.validator<Prisma.CartItemInclude>()({
@@ -192,9 +193,10 @@ export class CartService {
       this.eventEmitter.emit('cart.updated', { sessionId, cart: updatedCart });
       return updatedCart;
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `[${method}] Error adding item for session ${sessionId}: ${error.message}`,
-        error.stack,
+        `[${method}] Error adding item for session ${sessionId}: ${err.message}`,
+        err.stack,
       );
       if (
         error instanceof BadRequestException ||
@@ -251,9 +253,10 @@ export class CartService {
       this.eventEmitter.emit('cart.updated', { sessionId, cart: updatedCart });
       return updatedCart;
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `[${method}] Error updating item ${cartItemId} for session ${sessionId}: ${error.message}`,
-        error.stack,
+        `[${method}] Error updating item ${cartItemId} for session ${sessionId}: ${err.message}`,
+        err.stack,
       );
       if (
         error instanceof BadRequestException ||
@@ -301,9 +304,10 @@ export class CartService {
       this.eventEmitter.emit('cart.updated', { sessionId, cart: updatedCart });
       return updatedCart;
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `[${method}] Error removing item ${cartItemId} for session ${sessionId}: ${error.message}`,
-        error.stack,
+        `[${method}] Error removing item ${cartItemId} for session ${sessionId}: ${err.message}`,
+        err.stack,
       );
       if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException('Could not remove cart item.');
@@ -330,9 +334,10 @@ export class CartService {
       this.eventEmitter.emit('cart.updated', { sessionId, cart: updatedCart });
       return updatedCart;
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `[${method}] Error clearing cart for session ${sessionId}: ${error.message}`,
-        error.stack,
+        `[${method}] Error clearing cart for session ${sessionId}: ${err.message}`,
+        err.stack,
       );
       if (error instanceof NotFoundException) throw error; // From findOrCreateCart
       throw new InternalServerErrorException('Could not clear cart.');
@@ -450,9 +455,10 @@ export class CartService {
         return await this.prisma.$transaction(transactionLogic); // Start new transaction
       }
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `[${method}] Failed to confirm cart for session ${sessionId}: ${error.message}`,
-        error.stack,
+        `[${method}] Failed to confirm cart for session ${sessionId}: ${err.message}`,
+        err.stack,
       );
       if (
         error instanceof BadRequestException ||

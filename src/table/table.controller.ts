@@ -22,20 +22,20 @@ import {
   ApiExtraModels,
   ApiBody,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { TableService } from './table.service';
-import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
+
 import { RequestWithUser } from 'src/auth/types';
-import { CreateTableDto } from './dto/create-table.dto';
-import { UpdateTableDto } from './dto/update-table.dto';
+import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
+import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
+import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
 
 import { BatchUpsertTableDto } from './dto/batch-upsert-table.dto';
-import { UpsertTableDto } from './dto/upsert-table.dto';
-
-import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
-import { TableResponseDto } from './dto/table-response.dto';
+import { CreateTableDto } from './dto/create-table.dto';
 import { TableDeletedResponseDto } from './dto/table-deleted-response.dto';
-import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
+import { TableResponseDto } from './dto/table-response.dto';
+import { UpdateTableDto } from './dto/update-table.dto';
+import { UpsertTableDto } from './dto/upsert-table.dto';
+import { TableService } from './table.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Stores / Tables')
 @Controller('stores/:storeId/tables')

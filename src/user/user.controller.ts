@@ -1,10 +1,3 @@
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { RequestWithUser } from 'src/auth/types';
-import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
-import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
-import { GetProfileQueryDto } from 'src/user/dto/get-profile-query.dto';
-import { UserProfileResponseDto } from 'src/user/dto/user-profile-response.dto';
-
 import {
   Body,
   Controller,
@@ -36,11 +29,18 @@ import {
 } from '@nestjs/swagger';
 import { Prisma, UserStore } from '@prisma/client';
 
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { RequestWithUser } from 'src/auth/types';
+import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
+import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
+import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
+import { GetProfileQueryDto } from 'src/user/dto/get-profile-query.dto';
+import { UserProfileResponseDto } from 'src/user/dto/user-profile-response.dto';
+
 import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserPublicPayload } from './types/user-payload.types';
 import { UserService } from './user.service';
-import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
 
 @ApiTags('Users')
 @Controller('users')

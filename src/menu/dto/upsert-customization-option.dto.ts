@@ -1,5 +1,6 @@
-import { IsString, IsOptional, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, IsUUID } from 'class-validator';
+
 import { IsNonNegativeNumericString } from 'src/common/decorators/is-non-negative-numeric-string.decorator';
 
 export class UpsertCustomizationOptionDto {

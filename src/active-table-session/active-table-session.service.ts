@@ -5,11 +5,12 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma/prisma.service';
-import { AuthService } from '../auth/auth.service';
+import { JwtService } from '@nestjs/jwt';
 import { Role, Prisma, ActiveTableSession } from '@prisma/client';
+
+import { AuthService } from '../auth/auth.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ActiveTableSessionService {
@@ -81,8 +82,7 @@ export class ActiveTableSessionService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        const target = (error.meta as any)?.target as string[] | undefined;
+        const target = (error.meta as { target?: string[] })?.target;
         if (target?.includes('tableId')) {
           this.logger.warn(
             `[${method}] Failed to create session for Table ${tableId}: Table already occupied.`,

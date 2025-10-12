@@ -1,17 +1,18 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { CategoryService } from './category.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { AuthService } from '../auth/auth.service';
+import { Test, TestingModule } from '@nestjs/testing';
 import { Role, Prisma } from '@prisma/client';
+
+import { CategoryService } from './category.service';
+import { AuthService } from '../auth/auth.service';
 import {
   createPrismaMock,
   PrismaMock,
 } from '../common/testing/prisma-mock.helper';
+import { PrismaService } from '../prisma/prisma.service';
 
 describe('CategoryService', () => {
   let service: CategoryService;

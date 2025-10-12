@@ -1,13 +1,12 @@
-// Import polyfills first to ensure crypto is available globally
-import './polyfills';
-
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { AppModule } from './app.module';
-import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
-import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
 import * as cookieParser from 'cookie-parser';
+
+import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
+import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
+
+import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

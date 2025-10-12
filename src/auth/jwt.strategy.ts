@@ -1,8 +1,9 @@
-import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Injectable, Logger } from '@nestjs/common'; // Import Logger
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Request } from 'express';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+
 import { JwtPayload } from './interfaces/jwt-payload.interface'; // Assuming this interface exists
 
 function extractJwtFromCookie(req: Request): string | null {

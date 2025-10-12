@@ -5,10 +5,10 @@ import {
   Logger,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { Observable } from 'rxjs';
-import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
-
 import { Request } from 'express';
+import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
+import { Observable } from 'rxjs';
+
 import { SessionContext } from 'src/auth/customer-session-jwt.strategy';
 
 @Injectable()

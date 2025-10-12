@@ -8,5 +8,5 @@ export class UploadImageRequestDto {
       'The image file to upload (jpg, jpeg, png, webp are validated). Max size: 10MB.',
     required: true,
   })
-  file: any;
+  file: Express.Multer.File;
 }

@@ -6,6 +6,7 @@ import {
   ArrayMinSize,
   ArrayMaxSize,
 } from 'class-validator';
+
 import { UpsertTableDto } from './upsert-table.dto';
 
 export class BatchUpsertTableDto {

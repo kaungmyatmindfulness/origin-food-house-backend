@@ -1,9 +1,10 @@
 // src/cart/dto/cart-item-response.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, Type } from 'class-transformer';
+
 // Adjust import paths as needed
-import { MenuItemBasicResponseDto } from '../../menu/dto/menu-item-basic-response.dto';
 import { CustomizationOptionResponseDto } from '../../menu/dto/customization-option-response.dto';
+import { MenuItemBasicResponseDto } from '../../menu/dto/menu-item-basic-response.dto';
 
 export class CartItemResponseDto {
   @ApiProperty({ format: 'uuid' })

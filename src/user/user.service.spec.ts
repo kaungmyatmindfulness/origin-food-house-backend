@@ -1,18 +1,19 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
   NotFoundException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { UserService } from './user.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { EmailService } from '../email/email.service';
+import { Test, TestingModule } from '@nestjs/testing';
 import { Role, Prisma } from '@prisma/client';
-import * as passwordUtil from '../common/utils/password.util';
+
+import { UserService } from './user.service';
 import {
   createPrismaMock,
   PrismaMock,
 } from '../common/testing/prisma-mock.helper';
+import * as passwordUtil from '../common/utils/password.util';
+import { EmailService } from '../email/email.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 jest.mock('../common/utils/password.util');
 

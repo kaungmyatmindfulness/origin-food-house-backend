@@ -1,5 +1,4 @@
 import * as crypto from 'crypto';
-import * as disposableDomains from 'disposable-email-domains';
 
 import {
   BadRequestException,
@@ -9,19 +8,21 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { User, UserStore, Prisma, Role } from '@prisma/client';
+import * as disposableDomains from 'disposable-email-domains';
 
-import { EmailService } from '../email/email.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
-import { CreateUserDto } from './dto/create-user.dto';
+import { hashPassword } from 'src/common/utils/password.util';
+import { UserProfileResponseDto } from 'src/user/dto/user-profile-response.dto';
 import {
   UserPublicPayload,
   userSelectPublic,
   userSelectWithStores,
   UserWithStoresPublicPayload,
 } from 'src/user/types/user-payload.types';
-import { UserProfileResponseDto } from 'src/user/dto/user-profile-response.dto';
-import { hashPassword } from 'src/common/utils/password.util';
+
+import { EmailService } from '../email/email.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
 export class UserService {

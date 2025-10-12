@@ -4,11 +4,11 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { Request } from 'express';
 import { Socket } from 'socket.io';
 
-import { Request } from 'express';
 import { SessionContext } from 'src/auth/customer-session-jwt.strategy';
 
 const ERROR_EVENT = 'error';
@@ -30,7 +30,8 @@ function extractTokenFromHandshake(client: Socket): string | null {
   }
 
   if (!token && typeof client.handshake.query?.token === 'string') {
-    token = client.handshake.query.token;
+    const { token: queryToken } = client.handshake.query as { token: string };
+    token = queryToken;
     if (token) {
       logger.debug(`Token found in handshake query for client ${client.id}`);
       return token;
@@ -41,17 +42,20 @@ function extractTokenFromHandshake(client: Socket): string | null {
     const request = client.request as Request & {
       cookies?: Record<string, string>;
     };
-    if (!token && request?.cookies) {
-      token = request.cookies['session_token'];
-      if (token) {
+    const { cookies } = request ?? {};
+    if (!token && cookies) {
+      const sessionToken = cookies['session_token'] as string | undefined;
+      if (sessionToken && typeof sessionToken === 'string') {
+        token = sessionToken;
         logger.debug(`Token found in handshake cookie for client ${client.id}`);
         return token;
       }
     }
   } catch (e) {
+    const error = e as Error;
     logger.warn(
       `Could not access cookies from handshake request for client ${client.id}`,
-      e?.message,
+      error?.message,
     );
   }
 
@@ -92,9 +96,9 @@ export class WsJwtGuard implements CanActivate {
         return false;
       }
 
-      (client as any).sessionContext = {
+      (client as Socket & { sessionContext: SessionContext }).sessionContext = {
         sessionId: payload.sub,
-      } as SessionContext;
+      };
 
       this.logger.verbose(
         `WS Auth: Client ${client.id} authenticated for session ${payload.sub}.`,

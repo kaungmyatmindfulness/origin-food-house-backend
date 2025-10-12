@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, ValidateNested, IsArray, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsInt, ValidateNested, IsArray, IsUUID } from 'class-validator';
+
 import { SortMenuItemDto } from './sort-menu-item.dto';
 
 export class SortCategoryDto {

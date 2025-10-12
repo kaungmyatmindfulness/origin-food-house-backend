@@ -1,17 +1,18 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { StoreService } from './store.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { AuthService } from '../auth/auth.service';
+import { Test, TestingModule } from '@nestjs/testing';
 import { Role, Prisma, Currency } from '@prisma/client';
+
+import { StoreService } from './store.service';
+import { AuthService } from '../auth/auth.service';
 import {
   createPrismaMock,
   PrismaMock,
 } from '../common/testing/prisma-mock.helper';
+import { PrismaService } from '../prisma/prisma.service';
 
 // Mock nanoid module
 jest.mock('nanoid', () => ({

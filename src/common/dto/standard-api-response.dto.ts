@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
 import { Type } from 'class-transformer';
 import { ValidateNested } from 'class-validator';
+
+import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
 
 export class StandardApiResponse<T> {
   @ApiProperty({ example: 'success', enum: ['success', 'error'] })

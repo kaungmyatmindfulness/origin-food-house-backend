@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
+
 export class TableDeletedResponseDto {
   @ApiProperty({ format: 'uuid', description: 'ID of the deleted table.' })
   @Expose()

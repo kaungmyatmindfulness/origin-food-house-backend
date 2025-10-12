@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+
 import { StoreInformationResponseDto } from './store-information-response.dto';
 import { StoreSettingResponseDto } from './store-setting-response.dto';
 

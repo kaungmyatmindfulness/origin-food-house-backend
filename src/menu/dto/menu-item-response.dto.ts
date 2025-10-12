@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+
 import { CategoryResponseDto } from './category-response.dto';
 import { CustomizationGroupResponseDto } from './customization-group-response.dto';
 

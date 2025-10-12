@@ -6,13 +6,15 @@ import {
   InternalServerErrorException, // Keep for re-throwing truly unexpected errors
   Logger,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Role, Table, Prisma } from '@prisma/client';
+
+import { StandardErrorHandler } from 'src/common/decorators/standard-error-handler.decorator';
+
 import { AuthService } from '../auth/auth.service'; // Assuming AuthService provides checkStorePermission
+import { PrismaService } from '../prisma/prisma.service';
+import { BatchUpsertTableDto } from './dto/batch-upsert-table.dto'; // Use correct DTO
 import { CreateTableDto } from './dto/create-table.dto';
 import { UpdateTableDto } from './dto/update-table.dto';
-import { BatchUpsertTableDto } from './dto/batch-upsert-table.dto'; // Use correct DTO
-import { Role, Table, Prisma } from '@prisma/client';
-import { StandardErrorHandler } from 'src/common/decorators/standard-error-handler.decorator';
 
 /**
  * Natural sort comparator function for strings containing numbers.

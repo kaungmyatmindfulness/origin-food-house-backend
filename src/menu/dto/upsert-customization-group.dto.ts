@@ -1,3 +1,5 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsString,
   IsNumber,
@@ -8,8 +10,7 @@ import {
   Min,
   IsUUID,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+
 import { UpsertCustomizationOptionDto } from './upsert-customization-option.dto';
 
 export class UpsertCustomizationGroupDto {

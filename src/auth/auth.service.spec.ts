@@ -1,20 +1,21 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { JwtService } from '@nestjs/jwt';
 import {
   UnauthorizedException,
   NotFoundException,
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { UserService } from '../user/user.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
+import { Test, TestingModule } from '@nestjs/testing';
 import { Role } from '@prisma/client';
-import * as passwordUtil from '../common/utils/password.util';
+
+import { AuthService } from './auth.service';
 import {
   createPrismaMock,
   PrismaMock,
 } from '../common/testing/prisma-mock.helper';
+import * as passwordUtil from '../common/utils/password.util';
+import { PrismaService } from '../prisma/prisma.service';
+import { UserService } from '../user/user.service';
 
 // Mock the password utility module
 jest.mock('../common/utils/password.util');

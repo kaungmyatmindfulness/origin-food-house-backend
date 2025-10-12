@@ -6,14 +6,16 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { AuthService } from '../auth/auth.service';
-import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
-import { SortCategoriesPayloadDto } from './dto/sort-categories-payload.dto';
 import { Prisma, Category, Role } from '@prisma/client';
+
 import { CategoryResponseDto } from 'src/category/dto/category-response.dto';
 import { StandardErrorHandler } from 'src/common/decorators/standard-error-handler.decorator';
+
+import { AuthService } from '../auth/auth.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateCategoryDto } from './dto/create-category.dto';
+import { SortCategoriesPayloadDto } from './dto/sort-categories-payload.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @Injectable()
 export class CategoryService {

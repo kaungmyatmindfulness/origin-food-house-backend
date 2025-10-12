@@ -1,9 +1,3 @@
-import { Response as ExpressResponse, CookieOptions } from 'express';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
-import { EmailService } from 'src/email/email.service';
-import { Throttle } from '@nestjs/throttler';
-
 import {
   BadRequestException,
   Body,
@@ -30,6 +24,12 @@ import {
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { Response as ExpressResponse, CookieOptions } from 'express';
+
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
+import { EmailService } from 'src/email/email.service';
 
 import { AuthService } from './auth.service';
 import { ChangePasswordDto } from './dto/change-password.dto';

@@ -1,3 +1,5 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsString,
   IsOptional,
@@ -5,11 +7,11 @@ import {
   ValidateNested,
   IsBoolean,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+
+import { IsPositiveNumericString } from 'src/common/decorators/is-positive-numeric-string.decorator';
+
 import { UpsertCategoryDto } from './upsert-category.dto';
 import { UpsertCustomizationGroupDto } from './upsert-customization-group.dto';
-import { IsPositiveNumericString } from 'src/common/decorators/is-positive-numeric-string.decorator';
 
 export class CreateMenuItemDto {
   @ApiProperty({ example: 'Pad Krapow Moo' })

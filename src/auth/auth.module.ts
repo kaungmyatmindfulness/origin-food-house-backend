@@ -1,16 +1,18 @@
 import { Module } from '@nestjs/common';
-import { PassportModule } from '@nestjs/passport';
-import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
 
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { LocalStrategy } from './local.strategy';
-import { JwtStrategy } from './jwt.strategy';
-
-import { UserModule } from '../user/user.module';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { CustomerSessionJwtStrategy } from 'src/auth/customer-session-jwt.strategy';
+import { PrismaService } from 'src/prisma/prisma.service';
+
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+import { JwtStrategy } from './jwt.strategy';
+import { LocalStrategy } from './local.strategy';
+import { UserModule } from '../user/user.module';
+
+import type { StringValue } from 'ms';
 
 @Module({
   imports: [
@@ -21,13 +23,12 @@ import { CustomerSessionJwtStrategy } from 'src/auth/customer-session-jwt.strate
       useFactory: (configService: ConfigService): JwtModuleOptions => {
         const secret =
           configService.getOrThrow<string>('JWT_SECRET') || 'JWT_SECRET';
-        const expiresIn =
-          configService.getOrThrow<string>('JWT_EXPIRY') || '20h';
+        const expiresIn = (configService.getOrThrow<string>('JWT_EXPIRY') ||
+          '20h') as StringValue;
         return {
           secret,
           signOptions: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            expiresIn: expiresIn as any,
+            expiresIn,
           },
         };
       },

@@ -5,22 +5,23 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import {
   WebSocketGateway,
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
+
+import { CartService, CartWithDetails } from './cart.service';
+import { AddItemToCartDto } from './dto/add-item-to-cart.dto';
+import { RemoveCartItemDto } from './dto/remove-cart-item.dto';
+import { UpdateCartItemDto } from './dto/update-cart-item.dto';
+import { CustomerSessionJwtAuthGuard } from '../auth/guards/customer-session-jwt.guard';
 import {
   BaseGateway,
   SocketWithSession,
 } from '../common/gateways/base.gateway';
-import { CustomerSessionJwtAuthGuard } from '../auth/guards/customer-session-jwt.guard';
-import { CartService, CartWithDetails } from './cart.service';
-import { AddItemToCartDto } from './dto/add-item-to-cart.dto';
-import { UpdateCartItemDto } from './dto/update-cart-item.dto';
-import { RemoveCartItemDto } from './dto/remove-cart-item.dto';
-import { OnEvent } from '@nestjs/event-emitter';
 
 const CART_EVENT_PREFIX = 'cart:';
 const GET_CART_EVENT = `${CART_EVENT_PREFIX}get`;
@@ -68,9 +69,10 @@ export class CartGateway extends BaseGateway {
 
       client.emit(CART_UPDATED_EVENT, cart);
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `[${method}] Failed for Session ${sessionId}: ${error.message}`,
-        error.stack,
+        `[${method}] Failed for Session ${sessionId}: ${err.message}`,
+        err.stack,
       );
       client.emit(CART_ERROR_EVENT, { message: 'Failed to retrieve cart.' });
     }
@@ -96,13 +98,14 @@ export class CartGateway extends BaseGateway {
     try {
       await this.cartService.addItemToCart(sessionId, payload);
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `[${method}] Failed for Session ${sessionId}: ${error.message}`,
-        error.stack,
+        `[${method}] Failed for Session ${sessionId}: ${err.message}`,
+        err.stack,
       );
       client.emit(CART_ERROR_EVENT, {
         event: ADD_ITEM_EVENT,
-        message: (error as Error).message ?? 'Failed to add item to cart.',
+        message: err.message ?? 'Failed to add item to cart.',
         details:
           error instanceof BadRequestException ||
           error instanceof NotFoundException
@@ -135,13 +138,14 @@ export class CartGateway extends BaseGateway {
         notes: payload.notes,
       });
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `[${method}] Failed for Session ${sessionId}: ${error.message}`,
-        error.stack,
+        `[${method}] Failed for Session ${sessionId}: ${err.message}`,
+        err.stack,
       );
       client.emit(CART_ERROR_EVENT, {
         event: UPDATE_ITEM_EVENT,
-        message: (error as Error).message ?? 'Failed to update cart item.',
+        message: err.message ?? 'Failed to update cart item.',
         details:
           error instanceof BadRequestException ||
           error instanceof NotFoundException
@@ -171,13 +175,14 @@ export class CartGateway extends BaseGateway {
     try {
       await this.cartService.removeItemFromCart(sessionId, payload.cartItemId);
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `[${method}] Failed for Session ${sessionId}: ${error.message}`,
-        error.stack,
+        `[${method}] Failed for Session ${sessionId}: ${err.message}`,
+        err.stack,
       );
       client.emit(CART_ERROR_EVENT, {
         event: REMOVE_ITEM_EVENT,
-        message: (error as Error).message ?? 'Failed to remove cart item.',
+        message: err.message ?? 'Failed to remove cart item.',
         details:
           error instanceof NotFoundException ? error.getResponse() : undefined,
       });
@@ -200,13 +205,14 @@ export class CartGateway extends BaseGateway {
     try {
       await this.cartService.clearCart(sessionId);
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `[${CLEAR_CART_EVENT}] Failed for Session ${sessionId}: ${error.message}`,
-        error.stack,
+        `[${CLEAR_CART_EVENT}] Failed for Session ${sessionId}: ${err.message}`,
+        err.stack,
       );
       client.emit(CART_ERROR_EVENT, {
         event: CLEAR_CART_EVENT,
-        message: (error as Error).message ?? 'Failed to clear cart.',
+        message: err.message ?? 'Failed to clear cart.',
         details:
           error instanceof NotFoundException ? error.getResponse() : undefined,
       });

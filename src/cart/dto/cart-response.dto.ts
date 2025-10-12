@@ -1,7 +1,7 @@
-import { Expose, Type } from 'class-transformer';
-import { CartItemResponseDto } from 'src/cart/dto/cart-item-response.dto';
-
 import { ApiProperty } from '@nestjs/swagger';
+import { Expose, Type } from 'class-transformer';
+
+import { CartItemResponseDto } from 'src/cart/dto/cart-item-response.dto';
 
 export class CartResponseDto {
   @ApiProperty({ format: 'uuid' }) @Expose() id: string;

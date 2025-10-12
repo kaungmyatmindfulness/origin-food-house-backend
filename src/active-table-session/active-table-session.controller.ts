@@ -12,6 +12,7 @@ import {
   Get,
   InternalServerErrorException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ApiTags,
   ApiOperation,
@@ -21,18 +22,19 @@ import {
   ApiCookieAuth,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ActiveTableSessionService } from './active-table-session.service';
-import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
-import { RequestWithCustomer, RequestWithUser } from 'src/auth/types';
-import { ActiveTableSessionResponseDto } from './dto/active-table-session-response.dto';
-import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
 import { Response } from 'express';
-import { ConfigService } from '@nestjs/config';
-import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
+
 import { JoinSessionResponseDto } from 'src/active-table-session/dto/join-session-response.dto';
 import { SessionContextDto } from 'src/active-table-session/dto/session-content.dto';
 import { CustomerSessionJwtAuthGuard } from 'src/auth/guards/customer-session-jwt.guard';
+import { RequestWithCustomer, RequestWithUser } from 'src/auth/types';
+import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
+import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
+import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
+
+import { ActiveTableSessionService } from './active-table-session.service';
+import { ActiveTableSessionResponseDto } from './dto/active-table-session-response.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Active Table Sessions')
 @Controller()
