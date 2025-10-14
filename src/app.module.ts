@@ -5,9 +5,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
-import { ActiveTableSessionModule } from 'src/active-table-session/active-table-session.module';
 import { AuthModule } from 'src/auth/auth.module';
-import { CartModule } from 'src/cart/cart.module';
 import { CategoryModule } from 'src/category/category.module';
 import { UnusedImageCleanupService } from 'src/common/cleanup/unused-image-cleanup.service';
 import { CommonModule } from 'src/common/common.module';
@@ -43,8 +41,6 @@ import { PrismaService } from './prisma/prisma.service';
     StoreModule,
     UserModule,
     TableModule,
-    ActiveTableSessionModule,
-    CartModule,
   ],
   controllers: [],
   providers: [

@@ -50,30 +50,6 @@ export const createPrismaMock = () => ({
     findFirst: jest.fn(),
     findFirstOrThrow: jest.fn(),
   },
-  cart: {
-    create: jest.fn(),
-    upsert: jest.fn(),
-    findUnique: jest.fn(),
-    findUniqueOrThrow: jest.fn(),
-    delete: jest.fn(),
-  },
-  cartItem: {
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-    deleteMany: jest.fn(),
-  },
-  activeTableSession: {
-    count: jest.fn(),
-    findUnique: jest.fn(),
-  },
-  activeOrder: {
-    create: jest.fn(),
-    findUnique: jest.fn(),
-  },
-  activeOrderChunk: {
-    create: jest.fn(),
-  },
   customizationGroup: {
     create: jest.fn(),
     update: jest.fn(),

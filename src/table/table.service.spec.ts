@@ -42,9 +42,6 @@ describe('TableService', () => {
       findMany: jest.fn(),
       findFirstOrThrow: jest.fn(),
     },
-    activeTableSession: {
-      count: jest.fn(),
-    },
   };
 
   beforeEach(async () => {
@@ -240,10 +237,9 @@ describe('TableService', () => {
     beforeEach(() => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.table.findFirstOrThrow.mockResolvedValue(mockTable as any);
-      prismaService.activeTableSession.count.mockResolvedValue(0);
     });
 
-    it('should delete table successfully when no active session', async () => {
+    it('should delete table successfully', async () => {
       prismaService.table.delete.mockResolvedValue(mockTable as any);
 
       const result = await service.deleteTable(
@@ -256,20 +252,6 @@ describe('TableService', () => {
       expect(prismaService.table.delete).toHaveBeenCalledWith({
         where: { id: mockTableId },
       });
-    });
-
-    it('should throw BadRequestException if table has active session', async () => {
-      prismaService.activeTableSession.count.mockResolvedValue(1);
-      prismaService.table.findMany.mockResolvedValue([
-        { name: 'Table 1' },
-      ] as any);
-
-      await expect(
-        service.deleteTable(mockUserId, mockStoreId, mockTableId),
-      ).rejects.toThrow(BadRequestException);
-      await expect(
-        service.deleteTable(mockUserId, mockStoreId, mockTableId),
-      ).rejects.toThrow('active sessions exist');
     });
   });
 
@@ -306,7 +288,6 @@ describe('TableService', () => {
         id: 'table-2',
         name: 'T-2',
       } as any);
-      mockTransaction.activeTableSession.count.mockResolvedValue(0);
       mockTransaction.table.deleteMany.mockResolvedValue({ count: 1 } as any);
       mockTransaction.table.findMany.mockResolvedValueOnce([
         { id: 'table-1', name: 'T-1' },
@@ -345,30 +326,6 @@ describe('TableService', () => {
       await expect(
         service.syncTables(mockUserId, mockStoreId, emptyNameDto),
       ).rejects.toThrow('cannot be empty');
-    });
-
-    it('should throw BadRequestException if trying to delete table with active session', async () => {
-      const currentTables = [
-        { id: 'table-1', name: 'T-1' },
-        { id: 'table-3', name: 'T-3' }, // Has active session
-      ];
-
-      mockTransaction.table.findMany.mockResolvedValueOnce(
-        currentTables as any,
-      );
-      mockTransaction.table.findFirst.mockResolvedValue(null);
-      mockTransaction.table.update.mockResolvedValue({
-        id: 'table-1',
-        name: 'T-1',
-      } as any);
-      mockTransaction.activeTableSession.count.mockResolvedValue(1);
-      mockTransaction.table.findMany.mockResolvedValueOnce([
-        { id: 'table-1', name: 'T-1', activeSession: { id: 'session-123' } },
-      ] as any);
-
-      await expect(
-        service.syncTables(mockUserId, mockStoreId, syncDto),
-      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException if updating non-existent table ID', async () => {

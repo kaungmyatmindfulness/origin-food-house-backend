@@ -1,13 +1,6 @@
-import {
-  PrismaClient,
-  Role,
-  Currency,
-  PreparationStatus,
-  CustomerRequestType,
-  CustomerRequestStatus,
-  Prisma,
-} from '@prisma/client';
+/* eslint-disable no-console */
 import { faker } from '@faker-js/faker';
+import { PrismaClient, Role, Currency, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -64,13 +57,6 @@ async function main() {
     prisma.orderItemCustomization.deleteMany(),
     prisma.orderItem.deleteMany(),
     prisma.order.deleteMany(),
-    prisma.cartItem.deleteMany(),
-    prisma.cart.deleteMany(),
-    prisma.customerRequest.deleteMany(),
-    prisma.activeOrderChunkItem.deleteMany(),
-    prisma.activeOrderChunk.deleteMany(),
-    prisma.activeOrder.deleteMany(),
-    prisma.activeTableSession.deleteMany(),
     prisma.table.deleteMany(),
     prisma.customizationOption.deleteMany(),
     prisma.customizationGroup.deleteMany(),
@@ -91,7 +77,7 @@ async function main() {
       const userEmail =
         i === 0 ? 'owner@test.com' : faker.internet.email().toLowerCase();
       const hashedPassword = await bcrypt.hash('test1234', SALT_ROUNDS);
-      return prisma.user.create({
+      return await prisma.user.create({
         data: {
           email: userEmail,
           password: hashedPassword,
@@ -112,7 +98,7 @@ async function main() {
           slug:
             i === 0
               ? 'demo-cafe'
-              : faker.lorem.slug(2).toLowerCase() + '-diner',
+              : `${faker.lorem.slug(2).toLowerCase()}-diner`,
           information: {
             create: {
               name: i === 0 ? 'The Demo Cafe' : `${faker.company.name()} Diner`,
@@ -174,7 +160,7 @@ async function main() {
         else if (userIndex === 0 && storeIndex > 0) role = Role.OWNER;
 
         return prisma.userStore.create({
-          data: { userId: user.id, storeId: store.id, role: role },
+          data: { userId: user.id, storeId: store.id, role },
         });
       }),
     ),
@@ -188,7 +174,7 @@ async function main() {
       ['Appetizers', 'Main Courses', 'Desserts', 'Drinks', 'Specials'].map(
         (name, i) =>
           prisma.category.create({
-            data: { name: name, storeId: store.id, sortOrder: i },
+            data: { name, storeId: store.id, sortOrder: i },
           }),
       ),
     ),
@@ -271,129 +257,7 @@ async function main() {
   console.log(`   Created ${tables.length} tables.`);
   console.log('--------------------------------------------------');
 
-  console.log(
-    '⚡ Step 8: Creating Active Sessions, Carts, Orders, Requests...',
-  );
-  const activeSessionPromises: Promise<any>[] = [];
-  const tablesToUseForActive = faker.helpers.arrayElements(
-    tables,
-    Math.ceil(tables.length * 0.6),
-  );
-
-  for (const table of tablesToUseForActive) {
-    activeSessionPromises.push(
-      prisma.activeTableSession.create({
-        data: {
-          storeId: table.storeId,
-          tableId: table.id,
-          cart: {
-            create: {
-              items: {
-                create: Array.from({
-                  length: faker.number.int({ min: 0, max: 3 }),
-                })
-                  .map(() => {
-                    const storeMenuItems = menuItems.filter(
-                      (mi) =>
-                        mi.storeId === table.storeId &&
-                        !mi.deletedAt &&
-                        !mi.isHidden,
-                    );
-                    if (storeMenuItems.length === 0) return null;
-                    const menuItem = faker.helpers.arrayElement(storeMenuItems);
-                    const availableGroups = menuItem.customizationGroups;
-                    const chosenOptions = selectCustomizations(availableGroups);
-                    return {
-                      menuItemId: menuItem.id,
-                      quantity: faker.number.int({ min: 1, max: 2 }),
-                      notes: faker.datatype.boolean(0.1)
-                        ? faker.lorem.sentence()
-                        : null,
-                      selectedOptions: {
-                        connect: chosenOptions.map((opt) => ({ id: opt.id })),
-                      },
-                    };
-                  })
-                  .filter(
-                    (item) => item !== null,
-                  ) as Prisma.CartItemCreateWithoutCartInput[],
-              },
-            },
-          },
-          activeOrder: faker.datatype.boolean(0.8)
-            ? {
-                create: {
-                  chunks: {
-                    create: Array.from({
-                      length: faker.number.int({ min: 1, max: 2 }),
-                    }).map(() => ({
-                      chunkItems: {
-                        create: Array.from({
-                          length: faker.number.int({ min: 1, max: 4 }),
-                        })
-                          .map(() => {
-                            const storeMenuItems = menuItems.filter(
-                              (mi) =>
-                                mi.storeId === table.storeId &&
-                                !mi.deletedAt &&
-                                !mi.isHidden,
-                            );
-                            if (storeMenuItems.length === 0) return null;
-                            const menuItem =
-                              faker.helpers.arrayElement(storeMenuItems);
-                            const availableGroups =
-                              menuItem.customizationGroups;
-                            const chosenOptions =
-                              selectCustomizations(availableGroups);
-                            return {
-                              menuItemId: menuItem.id,
-                              quantity: faker.number.int({ min: 1, max: 2 }),
-                              notes: faker.datatype.boolean(0.1)
-                                ? faker.lorem.sentence()
-                                : null,
-                              status: faker.helpers.arrayElement(
-                                Object.values(PreparationStatus),
-                              ),
-                              selectedOptions: {
-                                connect: chosenOptions.map((opt) => ({
-                                  id: opt.id,
-                                })),
-                              },
-                            };
-                          })
-                          .filter(
-                            (item) => item !== null,
-                          ) as Prisma.ActiveOrderChunkItemCreateWithoutActiveOrderChunkInput[],
-                      },
-                    })),
-                  },
-                },
-              }
-            : undefined,
-          customerRequests: {
-            create: Array.from({
-              length: faker.number.int({ min: 0, max: 1 }),
-            }).map(() => ({
-              requestType: faker.helpers.arrayElement(
-                Object.values(CustomerRequestType),
-              ),
-              status: faker.helpers.arrayElement(
-                Object.values(CustomerRequestStatus),
-              ),
-            })),
-          },
-        },
-      }),
-    );
-  }
-
-  await Promise.all(activeSessionPromises);
-  console.log(
-    `   Created ${activeSessionPromises.length} Active Table Sessions.`,
-  );
-  console.log('--------------------------------------------------');
-
-  console.log('🧾 Step 9: Creating Historical Orders...');
+  console.log('🧾 Step 8: Creating Historical Orders...');
   const historicalOrderPromises: Promise<any>[] = [];
   const tablesForHistoricalOrders = faker.helpers.arrayElements(
     tables,
@@ -448,8 +312,8 @@ async function main() {
             connect: { id: menuItem.id },
           },
           price: menuItem.basePrice,
-          quantity: quantity,
-          finalPrice: finalPrice,
+          quantity,
+          finalPrice,
           notes: faker.datatype.boolean(0.1) ? faker.lorem.sentence() : null,
           customizations: {
             create: chosenHistoricalCustomizations,
@@ -477,9 +341,9 @@ async function main() {
               vatRateSnapshot: storeSetting?.vatRate ?? null,
               serviceChargeRateSnapshot:
                 storeSetting?.serviceChargeRate ?? null,
-              vatAmount: vatAmount,
-              serviceChargeAmount: serviceChargeAmount,
-              grandTotal: grandTotal,
+              vatAmount,
+              serviceChargeAmount,
+              grandTotal,
               orderItems: { create: historicalItemsData },
             },
           }),

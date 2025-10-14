@@ -31,14 +31,13 @@ model Store {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  userStores          UserStore[]
-  categories          Category[]
-  menuItems           MenuItem[]
-  tables              Table[]
-  activeTableSessions ActiveTableSession[]
-  information         StoreInformation?
-  setting             StoreSetting?
-  orders              Order[]
+  userStores  UserStore[]
+  categories  Category[]
+  menuItems   MenuItem[]
+  tables      Table[]
+  information StoreInformation?
+  setting     StoreSetting?
+  orders      Order[]
 
   @@index([slug])
 }
@@ -118,9 +117,7 @@ model MenuItem {
   store               Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
   customizationGroups CustomizationGroup[]
 
-  activeOrderChunkItems ActiveOrderChunkItem[]
-  orderItems            OrderItem[]
-  cartItems             CartItem[]
+  orderItems OrderItem[]
 
   @@index([storeId, categoryId, sortOrder])
   @@index([deletedAt])
@@ -152,9 +149,6 @@ model CustomizationOption {
 
   orderItemCustomizations OrderItemCustomization[]
 
-  activeOrderChunkItems ActiveOrderChunkItem[]
-  cartItems             CartItem[]
-
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
@@ -162,116 +156,17 @@ model CustomizationOption {
 }
 
 model Table {
-  id            String              @id @default(uuid(7))
-  storeId       String
-  name          String
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @default(now()) @updatedAt
-  store         Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  activeSession ActiveTableSession?
+  id        String   @id @default(uuid(7))
+  storeId   String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@unique([storeId, name])
   @@index([storeId, name])
 }
 
-model ActiveTableSession {
-  id        String   @id @default(uuid(7))
-  storeId   String
-  tableId   String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-
-  store            Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  table            Table             @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  activeOrder      ActiveOrder?
-  customerRequests CustomerRequest[]
-  cart             Cart?
-
-  @@index([storeId, createdAt])
-  @@index([tableId])
-  @@index([createdAt])
-}
-
-model Cart {
-  id                   String             @id @default(uuid(7))
-  activeTableSessionId String             @unique
-  activeTableSession   ActiveTableSession @relation(fields: [activeTableSessionId], references: [id], onDelete: Cascade)
-  items                CartItem[]
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @default(now()) @updatedAt
-}
-
-model CartItem {
-  id         String   @id @default(uuid(7))
-  cartId     String
-  menuItemId String?
-  quantity   Int
-  notes      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now()) @updatedAt
-
-  cart            Cart                  @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  menuItem        MenuItem?             @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
-  selectedOptions CustomizationOption[]
-
-  @@index([cartId])
-  @@index([menuItemId])
-}
-
-model CustomerRequest {
-  id                   String                @id @default(uuid(7))
-  activeTableSessionId String
-  requestType          CustomerRequestType
-  status               CustomerRequestStatus @default(PENDING)
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @default(now()) @updatedAt
-
-  activeTableSession ActiveTableSession @relation(fields: [activeTableSessionId], references: [id], onDelete: Cascade)
-
-  @@index([activeTableSessionId, status])
-}
-
-model ActiveOrder {
-  id                   String             @id @default(uuid(7))
-  activeTableSessionId String             @unique
-  activeTableSession   ActiveTableSession @relation(fields: [activeTableSessionId], references: [id], onDelete: Cascade)
-
-  chunks    ActiveOrderChunk[]
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @default(now()) @updatedAt
-}
-
-model ActiveOrderChunk {
-  id            String                 @id @default(uuid(7))
-  activeOrderId String
-  activeOrder   ActiveOrder            @relation(fields: [activeOrderId], references: [id], onDelete: Cascade)
-  chunkItems    ActiveOrderChunkItem[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-
-  @@index([activeOrderId])
-}
-
-model ActiveOrderChunkItem {
-  id                 String            @id @default(uuid(7))
-  activeOrderChunkId String
-  menuItemId         String?
-  quantity           Int               @default(1)
-  notes              String?
-  status             PreparationStatus @default(PENDING)
-
-  activeOrderChunk ActiveOrderChunk      @relation(fields: [activeOrderChunkId], references: [id], onDelete: Cascade)
-  menuItem         MenuItem?             @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
-  selectedOptions  CustomizationOption[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-
-  @@index([activeOrderChunkId])
-  @@index([menuItemId])
-  @@index([activeOrderChunkId, status])
-}
 
 model Order {
   id        String    @id @default(uuid(7))
@@ -338,22 +233,6 @@ enum Role {
   CHEF
   CASHIER
   SERVER
-}
-
-enum PreparationStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-}
-
-enum CustomerRequestType {
-  CALL_STAFF
-  REQUEST_BILL
-}
-
-enum CustomerRequestStatus {
-  PENDING
-  RESOLVED
 }
 
 enum Currency {

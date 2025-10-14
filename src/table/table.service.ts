@@ -98,28 +98,6 @@ export class TableService {
     }
   }
 
-  /** Helper: Checks for active sessions on specific table IDs within transaction */
-  private async checkActiveSessionsForTables(
-    tx: Prisma.TransactionClient,
-    tableIds: string[],
-  ): Promise<void> {
-    if (tableIds.length === 0) return; // No tables to check
-    const activeSessionCount = await tx.activeTableSession.count({
-      where: { tableId: { in: tableIds } },
-    });
-    if (activeSessionCount > 0) {
-      // Find which tables have sessions for a more specific error (optional)
-      const tablesWithSessions = await tx.table.findMany({
-        where: { id: { in: tableIds }, activeSession: { isNot: null } },
-        select: { name: true },
-      });
-      const tableNames = tablesWithSessions.map((t) => t.name).join(', ');
-      throw new BadRequestException(
-        `Cannot delete tables because active sessions exist for: ${tableNames}. Please close sessions first.`,
-      );
-    }
-  }
-
   /** Creates a single table */
   @StandardErrorHandler('create table')
   async createTable(
@@ -231,7 +209,7 @@ export class TableService {
     }
   }
 
-  /** Deletes a single table, checking for active sessions */
+  /** Deletes a single table */
   async deleteTable(
     userId: string,
     storeId: string,
@@ -243,8 +221,6 @@ export class TableService {
     ]);
     // Ensure table exists (findOne handles NotFound)
     await this.findOne(storeId, tableId);
-    // Check for active session on this specific table BEFORE deleting
-    await this.checkActiveSessionsForTables(this.prisma, [tableId]); // Use prisma directly for check
 
     try {
       await this.prisma.table.delete({ where: { id: tableId } });
@@ -371,7 +347,6 @@ export class TableService {
             this.logger.log(
               `[${method}] Identified ${idsToDelete.length} tables to delete for Store ${storeId}: [${idsToDelete.join(', ')}]`,
             );
-            await this.checkActiveSessionsForTables(tx, idsToDelete); // Check sessions BEFORE deleting
             await tx.table.deleteMany({ where: { id: { in: idsToDelete } } });
             this.logger.log(
               `[${method}] Deleted ${idsToDelete.length} unused tables for Store ${storeId}.`,
