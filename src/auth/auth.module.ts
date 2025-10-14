@@ -3,7 +3,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 
-import { CustomerSessionJwtStrategy } from 'src/auth/customer-session-jwt.strategy';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 import { AuthController } from './auth.controller';
@@ -44,7 +43,6 @@ import type { StringValue } from 'ms';
     Auth0Service,
     Auth0Strategy,
     JwtStrategy,
-    CustomerSessionJwtStrategy,
   ],
   controllers: [AuthController],
   exports: [AuthService, Auth0Service],
