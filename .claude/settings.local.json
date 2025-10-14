@@ -1,6 +1,18 @@
 {
   "permissions": {
     "allow": [
+      "Bash(pwd)",
+      "Bash(ls)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(sed:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(wc:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
       "Bash(npm install:*)",
       "Bash(npm run test:*)",
       "Bash(npm run lint)",
@@ -13,7 +25,9 @@
       "Bash(docker-compose logs:*)",
       "Bash(docker-compose restart:*)",
       "Bash(docker-compose exec app npx prisma:*)",
-      "Bash(docker-compose exec app npm install:*)"
+      "Bash(docker-compose exec app npm install:*)",
+      "Bash(npm run test:cov:*)",
+      "Bash(npm run format)"
     ],
     "deny": [],
     "ask": []
