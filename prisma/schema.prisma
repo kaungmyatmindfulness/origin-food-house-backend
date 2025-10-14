@@ -12,6 +12,8 @@ model User {
   email              String    @unique
   password           String
   name               String?
+  auth0Id            String?   @unique
+  isEmailVerified    Boolean   @default(false)
   verified           Boolean   @default(false)
   verificationToken  String?   @unique
   verificationExpiry DateTime?

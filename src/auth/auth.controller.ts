@@ -1,44 +1,59 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
   Post,
-  Query,
   Request,
   Res,
   UnauthorizedException,
   UseGuards,
   Logger,
-  Inject,
-  Optional,
+  Headers,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
-  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiOperation,
-  ApiQuery,
-  ApiResponse,
   ApiTags,
   ApiOkResponse,
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
+  ApiHeader,
 } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
 import { Response as ExpressResponse, CookieOptions } from 'express';
 
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
-import { EmailService } from 'src/email/email.service';
 
 import { AuthService } from './auth.service';
-import { ChangePasswordDto } from './dto/change-password.dto';
 import { ChooseStoreDto } from './dto/choose-store.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { LoginDto } from './dto/login.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
-import { LocalAuthGuard } from './guards/local-auth.guard';
+import { Auth0Guard } from './guards/auth0.guard';
 import { RequestWithUser } from './types';
+import { Auth0AuthenticatedUser } from './types/auth0.types';
+
+interface Auth0ConfigResponse {
+  domain: string;
+  clientId: string;
+  audience: string;
+  enabled: boolean;
+}
+
+interface Auth0ValidateResponse {
+  access_token: string;
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+  };
+}
+
+interface Auth0ProfileResponse {
+  id: string;
+  email: string;
+  name: string | null;
+  auth0Id: string | null;
+  auth0Metadata: Record<string, unknown>;
+}
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -49,9 +64,8 @@ export class AuthController {
   private readonly cookieOptions: CookieOptions;
 
   constructor(
-    private authService: AuthService,
-
-    @Optional() @Inject(EmailService) private emailService?: EmailService,
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
   ) {
     const isProduction = process.env.NODE_ENV === 'production';
     this.cookieOptions = {
@@ -63,58 +77,13 @@ export class AuthController {
   }
 
   /**
-   * Step 1: Login with email/password.
-   * Validates credentials, generates a basic JWT (sub=userId), sets it in an HttpOnly cookie.
-   */
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
-  @UseGuards(LocalAuthGuard)
-  @Post('login')
-  @ApiOperation({ summary: 'Login with email/password (Step 1)' })
-  @ApiOkResponse({
-    description:
-      'Login successful (Step 1). Basic JWT set in HttpOnly cookie. Token only contains { sub: userId }.',
-    schema: {
-      example: {
-        status: 'success',
-        data: { access_token: 'eyJhbGciOiJIUzI1NiIsInR...' },
-        message: 'Credentials valid, requires store selection.',
-        errors: null,
-      },
-    },
-  })
-  @ApiUnauthorizedResponse({
-    description: 'Invalid credentials or email not verified.',
-  })
-  login(
-    @Request() req: RequestWithUser,
-    @Body() _: LoginDto,
-    @Res({ passthrough: true }) res: ExpressResponse,
-  ): StandardApiResponse<{ access_token: string }> {
-    const userId = req.user.sub;
-
-    this.logger.log(`User ID ${userId} passed Step 1 login.`);
-
-    const accessToken = this.authService.generateAccessTokenNoStore({
-      id: userId,
-    });
-
-    res.cookie(this.cookieName, accessToken, this.cookieOptions);
-    this.logger.log(`Basic access token cookie set for User ID ${userId}.`);
-
-    return StandardApiResponse.success(
-      { access_token: accessToken },
-      'Credentials valid, requires store selection.',
-    );
-  }
-
-  /**
-   * Step 2: Choose a store to finalize login.
-   * Requires a valid basic JWT from Step 1. Generates a new JWT (sub, storeId, role), sets it in HttpOnly cookie.
+   * Choose a store after Auth0 authentication.
+   * Requires a valid JWT from Auth0 validation. Generates a new JWT (sub, storeId, role), sets it in HttpOnly cookie.
    */
   @UseGuards(JwtAuthGuard)
   @Post('login/store')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Select a store to complete login (Step 2)' })
+  @ApiOperation({ summary: 'Select a store to complete login' })
   @ApiOkResponse({
     description:
       'Store selected. Full JWT set in HttpOnly cookie. Token contains { sub, storeId, role }.',
@@ -141,7 +110,7 @@ export class AuthController {
 
     const { storeId } = body;
     this.logger.log(
-      `User ID ${userId} attempting Step 2 login for Store ID ${storeId}.`,
+      `User ID ${userId} attempting login for Store ID ${storeId}.`,
     );
 
     const accessToken = await this.authService.generateAccessTokenWithStore(
@@ -161,153 +130,146 @@ export class AuthController {
   }
 
   /**
-   * Verify user email via token from query parameter.
+   * Get Auth0 configuration for frontend
    */
-  @Get('verify')
-  @ApiOperation({ summary: 'Verify user email using token from email link' })
-  @ApiQuery({
-    name: 'token',
-    required: true,
-    type: String,
-    description: 'Verification token',
-  })
+  @Get('auth0/config')
+  @ApiOperation({ summary: 'Get Auth0 configuration for frontend' })
   @ApiOkResponse({
-    description: 'Email verified successfully.',
-    type: StandardApiResponse,
+    description: 'Auth0 configuration retrieved successfully',
+    schema: {
+      example: {
+        status: 'success',
+        data: {
+          domain: 'your-tenant.auth0.com',
+          clientId: 'your-client-id',
+          audience: 'https://api.your-domain.com',
+          enabled: true,
+        },
+      },
+    },
   })
-  @ApiBadRequestResponse({ description: 'Missing, invalid, or expired token.' })
-  async verify(
-    @Query('token') token: string,
-  ): Promise<StandardApiResponse<null>> {
-    if (!token) {
-      throw new BadRequestException('Verification token is required.');
+  getAuth0Config(): StandardApiResponse<Auth0ConfigResponse> {
+    const auth0Config = this.configService.get<{
+      domain: string;
+      clientId: string;
+      audience: string;
+    }>('auth0');
+
+    if (!auth0Config) {
+      throw new Error('Auth0 configuration is missing');
     }
-    this.logger.log(
-      `Attempting email verification for token: ${token.substring(0, 10)}...`,
-    );
-    const user = await this.authService.verifyEmail(token);
-    if (!user) {
-      throw new BadRequestException('Invalid or expired verification token.');
-    }
-    this.logger.log(`Email successfully verified for User ID: ${user.id}.`);
+
     return StandardApiResponse.success(
-      null,
-      'Email verified successfully. You can now log in.',
+      {
+        domain: auth0Config.domain,
+        clientId: auth0Config.clientId,
+        audience: auth0Config.audience,
+        enabled: true,
+      },
+      'Auth0 configuration retrieved',
     );
   }
 
   /**
-   * Request a password reset email.
+   * Validate Auth0 token and sync user
    */
-  @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
-  @Post('forgot-password')
-  @ApiOperation({ summary: 'Request password reset token via email' })
+  @Post('auth0/validate')
+  @ApiOperation({ summary: 'Validate Auth0 access token and sync user' })
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'Bearer <auth0-access-token>',
+    required: true,
+  })
   @ApiOkResponse({
-    description:
-      'If the email exists, a reset token is generated and an email is queued.',
-    type: StandardApiResponse,
+    description: 'Auth0 token validated and user synced successfully',
+    schema: {
+      example: {
+        status: 'success',
+        data: {
+          access_token: 'jwt-token-for-backend',
+          user: {
+            id: 'user-id',
+            email: 'user@example.com',
+            name: 'User Name',
+          },
+        },
+      },
+    },
   })
-  @ApiBadRequestResponse({ description: 'Invalid request body.' })
-  @ApiResponse({
-    status: 500,
-    description: 'Failed to initiate password reset process.',
+  @ApiUnauthorizedResponse({
+    description: 'Invalid Auth0 token or Auth0 is not enabled',
   })
-  async forgotPassword(
-    @Body() body: ForgotPasswordDto,
-  ): Promise<StandardApiResponse<null>> {
-    this.logger.log(`Password reset requested for email: ${body.email}`);
-    const result = await this.authService.forgotPassword(body.email);
-
-    if (result.resetInfo && this.emailService) {
-      try {
-        await this.emailService.sendPasswordResetEmail(
-          result.resetInfo.email,
-          result.resetInfo.token,
-        );
-        this.logger.log(
-          `Password reset email queued for ${result.resetInfo.email}.`,
-        );
-      } catch (error) {
-        this.logger.error(
-          `Failed to send password reset email to ${result.resetInfo.email}`,
-          error,
-        );
-      }
-    } else if (result.resetInfo && !this.emailService) {
-      this.logger.warn(
-        `Password reset info generated for ${body.email} but EmailService is not available.`,
-      );
+  async validateAuth0Token(
+    @Headers('authorization') authHeader: string,
+    @Res({ passthrough: true }) res: ExpressResponse,
+  ): Promise<StandardApiResponse<Auth0ValidateResponse>> {
+    if (!authHeader?.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Authorization header is required');
     }
 
-    return StandardApiResponse.success(null, result.message);
+    const token = authHeader.substring(7);
+
+    try {
+      // Get user info from Auth0
+      const auth0UserInfo = await this.authService.getAuth0UserInfo(token);
+
+      // Sync user with local database
+      const user = await this.authService.syncAuth0User(auth0UserInfo);
+
+      // Generate JWT for backend
+      const accessToken = this.authService.generateJwtForAuth0User(user);
+
+      // Set cookie
+      res.cookie(this.cookieName, accessToken, this.cookieOptions);
+
+      this.logger.log(
+        `Auth0 user synced and JWT generated for user ID: ${user.id}`,
+      );
+
+      return StandardApiResponse.success(
+        {
+          access_token: accessToken,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name ?? undefined,
+          },
+        },
+        'Auth0 authentication successful',
+      );
+    } catch (error) {
+      this.logger.error('Auth0 token validation failed', error);
+      throw new UnauthorizedException('Invalid Auth0 token');
+    }
   }
 
   /**
-   * Reset password using a valid token.
+   * Auth0 protected route example
    */
-  @Throttle({ default: { limit: 5, ttl: 300000 } }) // 5 attempts per 5 minutes
-  @Post('reset-password')
-  @ApiOperation({ summary: 'Reset password using reset token from email' })
-  @ApiOkResponse({
-    description: 'Password reset successful.',
-    type: StandardApiResponse,
-  })
-  @ApiBadRequestResponse({
-    description: 'Invalid/expired token or validation errors.',
-  })
-  @ApiResponse({
-    status: 500,
-    description: 'Internal error during password reset.',
-  })
-  async resetPassword(
-    @Body() body: ResetPasswordDto,
-  ): Promise<StandardApiResponse<null>> {
-    this.logger.log(
-      `Password reset attempt for token: ${body.token.substring(0, 10)}...`,
-    );
-
-    const result = await this.authService.resetPassword(
-      body.token,
-      body.newPassword,
-    );
-    return StandardApiResponse.success(null, result.message);
-  }
-
-  /**
-   * Change password for an authenticated (logged-in) user.
-   */
-  @Throttle({ default: { limit: 3, ttl: 60000 } }) // 3 attempts per minute
-  @UseGuards(JwtAuthGuard)
-  @Post('change-password')
+  @UseGuards(Auth0Guard)
+  @Get('auth0/profile')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Change password for logged-in user' })
+  @ApiOperation({ summary: 'Get user profile (Auth0 protected)' })
   @ApiOkResponse({
-    description: 'Password changed successfully.',
-    type: StandardApiResponse,
+    description: 'User profile retrieved successfully',
   })
-  @ApiBadRequestResponse({
-    description: 'Validation errors (e.g., new password same as old).',
+  @ApiUnauthorizedResponse({
+    description: 'Invalid or missing Auth0 token',
   })
-  @ApiUnauthorizedResponse({ description: 'Invalid old password.' })
-  @ApiNotFoundResponse({
-    description: 'User not found (should not happen with valid JWT).',
-  })
-  @ApiResponse({
-    status: 500,
-    description: 'Internal error during password change.',
-  })
-  async changePassword(
-    @Request() req: RequestWithUser,
-    @Body() body: ChangePasswordDto,
-  ): Promise<StandardApiResponse<null>> {
-    const userId = req.user.sub;
-    this.logger.log(`Password change attempt for User ID: ${userId}`);
-    const result = await this.authService.changePassword(
-      userId,
-      body.oldPassword,
-      body.newPassword,
-    );
+  getAuth0Profile(
+    @Request() req: { user: Auth0AuthenticatedUser },
+  ): StandardApiResponse<Auth0ProfileResponse> {
+    const { user } = req;
 
-    return StandardApiResponse.success(null, result.message);
+    return StandardApiResponse.success(
+      {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        auth0Id: user.auth0Id,
+        auth0Metadata: user.auth0Payload ?? {},
+      },
+      'Profile retrieved successfully',
+    );
   }
 }

@@ -1,7 +1,6 @@
 import * as crypto from 'crypto';
 
 import {
-  BadRequestException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -9,13 +8,15 @@ import {
   Logger,
   ForbiddenException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Role, User } from '@prisma/client';
 
-import { hashPassword, comparePassword } from 'src/common/utils/password.util';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 import { UserService } from '../user/user.service';
+import { Auth0Service } from './services/auth0.service';
+import { Auth0UserInfo, Auth0TokenPayload } from './types/auth0.types';
 
 @Injectable()
 export class AuthService {
@@ -29,6 +30,8 @@ export class AuthService {
     private userService: UserService,
     private jwtService: JwtService,
     private readonly prisma: PrismaService,
+    private readonly auth0Service: Auth0Service,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -87,55 +90,6 @@ export class AuthService {
 
     // Step 2: Check if the fetched role has permission
     this.checkPermission(currentRole, authorizedRoles);
-  }
-
-  /**
-   * Validates user credentials against the database.
-   * Checks for user existence, email verification status, and password match.
-   * @param email User's email
-   * @param password User's raw password
-   * @returns The validated User object (excluding password) or null if validation fails.
-   * @throws UnauthorizedException if email is not verified.
-   */
-  async validateUser(
-    email: string,
-    password: string,
-  ): Promise<Omit<User, 'password'> | null> {
-    // ** Call the new service method that includes the password **
-    const user = await this.userService.findUserForAuth(email);
-
-    // Important: Check existence *before* verification status for security (less information leakage)
-    if (!user) {
-      this.logger.warn(`Validation failed: User not found for email: ${email}`);
-      return null; // User not found
-    }
-
-    // Check if email is verified
-    if (!user.verified) {
-      this.logger.warn(
-        `Validation failed: Email not verified for user ID: ${user.id}`,
-      );
-      throw new UnauthorizedException(
-        `Please verify your email address: ${email}`,
-      );
-    }
-
-    // Compare password - user.password now exists
-    const isMatch = await comparePassword(password, user.password);
-    if (!isMatch) {
-      this.logger.warn(
-        `Validation failed: Invalid password for user ID: ${user.id}`,
-      );
-      return null; // Invalid password
-    }
-
-    this.logger.log(
-      `User validated successfully: ${user.email} (ID: ${user.id})`,
-    );
-
-    // ** Exclude password before returning **
-    const { password: _, ...result } = user;
-    return result; // Return user data without password hash
   }
 
   /**
@@ -201,243 +155,108 @@ export class AuthService {
   }
 
   /**
-   * Verifies an email verification token, marks the user as verified if valid.
-   * @param token The verification token.
-   * @returns The verified User object or null if token is invalid/expired.
+   * Validates an Auth0 token and returns user information
    */
-  async verifyEmail(token: string): Promise<User | null> {
-    this.logger.log(
-      `Attempting email verification with token: ${token.substring(0, 10)}...`,
-    );
-    const user = await this.userService.findByVerificationToken(token);
-
-    if (!user) {
-      this.logger.warn(`Email verification failed: Token not found.`);
-      return null;
+  async validateAuth0Token(token: string): Promise<Auth0TokenPayload> {
+    try {
+      const decoded = await this.auth0Service.validateToken(token);
+      return decoded;
+    } catch (error) {
+      this.logger.error('Failed to validate Auth0 token', error);
+      throw new UnauthorizedException('Invalid Auth0 token');
     }
-
-    const now = new Date();
-    if (!user.verificationExpiry || user.verificationExpiry < now) {
-      this.logger.warn(
-        `Email verification failed: Token expired for user ID ${user.id}. Expiry: ${user.verificationExpiry?.toISOString()}`,
-      );
-      // Optional: Consider deleting the expired token here or in a scheduled job
-      // await this.userService.clearVerificationToken(user.id);
-      return null;
-    }
-
-    await this.userService.markUserVerified(user.id);
-    this.logger.log(`Email verified successfully for User ID: ${user.id}`);
-    return user; // Return the now-verified user
   }
 
   /**
-   * Initiates the password reset process: generates a token and prepares data for email sending.
-   * Does not send the email itself (separation of concerns).
-   * @param email User's email address.
-   * @returns Object containing a success message and necessary info for email sending.
+   * Creates or updates a user based on Auth0 information
    */
-  async forgotPassword(email: string): Promise<{
-    message: string;
-    resetInfo?: { userId: string; token: string; email: string; expiry: Date };
-  }> {
-    this.logger.log(`Password reset requested for email: ${email}`);
-
-    // Always perform the same operations to prevent timing attacks
-    const user = await this.userService.findByEmail(email);
-
-    // Always generate token and expiry to ensure consistent timing
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiry = new Date(Date.now() + this.PASSWORD_RESET_EXPIRY_MS);
-
-    // Create a consistent delay for both existing and non-existing users
-    const startTime = Date.now();
+  async syncAuth0User(auth0UserInfo: Auth0UserInfo): Promise<User> {
+    const { sub: auth0Id, email, email_verified, name } = auth0UserInfo;
 
     try {
-      if (user) {
-        // User exists - update database with reset token
-        await this.userService.setResetToken(user.id, token, expiry);
-        this.logger.log(
-          `Password reset token generated for User ID: ${user.id}`,
-        );
-      } else {
-        // User doesn't exist - perform a dummy database operation for timing consistency
-        // This ensures similar execution time whether user exists or not
-        this.logger.warn(
-          `Password reset request for non-existent email: ${email}`,
-        );
-        // Simulate database operation delay
-        await this.prisma.user.findFirst({
-          where: { email: 'dummy-non-existent-email-for-timing-consistency' },
-          select: { id: true },
+      // Check if user exists by Auth0 ID
+      let user = await this.prisma.user.findUnique({
+        where: { auth0Id },
+      });
+
+      if (!user && email) {
+        // Check if user exists by email
+        user = await this.prisma.user.findUnique({
+          where: { email },
+        });
+
+        if (user) {
+          // Update existing user with Auth0 ID
+          user = await this.prisma.user.update({
+            where: { id: user.id },
+            data: {
+              auth0Id,
+              isEmailVerified: email_verified,
+              verified: email_verified,
+            },
+          });
+        } else {
+          // Create new user
+          user = await this.prisma.user.create({
+            data: {
+              auth0Id,
+              email,
+              name: name ?? email.split('@')[0],
+              isEmailVerified: email_verified,
+              verified: email_verified,
+              // Set a random password as it won't be used with Auth0
+              password: crypto.randomBytes(32).toString('hex'),
+            },
+          });
+        }
+      } else if (user && email_verified && !user.isEmailVerified) {
+        // Update email verification status
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            isEmailVerified: email_verified,
+            verified: email_verified,
+          },
         });
       }
 
-      // Ensure minimum consistent response time (e.g., 100ms)
-      const elapsedTime = Date.now() - startTime;
-      const minResponseTime = 100; // milliseconds
-      if (elapsedTime < minResponseTime) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, minResponseTime - elapsedTime),
-        );
+      if (!user) {
+        throw new Error('Failed to sync Auth0 user');
       }
 
-      // Always return the same message structure
-      const response: {
-        message: string;
-        resetInfo?: {
-          userId: string;
-          token: string;
-          email: string;
-          expiry: Date;
-        };
-      } = {
-        message:
-          'If an account with that email address exists, a password reset link has been sent.',
-      };
-
-      // Only include resetInfo if user exists (for internal email sending)
-      if (user) {
-        response.resetInfo = {
-          userId: user.id,
-          token,
-          email: user.email,
-          expiry,
-        };
-      }
-
-      return response;
-    } catch (error) {
-      // Handle errors consistently
-      this.logger.error(
-        `Error during password reset process for email: ${email}`,
-        error,
+      this.logger.log(
+        `Auth0 user synced successfully: ${user.email} (ID: ${user.id})`,
       );
-
-      // Still return a generic message on error to avoid information leakage
-      return {
-        message:
-          'If an account with that email address exists, a password reset link has been sent.',
-      };
+      return user;
+    } catch (error) {
+      this.logger.error('Failed to sync Auth0 user', error);
+      throw new InternalServerErrorException('Failed to sync user from Auth0');
     }
   }
 
   /**
-   * Resets the user's password using a valid reset token.
-   * @param token The password reset token.
-   * @param newPassword The desired new password.
-   * @returns Success message.
-   * @throws BadRequestException if token is invalid or expired.
+   * Gets user information from Auth0 access token
    */
-  async resetPassword(
-    token: string,
-    newPassword: string,
-  ): Promise<{ message: string }> {
-    this.logger.log(
-      `Attempting password reset with token: ${token.substring(0, 10)}...`,
-    );
-    const user = await this.userService.findByResetToken(token);
-
-    if (!user) {
-      this.logger.warn(`Password reset failed: Invalid token.`);
-      throw new BadRequestException('Invalid or expired password reset token.');
-    }
-
-    if (!user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
-      this.logger.warn(
-        `Password reset failed: Token expired for User ID ${user.id}. Expiry: ${user.resetTokenExpiry?.toISOString()}`,
-      );
-      // Optional: Clear expired token here?
-      // await this.userService.clearResetToken(user.id);
-      throw new BadRequestException('Password reset token has expired.');
-    }
-
-    // Hash the new password
-    const hashedPass = await hashPassword(newPassword);
-
+  async getAuth0UserInfo(accessToken: string): Promise<Auth0UserInfo> {
     try {
-      // Update password and clear the token atomically
-      await this.userService.updatePasswordAndClearResetToken(
-        user.id,
-        hashedPass,
-      );
-      this.logger.log(`Password successfully reset for User ID: ${user.id}`);
-      return {
-        message:
-          'Your password has been reset successfully. You can now log in.',
-      };
+      return await this.auth0Service.getUserInfo(accessToken);
     } catch (error) {
-      this.logger.error(
-        `Failed to update password/clear reset token for User ID: ${user.id}`,
-        error,
-      );
-      throw new InternalServerErrorException(
-        'Failed to reset password. Please try again later.',
+      this.logger.error('Failed to get Auth0 user info', error);
+      throw new UnauthorizedException(
+        'Failed to get user information from Auth0',
       );
     }
   }
 
   /**
-   * Allows a logged-in user to change their password.
-   * @param userId The ID (UUID) of the user changing their password.
-   * @param oldPassword The user's current password.
-   * @param newPassword The desired new password.
-   * @returns Success message.
-   * @throws NotFoundException if user not found.
-   * @throws UnauthorizedException if old password doesn't match.
+   * Generates a standard JWT for Auth0-authenticated users
+   * This allows Auth0 users to work with existing JWT-based endpoints
    */
-  async changePassword(
-    userId: string,
-    oldPassword: string,
-    newPassword: string,
-  ): Promise<{ message: string }> {
-    this.logger.log(`Password change requested for User ID: ${userId}`);
-    const user = await this.userService.findById(userId); // findById should only return essential fields ideally
-    if (!user) {
-      // Should generally not happen if userId comes from a validated JWT, but good practice.
-      this.logger.error(
-        `Password change failed: User not found for ID: ${userId}`,
-      );
-      throw new NotFoundException('User not found.');
-    }
-
-    // Fetch the password separately if findById doesn't include it
-    const userWithPassword = await this.userService.findPasswordById(userId); // Need this method in UserService
-    if (!userWithPassword) {
-      this.logger.error(
-        `Password change failed: Could not retrieve password for User ID: ${userId}`,
-      );
-      throw new InternalServerErrorException(
-        'Could not verify user credentials.',
-      );
-    }
-
-    const isMatch = await comparePassword(
-      oldPassword,
-      userWithPassword.password,
-    );
-    if (!isMatch) {
-      this.logger.warn(
-        `Password change failed: Old password mismatch for User ID: ${userId}`,
-      );
-      throw new UnauthorizedException(
-        'The current password you entered is incorrect.',
-      );
-    }
-
-    if (oldPassword === newPassword) {
-      this.logger.warn(
-        `Password change failed: New password is the same as the old one for User ID: ${userId}`,
-      );
-      throw new BadRequestException(
-        'New password cannot be the same as the old password.',
-      );
-    }
-
-    const hashedNewPassword = await hashPassword(newPassword);
-    await this.userService.updatePassword(userId, hashedNewPassword);
-
-    this.logger.log(`Password changed successfully for User ID: ${userId}`);
-    return { message: 'Password changed successfully.' };
+  generateJwtForAuth0User(user: User): string {
+    const payload = { sub: user.id };
+    this.logger.log(`Generating JWT for Auth0 user ID: ${user.id}`);
+    return this.jwtService.sign(payload, {
+      expiresIn: this.JWT_EXPIRATION_TIME,
+    });
   }
 }

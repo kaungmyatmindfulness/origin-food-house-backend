@@ -4,7 +4,16 @@
       "Bash(npm install:*)",
       "Bash(npm run test:*)",
       "Bash(npm run lint)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm run migrate:db:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(npm run generate:db:*)",
+      "Bash(curl:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(docker-compose restart:*)",
+      "Bash(docker-compose exec app npx prisma:*)",
+      "Bash(docker-compose exec app npm install:*)"
     ],
     "deny": [],
     "ask": []

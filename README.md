@@ -69,12 +69,13 @@ A comprehensive **multi-tenant restaurant management system** built with NestJS,
 | **ORM** | Prisma | 6.x |
 | **Database** | PostgreSQL | 16+ |
 | **Real-Time** | Socket.IO | Latest |
-| **Authentication** | JWT + Passport | Latest |
+| **Authentication** | Auth0 + JWT + Passport | Latest |
 | **File Storage** | AWS S3 | SDK v3 |
 | **Email** | Nodemailer | 7.x |
 
 ### Key Dependencies
 
+- **Authentication**: express-jwt, jwks-rsa, @nestjs/passport, passport-jwt
 - **Validation**: class-validator, class-transformer
 - **Security**: bcrypt (12 salt rounds), @nestjs/throttler (rate limiting)
 - **Image Processing**: Sharp
@@ -126,7 +127,7 @@ Origin Food House follows a **modular monolithic architecture** with clear separ
 
 ### Core Modules
 
-- **AuthModule**: JWT authentication, role-based access control, password management
+- **AuthModule**: Auth0 integration, JWT authentication, role-based access control, user synchronization
 - **UserModule**: User profiles, registration, store membership
 - **StoreModule**: Multi-store management, settings, staff assignment
 - **MenuModule**: Menu items with complex customizations
@@ -258,7 +259,14 @@ DATABASE_URL="postgresql://user:password@localhost:5432/origin_food_house?schema
 NODE_ENV="dev"
 PORT=3000
 
-# JWT Authentication
+# Auth0 Configuration (Required for Auth0 authentication)
+AUTH0_DOMAIN="your-tenant.auth0.com"
+AUTH0_CLIENT_ID="your-client-id"
+AUTH0_CLIENT_SECRET="your-client-secret"
+AUTH0_AUDIENCE="https://api.your-domain.com"
+AUTH0_ISSUER="https://your-tenant.auth0.com/"
+
+# JWT Authentication (Still required for internal tokens)
 JWT_SECRET="your-super-secret-jwt-key-change-in-production"
 JWT_REFRESH_SECRET="your-super-secret-refresh-key-change-in-production"
 JWT_EXPIRES_IN="1d"
@@ -311,11 +319,10 @@ The Swagger UI provides:
 ### Key Endpoints
 
 #### Authentication
-- `POST /auth/login` - Step 1: Email/password login
-- `POST /auth/login/store` - Step 2: Store selection
-- `POST /auth/forgot-password` - Request password reset
-- `POST /auth/reset-password` - Complete password reset
-- `GET /auth/verify?token=...` - Email verification
+- `GET /auth/auth0/config` - Get Auth0 configuration
+- `POST /auth/auth0/validate` - Validate Auth0 token and sync user
+- `GET /auth/auth0/profile` - Get user profile (Auth0 protected)
+- `POST /auth/login/store` - Store selection (after Auth0 authentication)
 
 #### Store Management
 - `POST /stores` - Create new store (Owner)
@@ -382,10 +389,16 @@ User ←→ UserStore ←→ Store
 
 ## Authentication & Authorization
 
-### Two-Step Login Flow
+### Auth0 Authentication Flow (Recommended)
 
-1. **Step 1**: Email/password authentication → Returns basic JWT
-2. **Step 2**: Store selection → Returns full JWT with storeId
+1. **Frontend**: User authenticates with Auth0
+2. **Auth0 Validation**: `POST /auth/auth0/validate` with Bearer token
+   - Validates Auth0 token
+   - Syncs user to local database
+   - Returns internal JWT
+3. **Store Selection**: `POST /auth/login/store` with internal JWT
+   - Selects active store
+   - Returns JWT with store context
 
 ### Role Hierarchy
 
@@ -544,6 +557,7 @@ origin-food-house-backend/
 
 ### Comprehensive Guides
 
+- **[Auth0 Integration](docs/AUTH0_INTEGRATION.md)**: Complete Auth0 setup, configuration, and migration guide
 - **[Business Documentation](docs/BUSINESS_DOC_V1.md)**: Business logic, workflows, user roles, and use cases
 - **[Technical Documentation](docs/TECHNICAL_DOC_V1.md)**: Architecture, database schema, design patterns, and implementation details
 - **[CLAUDE.md](CLAUDE.md)**: Development guidelines and patterns for AI-assisted development
