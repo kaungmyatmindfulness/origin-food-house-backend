@@ -67,7 +67,8 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
   ) {
-    const isProduction = process.env.NODE_ENV === 'production';
+    const nodeEnv = this.configService.get<string>('NODE_ENV', 'production');
+    const isProduction = nodeEnv === 'production';
     this.cookieOptions = {
       httpOnly: true,
       secure: isProduction,

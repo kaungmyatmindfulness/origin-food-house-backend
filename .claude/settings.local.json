@@ -27,7 +27,9 @@
       "Bash(docker-compose exec app npx prisma:*)",
       "Bash(docker-compose exec app npm install:*)",
       "Bash(npm run test:cov:*)",
-      "Bash(npm run format)"
+      "Bash(npm run format)",
+      "Bash(docker compose:*)",
+      "Bash(npm run format:*)"
     ],
     "deny": [],
     "ask": []

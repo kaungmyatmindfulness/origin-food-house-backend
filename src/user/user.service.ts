@@ -7,6 +7,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { User, UserStore, Prisma, Role } from '@prisma/client';
 import * as disposableDomains from 'disposable-email-domains';
 
@@ -30,12 +31,16 @@ export class UserService {
 
   private readonly EMAIL_VERIFICATION_EXPIRY_MS = 1000 * 60 * 60 * 24;
   private readonly PASSWORD_RESET_EXPIRY_MS = 1000 * 60 * 60;
-  private readonly ALLOW_DISPOSABLE_EMAILS = process.env.NODE_ENV === 'dev';
+  private readonly ALLOW_DISPOSABLE_EMAILS: boolean;
 
   constructor(
     private prisma: PrismaService,
     private emailService: EmailService,
-  ) {}
+    private configService: ConfigService,
+  ) {
+    const nodeEnv = this.configService.get<string>('NODE_ENV', 'production');
+    this.ALLOW_DISPOSABLE_EMAILS = nodeEnv === 'dev';
+  }
 
   /**
    * Creates a new user, hashes password, sends verification email.

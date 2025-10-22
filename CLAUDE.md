@@ -2,7 +2,37 @@
 
 **Purpose:** Establish development standards, architectural guardrails, and clean code practices for Origin Food House.
 **Audience:** Claude Code and human contributors working within this repository.
-**Last Updated:** October 2025
+**Last Updated:** January 2025
+
+## 📋 Recent Updates
+
+### January 2025 - Auth0 Exclusive Authentication
+
+**BREAKING CHANGE:** Local email/password authentication has been completely removed.
+
+**What Changed:**
+
+- ❌ Removed `POST /auth/login` endpoint (local authentication)
+- ❌ Removed `AuthService.validateUser()` method
+- ❌ Removed email/password validation logic
+- ✅ Auth0 is now the **only** authentication method for staff users
+- ✅ Session-based auth remains for customer orders (table sessions)
+
+**Migration Notes:**
+
+- All staff users must authenticate via Auth0
+- Existing users synced automatically on first Auth0 login
+- Frontend must implement Auth0 SDK for login flow
+- Password utilities still exist for Auth0 user sync (random passwords only)
+
+**Why This Change:**
+
+- Improved security through delegated authentication
+- Simplified authentication logic and reduced attack surface
+- Better user experience with SSO, social login, MFA support
+- Compliance with modern authentication best practices
+
+---
 
 ---
 
@@ -13,6 +43,7 @@ It manages **stores, menus, tables, sessions, orders, and payments** across mult
 The backend is built with **NestJS**, **Prisma ORM**, and **PostgreSQL**; it follows a **modular, domain-driven architecture** with clean separation between layers.
 
 ### Technology Stack
+
 - **Framework:** NestJS v11 (Node.js)
 - **Database:** PostgreSQL with Prisma ORM v6
 - **Authentication:** JWT + Auth0 integration
@@ -65,12 +96,14 @@ Each module (Auth, Store, Menu, etc.) owns its data and logic.
 Never reach across modules without an explicit interface or service contract.
 
 **✅ DO:**
+
 ```typescript
 // Use injected services
 constructor(private authService: AuthService) {}
 ```
 
 **❌ DON'T:**
+
 ```typescript
 // Direct Prisma calls across domains
 await this.prisma.userStore.findMany(); // In non-auth module
@@ -86,6 +119,7 @@ where: { storeId, deletedAt: null }
 ```
 
 **Implementation Pattern:**
+
 ```typescript
 // Service method pattern
 async findMenuItems(storeId: string): Promise<MenuItem[]> {
@@ -115,6 +149,7 @@ await this.prisma.$transaction(async (tx) => {
 ```
 
 **Transaction Patterns:**
+
 - Use `$transaction` for related writes
 - Pass transaction client (`tx`) to nested functions
 - Handle rollback scenarios explicitly
@@ -129,19 +164,20 @@ update({ where: { id }, data: { deletedAt: new Date() } });
 ```
 
 **Query Pattern:**
+
 ```typescript
 // Repository pattern for soft deletes
 class CategoryRepository {
   findActive(storeId: string) {
     return this.prisma.category.findMany({
-      where: { storeId, deletedAt: null }
+      where: { storeId, deletedAt: null },
     });
   }
 
   softDelete(id: string) {
     return this.prisma.category.update({
       where: { id },
-      data: { deletedAt: new Date() }
+      data: { deletedAt: new Date() },
     });
   }
 }
@@ -153,20 +189,19 @@ Always use `Prisma.Decimal` and string constructors to avoid float errors:
 
 ```typescript
 // ✅ Correct
-price: new Prisma.Decimal('9.99')
-vatRate: new Prisma.Decimal('0.07')
+price: new Prisma.Decimal('9.99');
+vatRate: new Prisma.Decimal('0.07');
 
 // ❌ Wrong - float precision issues
-price: new Prisma.Decimal(9.99)
+price: new Prisma.Decimal(9.99);
 ```
 
 **Calculation Pattern:**
+
 ```typescript
 import { Decimal } from '@prisma/client/runtime/library';
 
-const subtotal = new Decimal(item.basePrice)
-  .mul(item.quantity)
-  .toFixed(2);
+const subtotal = new Decimal(item.basePrice).mul(item.quantity).toFixed(2);
 ```
 
 ### 6. **Access Control**
@@ -181,6 +216,7 @@ await this.authService.checkStorePermission(userId, storeId, [
 ```
 
 **Role Hierarchy:**
+
 - **OWNER:** Full access, can transfer ownership
 - **ADMIN:** Manage store, users, and settings
 - **CHEF:** Manage orders and menu items
@@ -191,19 +227,19 @@ await this.authService.checkStorePermission(userId, storeId, [
 
 ## 🧱 Core Modules & Responsibilities
 
-| Module                       | Responsibility                                |
-| ---------------------------- | --------------------------------------------- |
-| **AuthModule**               | JWT auth, refresh tokens, RBAC                |
-| **StoreModule**              | Store management, user roles                  |
-| **MenuModule**               | Menu items, customization groups              |
-| **CategoryModule**           | Category CRUD + sorting                       |
-| **TableModule**              | Table entities per store                      |
-| **ActiveTableSessionModule** | Session management & real-time dining         |
-| **OrderModule**              | Orders, VAT/service charge logic              |
-| **CartModule**               | Cart + checkout handling                      |
-| **CommonModule**             | Decorators, error handler, pagination, logger |
-| **EmailModule**              | Password resets, notifications                |
-| **UserModule**               | User profiles, memberships                    |
+| Module                       | Responsibility                                  |
+| ---------------------------- | ----------------------------------------------- |
+| **AuthModule**               | Auth0 integration, JWT generation, RBAC         |
+| **StoreModule**              | Store management, user roles                    |
+| **MenuModule**               | Menu items, customization groups                |
+| **CategoryModule**           | Category CRUD + sorting                         |
+| **TableModule**              | Table entities per store                        |
+| **ActiveTableSessionModule** | Session management & real-time dining           |
+| **OrderModule**              | Orders, VAT/service charge logic                |
+| **CartModule**               | Cart + checkout handling                        |
+| **CommonModule**             | Decorators, error handler, pagination, logger   |
+| **EmailModule**              | Email notifications (Auth0 handles auth emails) |
+| **UserModule**               | User profiles, memberships, Auth0 sync          |
 
 ---
 
@@ -228,17 +264,75 @@ await this.authService.checkStorePermission(userId, storeId, [
 
 ## 🔐 Security Standards
 
+### ⚠️ Authentication Model
+
+**This application uses Auth0 exclusively for authentication. There is NO local email/password login.**
+
+- All authentication flows go through Auth0 (OAuth2/OpenID Connect)
+- Internal JWTs are generated after Auth0 token validation
+- Password utilities exist only for Auth0 user sync (random passwords)
+- Session-based auth used for customer ordering (table sessions)
+
+---
+
+## 🔑 Authentication Flow (Auth0 Only)
+
+### Staff Authentication (POS App)
+
+```
+1. User clicks "Login with Auth0" in frontend
+2. Frontend redirects to Auth0 Universal Login
+3. User authenticates via Auth0 (email/password, social, SSO, etc.)
+4. Auth0 redirects back with access token
+5. Frontend calls POST /auth/auth0/validate with Auth0 token
+6. Backend:
+   - Validates token via Auth0 JWKS
+   - Syncs user to local database (create/update)
+   - Generates internal JWT (no store context yet)
+   - Sets HttpOnly cookie
+7. User selects store via POST /auth/login/store
+8. Backend:
+   - Validates user membership in store
+   - Generates store-scoped JWT (includes storeId, role)
+   - Updates HttpOnly cookie
+9. User authenticated with store context
+```
+
+### Customer Authentication (SOS App)
+
+```
+1. Customer scans QR code on table
+2. Frontend calls POST /active-table-sessions/join-by-table/:tableId
+3. Backend:
+   - Creates/joins session for table
+   - Generates session-scoped JWT
+   - Returns session token
+4. Customer can order with session context (no Auth0 required)
+```
+
+### Available Auth Endpoints
+
+| Endpoint               | Method | Description                     | Auth Required |
+| ---------------------- | ------ | ------------------------------- | ------------- |
+| `/auth/auth0/config`   | GET    | Get Auth0 configuration         | No            |
+| `/auth/auth0/validate` | POST   | Validate Auth0 token, sync user | No            |
+| `/auth/login/store`    | POST   | Select store after Auth0 login  | Yes (JWT)     |
+| `/auth/auth0/profile`  | GET    | Get user profile                | Yes (Auth0)   |
+
+---
+
 ### Authentication & Authorization
-- **JWT Strategy:** Access tokens expire in 1 day
-- **Auth0 Integration:** OAuth2/OpenID Connect support
+
+- **Auth0 Integration:** Primary authentication via OAuth2/OpenID Connect
+- **Internal JWT Strategy:** Access tokens expire in 1 day (generated after Auth0 validation)
 - **RBAC:** Role-based access control per store
 - **Session Management:** Secure cookie handling with httpOnly flag
-- **Password Policy:**
-  - Bcrypt with 12 rounds
-  - Minimum 8 characters
-  - Reset tokens expire in 1 hour
+- **No Local Authentication:** Email/password login removed - Auth0 only
+- **User Sync:** Auth0 users automatically synced to local database on first login
 
 ### API Security
+
+- **Authentication:** Auth0 tokens validated via JWKS
 - **Rate Limiting:** 60 requests/minute per IP
 - **Input Validation:** All DTOs validated with class-validator
 - **SQL Injection:** Use Prisma parameterized queries only
@@ -247,6 +341,7 @@ await this.authService.checkStorePermission(userId, storeId, [
 - **Headers:** Implement security headers (CSP, X-Frame-Options, etc.)
 
 ### Data Protection
+
 - **Store Isolation:** Multi-tenancy enforced at query level
 - **Soft Deletes:** Maintain audit trail, no hard deletes
 - **PII Handling:** Encrypt sensitive data at rest
@@ -257,6 +352,7 @@ await this.authService.checkStorePermission(userId, storeId, [
   - Generate unique filenames to prevent collisions
 
 ### Error Handling Security
+
 ```typescript
 // Never expose internal details
 catch (error) {
@@ -278,11 +374,14 @@ catch (error) {
 
 ```typescript
 // auth/config/auth0.config.ts
-export default registerAs('auth0', (): Auth0Config => ({
-  domain: process.env.AUTH0_DOMAIN ?? '',
-  clientId: process.env.AUTH0_CLIENT_ID ?? '',
-  // ... other config
-}));
+export default registerAs(
+  'auth0',
+  (): Auth0Config => ({
+    domain: process.env.AUTH0_DOMAIN ?? '',
+    clientId: process.env.AUTH0_CLIENT_ID ?? '',
+    // ... other config
+  }),
+);
 ```
 
 ### Modules
@@ -294,7 +393,9 @@ export default registerAs('auth0', (): Auth0Config => ({
 
 ```typescript
 @Module({
-  imports: [/* Dependencies */],
+  imports: [
+    /* Dependencies */
+  ],
   controllers: [StoreController],
   providers: [StoreService, StoreRepository],
   exports: [StoreService], // Only export what's needed
@@ -328,14 +429,21 @@ export class UserRepository {
 - Example:
 
 ```typescript
-export class CreateUserDto {
-  @IsEmail()
-  @Transform(({ value }) => value.toLowerCase())
-  email: string;
+export class ChooseStoreDto {
+  @IsUUID()
+  @IsNotEmpty()
+  storeId: string;
+}
 
+export class UpdateStoreDto {
+  @IsOptional()
   @IsString()
-  @MinLength(8)
-  password: string;
+  @MinLength(1)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
 }
 ```
 
@@ -372,7 +480,7 @@ this.logger.error(`[${method}] Failed to create store`, {
   userId,
   storeName: dto.name,
   error: error.message,
-  stack: error.stack
+  stack: error.stack,
 });
 
 // Client response - generic message
@@ -422,7 +530,7 @@ export const createPrismaMock = () => ({
     create: jest.fn(),
     update: jest.fn(),
   },
-  $transaction: jest.fn(callback => callback(mockTransaction)),
+  $transaction: jest.fn((callback) => callback(mockTransaction)),
 });
 
 // In tests
@@ -450,7 +558,6 @@ describe('StoreService', () => {
 - Paginate all list queries.
 - Add DB indexes for heavy read fields.
 - Use `Promise.all` for concurrent DB reads.
-- Cache common lookups with Redis.
 
 ### Pagination Pattern
 
@@ -475,7 +582,9 @@ return PaginatedResponseDto.create(items, total, page, limit);
 ## 🎯 Code Quality Standards
 
 ### ESLint Rules
+
 Key enforced rules:
+
 - `@typescript-eslint/no-explicit-any`: Warn (off in tests)
 - `@typescript-eslint/no-floating-promises`: Error
 - `@typescript-eslint/prefer-nullish-coalescing`: Error
@@ -484,6 +593,7 @@ Key enforced rules:
 - `import/order`: Alphabetized and grouped
 
 ### Naming Conventions
+
 - **Files:** `kebab-case.ts` (e.g., `store.service.ts`)
 - **Classes:** `PascalCase` (e.g., `StoreService`)
 - **Interfaces:** `PascalCase` with no `I` prefix
@@ -492,6 +602,7 @@ Key enforced rules:
 - **Constants:** `UPPER_SNAKE_CASE`
 
 ### Async/Await Patterns
+
 ```typescript
 // ✅ Correct - always await in try-catch
 try {
@@ -511,6 +622,7 @@ try {
 ## 🚨 Anti-Patterns to Avoid
 
 ### Code Smells
+
 - ❌ Direct `process.env` access (use ConfigService)
 - ❌ Business logic in controllers (use services)
 - ❌ Raw Prisma calls outside services
@@ -524,7 +636,16 @@ try {
 - ❌ Nested callbacks (use async/await)
 - ❌ Global state mutations
 
+### Authentication Anti-Patterns
+
+- ❌ Creating local password authentication (use Auth0 only)
+- ❌ Storing passwords for authentication (Auth0 users get random passwords)
+- ❌ Implementing custom JWT validation (use Auth0 JWKS)
+- ❌ Bypassing Auth0 for staff authentication
+- ❌ Using Auth0 for customer orders (use session-based auth)
+
 ### Database Anti-Patterns
+
 - ❌ N+1 queries (use includes/joins)
 - ❌ Missing indexes on frequently queried fields
 - ❌ Transactions without rollback handling
@@ -536,6 +657,7 @@ try {
 ## 🛠️ Development Workflow
 
 ### Pre-commit Checklist
+
 Before committing any changes:
 
 1. **Format code:** `npm run format`
@@ -545,7 +667,9 @@ Before committing any changes:
 5. **Check for type errors:** `npx tsc --noEmit`
 
 ### Code Review Standards
+
 Ensure your code:
+
 - ✅ Follows all architectural principles
 - ✅ Has appropriate test coverage
 - ✅ Includes proper error handling
@@ -556,6 +680,7 @@ Ensure your code:
 - ✅ Handles edge cases
 
 ### Git Commit Standards
+
 ```bash
 # Format: <type>(<scope>): <subject>
 feat(auth): add Auth0 integration
@@ -568,6 +693,7 @@ docs(api): update Swagger documentation
 ## 🔍 Common Patterns & Solutions
 
 ### Multi-tenant Query Pattern
+
 ```typescript
 async findStoreData(userId: string, storeId: string) {
   // Always verify membership first
@@ -581,6 +707,7 @@ async findStoreData(userId: string, storeId: string) {
 ```
 
 ### File Upload Pattern
+
 ```typescript
 @Post('upload')
 @UseInterceptors(FileInterceptor('file', {
@@ -595,6 +722,7 @@ async uploadFile(@UploadedFile() file: Express.Multer.File) {
 ```
 
 ### WebSocket Events Pattern
+
 ```typescript
 @WebSocketGateway()
 export class OrderGateway {
@@ -619,6 +747,7 @@ This codebase should:
 ## 📋 Implementation Checklist
 
 For every task:
+
 1. ☐ Understand the business requirement
 2. ☐ Design the solution following architectural principles
 3. ☐ Write tests first (TDD approach when possible)
@@ -650,3 +779,72 @@ For every task:
 ---
 
 **Remember:** Quality over velocity. A well-architected solution today saves debugging time tomorrow.
+
+---
+
+## 🔄 Authentication Architecture Summary
+
+### Current State (January 2025)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Authentication Flow                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  Staff Users (POS App)                                       │
+│  ─────────────────────                                       │
+│  1. Auth0 Universal Login                                    │
+│  2. OAuth2/OIDC Flow                                         │
+│  3. Token Validation (JWKS)                                  │
+│  4. User Sync to DB                                          │
+│  5. Internal JWT Generation                                  │
+│  6. Store Selection                                          │
+│  7. Store-Scoped JWT                                         │
+│                                                               │
+│  Customers (SOS App)                                         │
+│  ────────────────────                                        │
+│  1. QR Code Scan                                             │
+│  2. Table Session Creation                                   │
+│  3. Session JWT                                              │
+│  4. Order Placement                                          │
+│                                                               │
+│  ⚠️  NO LOCAL PASSWORD AUTHENTICATION                        │
+│                                                               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Authentication Strategies
+
+| Strategy          | File                | Usage                           | Status     |
+| ----------------- | ------------------- | ------------------------------- | ---------- |
+| Auth0Strategy     | `auth0.strategy.ts` | Validates Auth0 tokens via JWKS | ✅ Active  |
+| JwtStrategy       | `jwt.strategy.ts`   | Validates internal JWTs         | ✅ Active  |
+| ~~LocalStrategy~~ | ~~Removed~~         | ~~Email/password validation~~   | ❌ Removed |
+
+### Key Implementation Files
+
+```
+src/auth/
+├── auth.controller.ts         # Auth endpoints (Auth0 only)
+├── auth.service.ts           # Auth logic, user sync, JWT generation
+├── auth.module.ts            # Module configuration
+├── strategies/
+│   └── auth0.strategy.ts     # Auth0 token validation
+├── jwt.strategy.ts           # Internal JWT validation
+├── services/
+│   └── auth0.service.ts      # Auth0 API integration
+└── guards/
+    ├── auth0.guard.ts        # Auth0 route protection
+    ├── jwt-auth.guard.ts     # JWT route protection
+    └── ws-jwt.guard.ts       # WebSocket JWT validation
+```
+
+---
+
+## 📚 Related Documentation
+
+- **Auth0 Setup:** `/docs/AUTH0_INTEGRATION.md`
+- **Business Logic:** `/docs/BUSINESS_DOC_V1.md`
+- **Technical Architecture:** `/docs/TECHNICAL_DOC_V1.md`
+- **Frontend Integration:** `../origin-food-house-frontend/CLAUDE.md`
+- **Root Project Guide:** `../CLAUDE.md`

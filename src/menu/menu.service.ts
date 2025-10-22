@@ -62,7 +62,10 @@ export class MenuService {
   async getStoreMenuItems(storeId: string): Promise<MenuItem[]> {
     this.logger.log(`Fetching menu items for store ID: ${storeId}`);
     return await this.prisma.menuItem.findMany({
-      where: { storeId },
+      where: {
+        storeId,
+        deletedAt: null,
+      },
       orderBy: [{ category: { sortOrder: 'asc' } }, { sortOrder: 'asc' }],
       include: this.menuItemInclude,
     });
@@ -71,14 +74,18 @@ export class MenuService {
   /**
    * Retrieves a single menu item by its ID, including details.
    * NOTE: Currently assumes public read access if the ID is known.
+   * Only returns active (non-deleted) menu items.
    */
   async getMenuItemById(itemId: string): Promise<MenuItem> {
-    const item = await this.prisma.menuItem.findUnique({
-      where: { id: itemId },
+    const item = await this.prisma.menuItem.findFirst({
+      where: {
+        id: itemId,
+        deletedAt: null,
+      },
       include: this.menuItemInclude,
     });
     if (!item) {
-      this.logger.warn(`Menu item with ID ${itemId} not found.`);
+      this.logger.warn(`Active menu item with ID ${itemId} not found.`);
       throw new NotFoundException(`Menu item with ID ${itemId} not found.`);
     }
     return item;
@@ -110,7 +117,7 @@ export class MenuService {
       return await this.prisma.$transaction(async (tx) => {
         const categoryId = await this.upsertCategory(tx, dto.category, storeId);
         const maxSort = await tx.menuItem.aggregate({
-          where: { storeId, categoryId },
+          where: { storeId, categoryId, deletedAt: null },
           _max: { sortOrder: true },
         });
         const newSortOrder = (maxSort._max.sortOrder ?? -1) + 1;
@@ -320,11 +327,14 @@ export class MenuService {
           );
         }
 
-        this.logger.debug(`[Transaction] Deleting menu item ${itemId}`);
-        await tx.menuItem.delete({
+        this.logger.debug(`[Transaction] Soft deleting menu item ${itemId}`);
+        await tx.menuItem.update({
           where: { id: itemId },
+          data: { deletedAt: new Date() },
         });
-        this.logger.log(`Deleted menu item ${itemId} from store ${storeId}`);
+        this.logger.log(
+          `Soft deleted menu item ${itemId} from store ${storeId}`,
+        );
 
         return { id: itemId };
       });

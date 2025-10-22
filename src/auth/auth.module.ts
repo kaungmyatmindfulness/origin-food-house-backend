@@ -25,7 +25,7 @@ import type { StringValue } from 'ms';
       useFactory: (configService: ConfigService): JwtModuleOptions => {
         const secret =
           configService.getOrThrow<string>('JWT_SECRET') || 'JWT_SECRET';
-        const expiresIn = (configService.getOrThrow<string>('JWT_EXPIRY') ||
+        const expiresIn = (configService.getOrThrow<string>('JWT_EXPIRES_IN') ||
           '20h') as StringValue;
         return {
           secret,
@@ -45,6 +45,6 @@ import type { StringValue } from 'ms';
     JwtStrategy,
   ],
   controllers: [AuthController],
-  exports: [AuthService, Auth0Service],
+  exports: [AuthService, Auth0Service, JwtModule],
 })
 export class AuthModule {}

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   InternalServerErrorException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Role, Prisma } from '@prisma/client';
 
@@ -59,6 +60,15 @@ describe('UserService', () => {
           provide: EmailService,
           useValue: {
             sendVerificationEmail: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string, defaultValue?: any) => {
+              if (key === 'NODE_ENV') return 'dev';
+              return defaultValue;
+            }),
           },
         },
       ],

@@ -37,6 +37,7 @@ export const createPrismaMock = () => ({
     delete: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     findUniqueOrThrow: jest.fn(),
     aggregate: jest.fn(),
   },
@@ -60,12 +61,52 @@ export const createPrismaMock = () => ({
     createMany: jest.fn(),
     update: jest.fn(),
     deleteMany: jest.fn(),
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
   },
   storeInformation: {
     update: jest.fn(),
   },
   storeSetting: {
     update: jest.fn(),
+  },
+  activeTableSession: {
+    create: jest.fn(),
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    update: jest.fn(),
+  },
+  cart: {
+    create: jest.fn(),
+    findUnique: jest.fn(),
+    update: jest.fn(),
+  },
+  cartItem: {
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+  },
+  cartItemCustomization: {
+    createMany: jest.fn(),
+  },
+  order: {
+    create: jest.fn(),
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+    update: jest.fn(),
+    count: jest.fn(),
+  },
+  payment: {
+    create: jest.fn(),
+    findMany: jest.fn(),
+  },
+  refund: {
+    create: jest.fn(),
+    findMany: jest.fn(),
   },
   $transaction: jest.fn(),
 });

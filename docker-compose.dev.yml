@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -11,11 +9,15 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-mydb}
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
     ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-myuser} -d ${POSTGRES_DB:-mydb}']
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-myuser} -d ${POSTGRES_DB:-mydb}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,10 +27,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 512M
         reservations:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 256M
     logging:
       driver: "json-file"
@@ -43,9 +45,9 @@ services:
     container_name: origin-food-house-app-dev
     restart: unless-stopped
     ports:
-      - '${APP_PORT:-3000}:3000'
+      - "${APP_PORT:-3000}:3000"
       # Expose debugger port
-      - '${DEBUG_PORT:-9229}:9229'
+      - "${DEBUG_PORT:-9229}:9229"
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://${POSTGRES_USER:-myuser}:${POSTGRES_PASSWORD:-mypassword}@postgres:5432/${POSTGRES_DB:-mydb}
@@ -66,8 +68,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
+
     volumes:
       # Bind mount source code for hot reload
       - .:/app
@@ -79,53 +80,21 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: "2"
           memory: 2G
         reservations:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 256M
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    command: npm run dev
-
-  redis:
-    image: redis:7-alpine
-    container_name: origin-food-house-redis-dev
-    restart: unless-stopped
-    ports:
-      - '${REDIS_PORT:-6379}:6379'
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    networks:
-      - origin-food-house-network-dev
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-        reservations:
-          cpus: '0.1'
-          memory: 64M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    command: redis-server --appendonly yes
 
   # Optional: Prisma Studio for database management
   # Uncomment to enable Prisma Studio in development
   # studio:
-  #   image: node:20-alpine
+  #   image: node:lts-alpine
   #   container_name: origin-food-house-studio
   #   working_dir: /app
   #   command: npx prisma studio
@@ -149,6 +118,4 @@ volumes:
   postgres-data:
     driver: local
   app-uploads:
-    driver: local
-  redis-data:
     driver: local

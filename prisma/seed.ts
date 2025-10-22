@@ -1,6 +1,13 @@
 /* eslint-disable no-console */
 import { faker } from '@faker-js/faker';
-import { PrismaClient, Role, Currency, Prisma } from '@prisma/client';
+import {
+  PrismaClient,
+  Role,
+  Currency,
+  Prisma,
+  OrderStatus,
+  OrderType,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -264,6 +271,10 @@ async function main() {
     Math.ceil(tables.length * 0.5),
   );
 
+  // Track order numbers per store
+  const storeOrderCounters = new Map<string, number>();
+  stores.forEach((store) => storeOrderCounters.set(store.id, 1));
+
   for (const table of tablesForHistoricalOrders) {
     for (let h = 0; h < faker.number.int({ min: 1, max: 3 }); h++) {
       const storeSetting = storeSettingsMap.get(table.storeId);
@@ -330,11 +341,19 @@ async function main() {
           .plus(vatAmount)
           .plus(serviceChargeAmount);
 
+        // Get and increment order number for this store
+        const orderNum = storeOrderCounters.get(table.storeId) ?? 1;
+        storeOrderCounters.set(table.storeId, orderNum + 1);
+        const orderNumber = String(orderNum).padStart(3, '0');
+
         historicalOrderPromises.push(
           prisma.order.create({
             data: {
+              orderNumber,
               storeId: table.storeId,
               tableName: table.name,
+              status: OrderStatus.COMPLETED,
+              orderType: OrderType.DINE_IN,
               paidAt: faker.date.recent({ days: 180 }),
 
               subTotal: historicalSubTotal,

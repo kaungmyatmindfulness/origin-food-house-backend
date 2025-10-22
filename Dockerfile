@@ -1,5 +1,5 @@
 # Multi-stage build for production optimization
-FROM node:20-alpine AS base
+FROM node:lts-alpine AS base
 
 # Install necessary dependencies for Prisma and native modules
 RUN apk add --no-cache libc6-compat openssl

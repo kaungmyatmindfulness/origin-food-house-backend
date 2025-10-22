@@ -333,8 +333,9 @@ export class CategoryService {
         `Category ID ${categoryId} has no active menu items. Proceeding with soft delete.`,
       );
 
-      await tx.category.delete({
+      await tx.category.update({
         where: { id: categoryId },
+        data: { deletedAt: new Date() },
       });
       this.logger.log(`Category ID ${categoryId} soft deleted successfully.`);
       return { id: categoryId };

@@ -5,13 +5,19 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
+import { ActiveTableSessionModule } from 'src/active-table-session/active-table-session.module';
 import { AuthModule } from 'src/auth/auth.module';
+import { CartModule } from 'src/cart/cart.module';
 import { CategoryModule } from 'src/category/category.module';
 import { UnusedImageCleanupService } from 'src/common/cleanup/unused-image-cleanup.service';
 import { CommonModule } from 'src/common/common.module';
 import { LoggerMiddleware } from 'src/common/middleware/logger.middleware';
 import { EmailModule } from 'src/email/email.module';
+import { KitchenModule } from 'src/kitchen/kitchen.module';
 import { MenuModule } from 'src/menu/menu.module';
+import { OrderModule } from 'src/order/order.module';
+import { PaymentModule } from 'src/payment/payment.module';
+// import { ReportModule } from 'src/report/report.module'; // Temporarily disabled
 import { StoreModule } from 'src/store/store.module';
 import { TableModule } from 'src/table/table.module';
 import { UserModule } from 'src/user/user.module';
@@ -33,11 +39,17 @@ import { PrismaService } from './prisma/prisma.service';
     }),
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
+    ActiveTableSessionModule,
     AuthModule,
+    CartModule,
     CategoryModule,
     CommonModule,
     EmailModule,
+    KitchenModule,
     MenuModule,
+    OrderModule,
+    PaymentModule,
+    // ReportModule, // Temporarily disabled - TypeScript errors in groupBy operations
     StoreModule,
     UserModule,
     TableModule,

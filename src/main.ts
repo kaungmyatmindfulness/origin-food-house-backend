@@ -1,4 +1,5 @@
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as cookieParser from 'cookie-parser';
@@ -11,7 +12,15 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  if (process.env.NODE_ENV === 'dev') {
+  // Get ConfigService from application context
+  const configService = app.get(ConfigService);
+  const nodeEnv = configService.get<string>('NODE_ENV', 'production');
+  const corsOrigin = configService.get<string>(
+    'CORS_ORIGIN',
+    'https://origin-food-house.com',
+  );
+
+  if (nodeEnv === 'dev') {
     app.enableCors({
       origin: ['http://localhost:3001', 'http://localhost:3002'],
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -19,7 +28,7 @@ async function bootstrap() {
     });
   } else {
     app.enableCors({
-      origin: process.env.CORS_ORIGIN ?? 'https://origin-food-house.com',
+      origin: corsOrigin,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       credentials: true,
     });
@@ -40,7 +49,9 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('Restaurant API')
-    .setDescription('API documentation for the Restaurant POS system')
+    .setDescription(
+      'API documentation for the Restaurant Management & Ordering system',
+    )
     .setVersion('1.0')
     .addBearerAuth()
     .setOpenAPIVersion('3.1.0')

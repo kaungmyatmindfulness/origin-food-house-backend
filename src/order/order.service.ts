@@ -1,0 +1,527 @@
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { Prisma, OrderStatus } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
+
+import { CheckoutCartDto } from './dto/checkout-cart.dto';
+import { KdsQueryDto } from './dto/kds-query.dto';
+import { OrderResponseDto } from './dto/order-response.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { KitchenGateway } from '../kitchen/gateway/kitchen.gateway';
+import { PrismaService } from '../prisma/prisma.service';
+
+@Injectable()
+export class OrderService {
+  private readonly logger = new Logger(OrderService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly kitchenGateway: KitchenGateway,
+  ) {}
+
+  /**
+   * Checkout cart and create order
+   */
+  async checkoutCart(
+    sessionId: string,
+    dto: CheckoutCartDto,
+  ): Promise<OrderResponseDto> {
+    const method = this.checkoutCart.name;
+
+    try {
+      // Get session with table info
+      const session = await this.prisma.activeTableSession.findUnique({
+        where: { id: sessionId },
+        include: {
+          table: true,
+          store: {
+            include: {
+              setting: true,
+            },
+          },
+        },
+      });
+
+      if (!session) {
+        throw new NotFoundException('Session not found');
+      }
+
+      if (session.status === 'CLOSED') {
+        throw new BadRequestException('Session is already closed');
+      }
+
+      // Get cart with items
+      const cart = await this.prisma.cart.findUnique({
+        where: { sessionId },
+        include: {
+          items: {
+            include: {
+              customizations: true,
+              menuItem: true,
+            },
+          },
+        },
+      });
+
+      if (!cart) {
+        throw new NotFoundException('Cart not found');
+      }
+
+      if (cart.items.length === 0) {
+        throw new BadRequestException('Cart is empty');
+      }
+
+      // Get store settings for VAT and service charge
+      const storeSetting = session.store.setting;
+      const vatRate = storeSetting?.vatRate ?? new Decimal('0');
+      const serviceChargeRate =
+        storeSetting?.serviceChargeRate ?? new Decimal('0');
+
+      // Use transaction to create order
+      const order = await this.prisma.$transaction(async (tx) => {
+        // Generate order number
+        const orderNumber = await this.generateOrderNumber(tx, session.storeId);
+
+        // Calculate totals
+        const subTotal = new Decimal(cart.subTotal);
+        const vatAmount = subTotal.mul(vatRate);
+        const serviceChargeAmount = subTotal.mul(serviceChargeRate);
+        const grandTotal = subTotal.add(vatAmount).add(serviceChargeAmount);
+
+        // Create order
+        const newOrder = await tx.order.create({
+          data: {
+            orderNumber,
+            storeId: session.storeId,
+            sessionId: session.id,
+            tableName: dto.tableName ?? session.table.name,
+            status: OrderStatus.PENDING,
+            orderType: dto.orderType,
+            subTotal,
+            vatRateSnapshot: vatRate,
+            serviceChargeRateSnapshot: serviceChargeRate,
+            vatAmount,
+            serviceChargeAmount,
+            grandTotal,
+          },
+        });
+
+        // Create order items from cart items
+        for (const cartItem of cart.items) {
+          // Calculate item price with customizations
+          let itemPrice = new Decimal(cartItem.basePrice);
+          for (const customization of cartItem.customizations) {
+            if (customization.additionalPrice) {
+              itemPrice = itemPrice.add(
+                new Decimal(customization.additionalPrice),
+              );
+            }
+          }
+
+          const finalPrice = itemPrice.mul(cartItem.quantity);
+
+          // Create order item
+          const orderItem = await tx.orderItem.create({
+            data: {
+              orderId: newOrder.id,
+              menuItemId: cartItem.menuItemId,
+              price: itemPrice,
+              quantity: cartItem.quantity,
+              finalPrice,
+              notes: cartItem.notes,
+            },
+          });
+
+          // Create order item customizations
+          if (cartItem.customizations.length > 0) {
+            const customizationData = cartItem.customizations.map((c) => ({
+              orderItemId: orderItem.id,
+              customizationOptionId: c.customizationOptionId,
+              finalPrice: c.additionalPrice
+                ? new Decimal(c.additionalPrice).mul(cartItem.quantity)
+                : null,
+            }));
+
+            await tx.orderItemCustomization.createMany({
+              data: customizationData,
+            });
+          }
+        }
+
+        // Clear cart after successful checkout
+        // NOTE: Hard delete is acceptable - cart items are transient and have been
+        // converted to OrderItems (permanent records) above.
+        await tx.cartItem.deleteMany({
+          where: { cartId: cart.id },
+        });
+
+        await tx.cart.update({
+          where: { id: cart.id },
+          data: { subTotal: new Decimal('0') },
+        });
+
+        return newOrder;
+      });
+
+      this.logger.log(
+        `[${method}] Order ${order.orderNumber} created for session ${sessionId}`,
+      );
+
+      // Broadcast new order to kitchen screens
+      await this.kitchenGateway.broadcastNewOrder(session.storeId, order.id);
+
+      // Return full order with items
+      return await this.findOne(order.id);
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(`[${method}] Failed to checkout cart`, error.stack);
+      throw new InternalServerErrorException('Failed to create order');
+    }
+  }
+
+  /**
+   * Get order by ID
+   */
+  async findOne(orderId: string): Promise<OrderResponseDto> {
+    const method = this.findOne.name;
+
+    try {
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          orderItems: {
+            include: {
+              customizations: true,
+            },
+          },
+        },
+      });
+
+      if (!order) {
+        throw new NotFoundException('Order not found');
+      }
+
+      return order as OrderResponseDto;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      this.logger.error(`[${method}] Failed to get order`, error.stack);
+      throw new InternalServerErrorException('Failed to retrieve order');
+    }
+  }
+
+  /**
+   * Get all orders for a store with pagination
+   */
+  async findByStore(
+    storeId: string,
+    paginationDto: PaginationQueryDto,
+  ): Promise<PaginatedResponseDto<OrderResponseDto>> {
+    const method = this.findByStore.name;
+
+    try {
+      const { skip, take, page, limit } = paginationDto;
+
+      // Execute queries in parallel for better performance
+      const [orders, total] = await Promise.all([
+        this.prisma.order.findMany({
+          where: { storeId },
+          include: {
+            orderItems: {
+              include: {
+                customizations: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take,
+        }),
+        this.prisma.order.count({
+          where: { storeId },
+        }),
+      ]);
+
+      this.logger.log(
+        `[${method}] Retrieved ${orders.length} orders for store ${storeId} (page ${page})`,
+      );
+
+      return PaginatedResponseDto.create(
+        orders as OrderResponseDto[],
+        total,
+        page ?? 1,
+        limit ?? 20,
+      );
+    } catch (error) {
+      this.logger.error(`[${method}] Failed to get orders`, error.stack);
+      throw new InternalServerErrorException('Failed to retrieve orders');
+    }
+  }
+
+  /**
+   * Get orders for Kitchen Display System (KDS) with filtering
+   * Optimized for real-time kitchen operations with status filtering
+   */
+  async findForKds(
+    queryDto: KdsQueryDto,
+  ): Promise<PaginatedResponseDto<OrderResponseDto>> {
+    const method = this.findForKds.name;
+
+    try {
+      const { storeId, status, skip, take, page, limit } = queryDto;
+
+      // Build where clause for KDS-specific filtering
+      const where: Prisma.OrderWhereInput = {
+        storeId,
+      };
+
+      // Filter by status if provided, otherwise show active kitchen orders
+      if (status) {
+        where.status = status;
+      } else {
+        // Default: show orders that need kitchen attention
+        where.status = {
+          in: [OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY],
+        };
+      }
+
+      // Execute queries in parallel with KDS-optimized indexes
+      const [orders, total] = await Promise.all([
+        this.prisma.order.findMany({
+          where,
+          include: {
+            orderItems: {
+              include: {
+                customizations: true,
+                menuItem: {
+                  select: {
+                    id: true,
+                    name: true,
+                    imageUrl: true,
+                  },
+                },
+              },
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+          // Sort by status priority (PENDING first) then by creation time
+          orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+          skip,
+          take,
+        }),
+        this.prisma.order.count({ where }),
+      ]);
+
+      this.logger.log(
+        `[${method}] Retrieved ${orders.length} KDS orders for store ${storeId} (page ${page}, status: ${status ?? 'active'})`,
+      );
+
+      return PaginatedResponseDto.create(
+        orders as OrderResponseDto[],
+        total,
+        page ?? 1,
+        limit ?? 20,
+      );
+    } catch (error) {
+      this.logger.error(`[${method}] Failed to get KDS orders`, error.stack);
+      throw new InternalServerErrorException('Failed to retrieve KDS orders');
+    }
+  }
+
+  /**
+   * Get orders by session
+   */
+  async findBySession(sessionId: string): Promise<OrderResponseDto[]> {
+    const method = this.findBySession.name;
+
+    try {
+      const orders = await this.prisma.order.findMany({
+        where: { sessionId },
+        include: {
+          orderItems: {
+            include: {
+              customizations: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return orders as OrderResponseDto[];
+    } catch (error) {
+      this.logger.error(
+        `[${method}] Failed to get session orders`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'Failed to retrieve session orders',
+      );
+    }
+  }
+
+  /**
+   * Update order status
+   */
+  async updateStatus(
+    orderId: string,
+    dto: UpdateOrderStatusDto,
+  ): Promise<OrderResponseDto> {
+    const method = this.updateStatus.name;
+
+    try {
+      // Validate order exists
+      const existingOrder = await this.prisma.order.findUnique({
+        where: { id: orderId },
+      });
+
+      if (!existingOrder) {
+        throw new NotFoundException('Order not found');
+      }
+
+      // Validate status transition
+      this.validateStatusTransition(existingOrder.status, dto.status);
+
+      // Update order
+      const updateData: Prisma.OrderUpdateInput = {
+        status: dto.status,
+      };
+
+      // If status is COMPLETED, set paidAt if not already set
+      if (dto.status === OrderStatus.COMPLETED && !existingOrder.paidAt) {
+        updateData.paidAt = new Date();
+      }
+
+      const updatedOrder = await this.prisma.order.update({
+        where: { id: orderId },
+        data: updateData,
+      });
+
+      this.logger.log(
+        `[${method}] Order ${orderId} status updated to ${dto.status}`,
+      );
+
+      // Broadcast status update to kitchen screens
+      this.kitchenGateway.server
+        .to(`store-${updatedOrder.storeId}`)
+        .emit('kitchen:status-updated', {
+          orderId,
+          status: dto.status,
+          paidAt: updatedOrder.paidAt,
+        });
+
+      // Special broadcast for READY status
+      if (dto.status === OrderStatus.READY) {
+        await this.kitchenGateway.broadcastOrderReady(
+          updatedOrder.storeId,
+          orderId,
+        );
+      }
+
+      return await this.findOne(orderId);
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(
+        `[${method}] Failed to update order status`,
+        error.stack,
+      );
+      throw new InternalServerErrorException('Failed to update order status');
+    }
+  }
+
+  /**
+   * Generate unique order number for store
+   * @private
+   */
+  private async generateOrderNumber(
+    tx: Prisma.TransactionClient,
+    storeId: string,
+  ): Promise<string> {
+    // Get today's date in YYYYMMDD format
+    const today = new Date();
+    const datePrefix = today.toISOString().split('T')[0].replace(/-/g, '');
+
+    // Get count of orders for today
+    const startOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    );
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+
+    const todayOrderCount = await tx.order.count({
+      where: {
+        storeId,
+        createdAt: {
+          gte: startOfDay,
+          lt: endOfDay,
+        },
+      },
+    });
+
+    // Generate order number: YYYYMMDD-001, YYYYMMDD-002, etc.
+    const orderSequence = (todayOrderCount + 1).toString().padStart(3, '0');
+    return `${datePrefix}-${orderSequence}`;
+  }
+
+  /**
+   * Validate order status transitions
+   * @private
+   */
+  private validateStatusTransition(
+    currentStatus: OrderStatus,
+    newStatus: OrderStatus,
+  ): void {
+    // Can't change cancelled orders
+    if (currentStatus === OrderStatus.CANCELLED) {
+      throw new BadRequestException('Cannot update cancelled order');
+    }
+
+    // Can't change completed orders to anything except cancelled
+    if (
+      currentStatus === OrderStatus.COMPLETED &&
+      newStatus !== OrderStatus.CANCELLED
+    ) {
+      throw new BadRequestException('Cannot update completed order');
+    }
+
+    // Valid transitions
+    const validTransitions: Record<OrderStatus, OrderStatus[]> = {
+      [OrderStatus.PENDING]: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
+      [OrderStatus.PREPARING]: [OrderStatus.READY, OrderStatus.CANCELLED],
+      [OrderStatus.READY]: [OrderStatus.SERVED, OrderStatus.CANCELLED],
+      [OrderStatus.SERVED]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+      [OrderStatus.COMPLETED]: [
+        OrderStatus.CANCELLED, // Refund scenario
+      ],
+      [OrderStatus.CANCELLED]: [], // No transitions from cancelled
+    };
+
+    if (!validTransitions[currentStatus].includes(newStatus)) {
+      throw new BadRequestException(
+        `Invalid status transition from ${currentStatus} to ${newStatus}`,
+      );
+    }
+  }
+}

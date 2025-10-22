@@ -209,7 +209,12 @@ export class TableService {
     }
   }
 
-  /** Deletes a single table */
+  /**
+   * Deletes a single table
+   * NOTE: Currently performs HARD DELETE as Table schema lacks deletedAt field.
+   * TODO: Add deletedAt field to Table schema and implement soft delete pattern.
+   * See CLAUDE.md Architectural Principle #4 for soft delete requirements.
+   */
   async deleteTable(
     userId: string,
     storeId: string,
@@ -249,6 +254,8 @@ export class TableService {
 
   /**
    * Synchronizes tables for a store: Upserts based on input, deletes others.
+   * NOTE: Currently performs HARD DELETE on removed tables as schema lacks deletedAt.
+   * TODO: Add deletedAt field to Table schema and implement soft delete pattern.
    */
   async syncTables(
     userId: string,

@@ -1,0 +1,451 @@
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { Prisma, OrderStatus, Role, Order } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
+
+import { AuthService } from '../auth/auth.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateRefundDto } from './dto/create-refund.dto';
+import {
+  PaymentResponseDto,
+  RefundResponseDto,
+} from './dto/payment-response.dto';
+import { RecordPaymentDto } from './dto/record-payment.dto';
+
+@Injectable()
+export class PaymentService {
+  private readonly logger = new Logger(PaymentService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
+  ) {}
+
+  /**
+   * Validates that a user has permission to access an order's store
+   * @param orderId - The order ID to validate
+   * @param userId - The user ID making the request
+   * @param allowedRoles - Roles that are authorized for this operation
+   * @returns The order with store information
+   * @throws {NotFoundException} If order doesn't exist
+   * @throws {ForbiddenException} If user doesn't have permission
+   */
+  private async validateOrderStoreAccess(
+    orderId: string,
+    userId: string,
+    allowedRoles: Role[],
+  ): Promise<Order> {
+    const method = 'validateOrderStoreAccess';
+
+    // Fetch order with store information
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        storeId: true,
+        tableName: true,
+        grandTotal: true,
+        paidAt: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!order) {
+      this.logger.warn(`[${method}] Order ${orderId} not found`);
+      throw new NotFoundException('Order not found');
+    }
+
+    // Validate user has permission to the order's store
+    await this.authService.checkStorePermission(
+      userId,
+      order.storeId,
+      allowedRoles,
+    );
+
+    this.logger.log(
+      `[${method}] User ${userId} validated for order ${orderId} in store ${order.storeId}`,
+    );
+
+    return order as Order;
+  }
+
+  /**
+   * Record payment for an order
+   */
+  async recordPayment(
+    userId: string,
+    orderId: string,
+    dto: RecordPaymentDto,
+  ): Promise<PaymentResponseDto> {
+    const method = this.recordPayment.name;
+
+    try {
+      // Validate store access - only OWNER, ADMIN, CASHIER can record payments
+      await this.validateOrderStoreAccess(orderId, userId, [
+        Role.OWNER,
+        Role.ADMIN,
+        Role.CASHIER,
+      ]);
+
+      // Get order with payments
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          payments: true,
+          refunds: true,
+        },
+      });
+
+      if (!order) {
+        throw new NotFoundException('Order not found');
+      }
+
+      if (order.status === OrderStatus.CANCELLED) {
+        throw new BadRequestException(
+          'Cannot accept payment for cancelled order',
+        );
+      }
+
+      // Calculate total paid and refunded
+      const totalPaid = order.payments.reduce(
+        (sum, p) => sum.add(new Decimal(p.amount)),
+        new Decimal('0'),
+      );
+
+      const totalRefunded = order.refunds.reduce(
+        (sum, r) => sum.add(new Decimal(r.amount)),
+        new Decimal('0'),
+      );
+
+      const netPaid = totalPaid.sub(totalRefunded);
+      const paymentAmount = new Decimal(dto.amount);
+      const newTotalPaid = netPaid.add(paymentAmount);
+      const grandTotal = new Decimal(order.grandTotal);
+
+      // Validate payment amount
+      if (newTotalPaid.greaterThan(grandTotal)) {
+        throw new BadRequestException(
+          `Payment amount exceeds order total. Remaining: ${grandTotal.sub(netPaid).toString()}`,
+        );
+      }
+
+      // Use transaction to record payment and update order
+      const payment = await this.prisma.$transaction(async (tx) => {
+        // Create payment record
+        const newPayment = await tx.payment.create({
+          data: {
+            orderId,
+            amount: paymentAmount,
+            paymentMethod: dto.paymentMethod,
+            transactionId: dto.transactionId,
+            notes: dto.notes,
+          },
+        });
+
+        // Update order status if fully paid
+        if (newTotalPaid.equals(grandTotal)) {
+          await tx.order.update({
+            where: { id: orderId },
+            data: {
+              paidAt: new Date(),
+              status:
+                order.status === OrderStatus.SERVED
+                  ? OrderStatus.COMPLETED
+                  : order.status,
+            },
+          });
+
+          this.logger.log(
+            `[${method}] Order ${orderId} in store ${order.storeId} fully paid`,
+          );
+        }
+
+        return newPayment;
+      });
+
+      this.logger.log(
+        `[${method}] User ${userId} recorded payment of ${dto.amount} for order ${orderId} in store ${order.storeId}`,
+      );
+
+      return payment as PaymentResponseDto;
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(`[${method}] Failed to record payment`, error.stack);
+
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2003') {
+          throw new BadRequestException('Invalid order reference');
+        }
+      }
+
+      throw new InternalServerErrorException('Failed to record payment');
+    }
+  }
+
+  /**
+   * Get all payments for an order
+   */
+  async findPaymentsByOrder(
+    userId: string,
+    orderId: string,
+  ): Promise<PaymentResponseDto[]> {
+    const method = this.findPaymentsByOrder.name;
+
+    try {
+      // Validate store access - OWNER, ADMIN, CASHIER can view payments
+      await this.validateOrderStoreAccess(orderId, userId, [
+        Role.OWNER,
+        Role.ADMIN,
+        Role.CASHIER,
+      ]);
+
+      const payments = await this.prisma.payment.findMany({
+        where: { orderId },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      this.logger.log(
+        `[${method}] User ${userId} retrieved ${payments.length} payments for order ${orderId}`,
+      );
+
+      return payments as PaymentResponseDto[];
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(`[${method}] Failed to get payments`, error.stack);
+      throw new InternalServerErrorException('Failed to retrieve payments');
+    }
+  }
+
+  /**
+   * Create refund for an order
+   */
+  async createRefund(
+    userId: string,
+    orderId: string,
+    dto: CreateRefundDto,
+  ): Promise<RefundResponseDto> {
+    const method = this.createRefund.name;
+
+    try {
+      // Validate store access - only OWNER, ADMIN can issue refunds
+      await this.validateOrderStoreAccess(orderId, userId, [
+        Role.OWNER,
+        Role.ADMIN,
+      ]);
+
+      // Get order with payments and refunds
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          payments: true,
+          refunds: true,
+        },
+      });
+
+      if (!order) {
+        throw new NotFoundException('Order not found');
+      }
+
+      // Calculate refundable amount
+      const totalPaid = order.payments.reduce(
+        (sum, p) => sum.add(new Decimal(p.amount)),
+        new Decimal('0'),
+      );
+
+      const totalRefunded = order.refunds.reduce(
+        (sum, r) => sum.add(new Decimal(r.amount)),
+        new Decimal('0'),
+      );
+
+      const refundableAmount = totalPaid.sub(totalRefunded);
+      const refundAmount = new Decimal(dto.amount);
+
+      // Validate refund amount
+      if (refundAmount.greaterThan(refundableAmount)) {
+        throw new BadRequestException(
+          `Refund amount exceeds refundable amount. Available: ${refundableAmount.toString()}`,
+        );
+      }
+
+      if (refundAmount.lessThanOrEqualTo(new Decimal('0'))) {
+        throw new BadRequestException('Refund amount must be positive');
+      }
+
+      // Create refund record
+      const refund = await this.prisma.refund.create({
+        data: {
+          orderId,
+          amount: refundAmount,
+          reason: dto.reason,
+          refundedBy: dto.refundedBy,
+        },
+      });
+
+      this.logger.log(
+        `[${method}] User ${userId} created refund of ${dto.amount} for order ${orderId} in store ${order.storeId}`,
+      );
+
+      return refund as RefundResponseDto;
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(`[${method}] Failed to create refund`, error.stack);
+
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2003') {
+          throw new BadRequestException('Invalid order reference');
+        }
+      }
+
+      throw new InternalServerErrorException('Failed to create refund');
+    }
+  }
+
+  /**
+   * Get all refunds for an order
+   */
+  async findRefundsByOrder(
+    userId: string,
+    orderId: string,
+  ): Promise<RefundResponseDto[]> {
+    const method = this.findRefundsByOrder.name;
+
+    try {
+      // Validate store access - OWNER, ADMIN can view refunds
+      await this.validateOrderStoreAccess(orderId, userId, [
+        Role.OWNER,
+        Role.ADMIN,
+      ]);
+
+      const refunds = await this.prisma.refund.findMany({
+        where: { orderId },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      this.logger.log(
+        `[${method}] User ${userId} retrieved ${refunds.length} refunds for order ${orderId}`,
+      );
+
+      return refunds as RefundResponseDto[];
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(`[${method}] Failed to get refunds`, error.stack);
+      throw new InternalServerErrorException('Failed to retrieve refunds');
+    }
+  }
+
+  /**
+   * Get payment summary for an order
+   */
+  async getPaymentSummary(
+    userId: string,
+    orderId: string,
+  ): Promise<{
+    grandTotal: Decimal;
+    totalPaid: Decimal;
+    totalRefunded: Decimal;
+    netPaid: Decimal;
+    remainingBalance: Decimal;
+    isFullyPaid: boolean;
+  }> {
+    const method = this.getPaymentSummary.name;
+
+    try {
+      // Validate store access - OWNER, ADMIN, CASHIER can view payment summaries
+      await this.validateOrderStoreAccess(orderId, userId, [
+        Role.OWNER,
+        Role.ADMIN,
+        Role.CASHIER,
+      ]);
+
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          payments: true,
+          refunds: true,
+        },
+      });
+
+      if (!order) {
+        throw new NotFoundException('Order not found');
+      }
+
+      const grandTotal = new Decimal(order.grandTotal);
+
+      const totalPaid = order.payments.reduce(
+        (sum, p) => sum.add(new Decimal(p.amount)),
+        new Decimal('0'),
+      );
+
+      const totalRefunded = order.refunds.reduce(
+        (sum, r) => sum.add(new Decimal(r.amount)),
+        new Decimal('0'),
+      );
+
+      const netPaid = totalPaid.sub(totalRefunded);
+      const remainingBalance = grandTotal.sub(netPaid);
+      const isFullyPaid = netPaid.equals(grandTotal);
+
+      this.logger.log(
+        `[${method}] User ${userId} retrieved payment summary for order ${orderId} in store ${order.storeId}`,
+      );
+
+      return {
+        grandTotal,
+        totalPaid,
+        totalRefunded,
+        netPaid,
+        remainingBalance,
+        isFullyPaid,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(
+        `[${method}] Failed to get payment summary`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'Failed to retrieve payment summary',
+      );
+    }
+  }
+}

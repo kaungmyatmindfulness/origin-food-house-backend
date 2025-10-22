@@ -31,13 +31,15 @@ model Store {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  userStores  UserStore[]
-  categories  Category[]
-  menuItems   MenuItem[]
-  tables      Table[]
-  information StoreInformation?
-  setting     StoreSetting?
-  orders      Order[]
+  userStores          UserStore[]
+  categories          Category[]
+  menuItems           MenuItem[]
+  tables              Table[]
+  information         StoreInformation?
+  setting             StoreSetting?
+  orders              Order[]
+  activeTableSessions ActiveTableSession[]
+  carts               Cart[]
 
   @@index([slug])
 }
@@ -116,8 +118,8 @@ model MenuItem {
   category            Category             @relation(fields: [categoryId], references: [id])
   store               Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
   customizationGroups CustomizationGroup[]
-
-  orderItems OrderItem[]
+  orderItems          OrderItem[]
+  cartItems           CartItem[]
 
   @@index([storeId, categoryId, sortOrder])
   @@index([deletedAt])
@@ -145,9 +147,9 @@ model CustomizationOption {
   additionalPrice      Decimal? @db.Decimal(10, 2)
   customizationGroupId String
 
-  customizationGroup CustomizationGroup @relation(fields: [customizationGroupId], references: [id], onDelete: Cascade)
-
+  customizationGroup      CustomizationGroup       @relation(fields: [customizationGroupId], references: [id], onDelete: Cascade)
   orderItemCustomizations OrderItemCustomization[]
+  cartItemCustomizations  CartItemCustomization[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
@@ -163,17 +165,94 @@ model Table {
   updatedAt DateTime @default(now()) @updatedAt
   store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
+  activeTableSessions ActiveTableSession[]
+
   @@unique([storeId, name])
   @@index([storeId, name])
 }
 
+model ActiveTableSession {
+  id          String    @id @default(uuid(7))
+  storeId     String
+  tableId     String
+  status      SessionStatus @default(ACTIVE)
+  guestCount  Int       @default(1)
+  sessionToken String   @unique
+  closedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  table Table @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  cart  Cart?
+  orders Order[]
+
+  @@index([storeId, status])
+  @@index([tableId, status])
+  @@index([sessionToken])
+}
+
+model Cart {
+  id                 String   @id @default(uuid(7))
+  sessionId          String   @unique
+  storeId            String
+  subTotal           Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @default(now()) @updatedAt
+
+  store   Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  session ActiveTableSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  items   CartItem[]
+
+  @@index([storeId])
+  @@index([sessionId])
+}
+
+model CartItem {
+  id                 String   @id @default(uuid(7))
+  cartId             String
+  menuItemId         String?
+  menuItemName       String   // Snapshot for if menu item is deleted
+  basePrice          Decimal  @db.Decimal(10, 2)
+  quantity           Int      @default(1)
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @default(now()) @updatedAt
+
+  cart       Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  customizations CartItemCustomization[]
+
+  @@index([cartId])
+  @@index([menuItemId])
+}
+
+model CartItemCustomization {
+  id                    String   @id @default(uuid(7))
+  cartItemId            String
+  customizationOptionId String
+  optionName            String   // Snapshot for if option is deleted
+  additionalPrice       Decimal? @db.Decimal(10, 2)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+
+  cartItem            CartItem             @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
+  customizationOption CustomizationOption @relation(fields: [customizationOptionId], references: [id], onDelete: Restrict)
+
+  @@unique([cartItemId, customizationOptionId])
+  @@index([cartItemId])
+}
+
 
 model Order {
-  id        String    @id @default(uuid(7))
-  storeId   String
-  store     Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  tableName String
-  paidAt    DateTime?
+  id          String      @id @default(uuid(7))
+  orderNumber String      // Human-readable order number (e.g., "001", "002")
+  storeId     String
+  sessionId   String?
+  tableName   String
+  status      OrderStatus @default(PENDING)
+  orderType   OrderType   @default(DINE_IN)
+  paidAt      DateTime?
 
   subTotal                  Decimal  @default(0) @db.Decimal(10, 2)
   vatRateSnapshot           Decimal? @db.Decimal(4, 3)
@@ -182,13 +261,24 @@ model Order {
   serviceChargeAmount       Decimal  @default(0) @db.Decimal(10, 2)
   grandTotal                Decimal  @default(0) @db.Decimal(10, 2)
 
+  store      Store                   @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  session    ActiveTableSession?     @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   orderItems OrderItem[]
+  payments   Payment[]
+  refunds    Refund[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
+  @@unique([storeId, orderNumber])
   @@index([storeId, createdAt])
+  @@index([storeId, status])
   @@index([storeId, paidAt])
+  @@index([sessionId])
+  // KDS Performance Indexes
+  @@index([storeId, status, createdAt])
+  @@index([status, createdAt])
+  @@index([createdAt(sort: Desc)])
 }
 
 model OrderItem {
@@ -209,6 +299,8 @@ model OrderItem {
 
   @@index([orderId])
   @@index([menuItemId])
+  // KDS Performance Index
+  @@index([orderId, createdAt])
 }
 
 model OrderItemCustomization {
@@ -225,6 +317,38 @@ model OrderItemCustomization {
   updatedAt DateTime @default(now()) @updatedAt
 
   @@unique([orderItemId, customizationOptionId])
+}
+
+model Payment {
+  id            String        @id @default(uuid(7))
+  orderId       String
+  amount        Decimal       @db.Decimal(10, 2)
+  paymentMethod PaymentMethod
+  transactionId String?       // External payment gateway transaction ID
+  notes         String?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([orderId])
+  @@index([transactionId])
+}
+
+model Refund {
+  id       String  @id @default(uuid(7))
+  orderId  String
+  amount   Decimal @db.Decimal(10, 2)
+  reason   String?
+  refundedBy String? // Staff member who processed refund
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([orderId])
 }
 
 enum Role {
@@ -244,4 +368,32 @@ enum Currency {
   CNY
   SGD
   HKD
+}
+
+enum SessionStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum OrderStatus {
+  PENDING       // Order placed, waiting for kitchen
+  PREPARING     // Being prepared by kitchen
+  READY         // Ready for serving
+  SERVED        // Served to customer
+  COMPLETED     // Fully paid and closed
+  CANCELLED     // Order cancelled
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  MOBILE_PAYMENT
+  OTHER
 }

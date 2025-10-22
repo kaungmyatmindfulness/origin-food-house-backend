@@ -1,12 +1,13 @@
-FROM node:20-alpine
+FROM node:lts-alpine
 
 # Install necessary dependencies for Prisma and native modules
-RUN apk add --no-cache libc6-compat openssl bash
+RUN apk add --no-cache libc6-compat openssl bash postgresql-client
 
 WORKDIR /app
 
 # Copy package files first for better layer caching
 COPY package.json package-lock.json* ./
+COPY .npmrc* ./
 
 # Install dependencies
 RUN npm ci && \
@@ -17,6 +18,10 @@ COPY prisma ./prisma/
 
 # Generate Prisma client
 RUN npx prisma generate
+
+# Copy docker entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Don't run as root
 RUN addgroup --system --gid 1001 nodejs && \
@@ -36,4 +41,5 @@ ENV NODE_ENV=development \
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["npm", "run", "dev"]

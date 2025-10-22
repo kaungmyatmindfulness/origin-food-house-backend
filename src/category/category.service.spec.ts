@@ -314,10 +314,10 @@ describe('CategoryService', () => {
       );
     });
 
-    it('should delete category successfully when no active menu items', async () => {
+    it('should soft delete category successfully when no active menu items', async () => {
       mockTransaction.category.findFirst.mockResolvedValue(mockCategory as any);
       mockTransaction.menuItem.count.mockResolvedValue(0);
-      mockTransaction.category.delete.mockResolvedValue(mockCategory as any);
+      mockTransaction.category.update.mockResolvedValue(mockCategory as any);
 
       const result = await service.remove(
         mockUserId,
@@ -326,8 +326,9 @@ describe('CategoryService', () => {
       );
 
       expect(result).toEqual({ id: mockCategoryId });
-      expect(mockTransaction.category.delete).toHaveBeenCalledWith({
+      expect(mockTransaction.category.update).toHaveBeenCalledWith({
         where: { id: mockCategoryId },
+        data: { deletedAt: expect.any(Date) },
       });
     });
 

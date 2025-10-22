@@ -119,7 +119,7 @@ describe('MenuService', () => {
 
       expect(result).toEqual(mockItems);
       expect(prismaService.menuItem.findMany).toHaveBeenCalledWith({
-        where: { storeId: mockStoreId },
+        where: { storeId: mockStoreId, deletedAt: null },
         orderBy: [{ category: { sortOrder: 'asc' } }, { sortOrder: 'asc' }],
         include: expect.any(Object),
       });
@@ -136,7 +136,7 @@ describe('MenuService', () => {
 
   describe('getMenuItemById', () => {
     it('should return menu item by ID', async () => {
-      prismaService.menuItem.findUnique.mockResolvedValue(mockMenuItem as any);
+      prismaService.menuItem.findFirst.mockResolvedValue(mockMenuItem as any);
 
       const result = await service.getMenuItemById(mockItemId);
 
@@ -144,7 +144,7 @@ describe('MenuService', () => {
     });
 
     it('should throw NotFoundException if item not found', async () => {
-      prismaService.menuItem.findUnique.mockResolvedValue(null);
+      prismaService.menuItem.findFirst.mockResolvedValue(null);
 
       await expect(service.getMenuItemById('non-existent-id')).rejects.toThrow(
         NotFoundException,
@@ -375,11 +375,11 @@ describe('MenuService', () => {
       );
     });
 
-    it('should delete menu item successfully', async () => {
+    it('should soft delete menu item successfully', async () => {
       mockTransaction.menuItem.findUnique.mockResolvedValue(
         mockMenuItem as any,
       );
-      mockTransaction.menuItem.delete.mockResolvedValue(mockMenuItem as any);
+      mockTransaction.menuItem.update.mockResolvedValue(mockMenuItem as any);
 
       const result = await service.deleteMenuItem(
         mockUserId,
@@ -389,7 +389,10 @@ describe('MenuService', () => {
 
       expect(result).toEqual({ id: mockItemId });
       expect(authService.checkStorePermission).toHaveBeenCalled();
-      expect(mockTransaction.menuItem.delete).toHaveBeenCalled();
+      expect(mockTransaction.menuItem.update).toHaveBeenCalledWith({
+        where: { id: mockItemId },
+        data: { deletedAt: expect.any(Date) },
+      });
     });
 
     it('should return id if item not found (idempotent)', async () => {

@@ -67,7 +67,7 @@ fi
 # Optionally seed the database in development
 if [ "$NODE_ENV" = "dev" ] || [ "$NODE_ENV" = "development" ]; then
   log_info "Running database seeding for development environment..."
-  if npx prisma db seed; then
+  if npm run seed:db 2>/dev/null; then
     log_success "Database seeding completed"
   else
     log_warning "Seeding failed or no seed script available - continuing anyway"
