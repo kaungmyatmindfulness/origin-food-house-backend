@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { RoutingArea } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -6,6 +7,9 @@ import {
   IsOptional,
   IsString,
   ValidateNested,
+  IsEnum,
+  IsInt,
+  Min,
 } from 'class-validator';
 
 import { IsPositiveNumericString } from 'src/common/decorators/is-positive-numeric-string.decorator';
@@ -55,6 +59,28 @@ export class UpdateMenuItemDto {
   @IsOptional()
   @IsBoolean()
   isHidden?: boolean;
+
+  @ApiPropertyOptional({
+    enum: RoutingArea,
+    description:
+      'Kitchen routing area for this item (e.g., GRILL, FRY, DRINKS).',
+    example: RoutingArea.GRILL,
+  })
+  @IsOptional()
+  @IsEnum(RoutingArea, {
+    message: 'routingArea must be a valid RoutingArea enum value',
+  })
+  routingArea?: RoutingArea;
+
+  @ApiPropertyOptional({
+    description: 'Expected preparation time in minutes',
+    example: 15,
+    type: Number,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1, { message: 'preparationTimeMinutes must be at least 1 minute' })
+  preparationTimeMinutes?: number;
 
   @ApiPropertyOptional({
     type: UpsertCategoryDto,

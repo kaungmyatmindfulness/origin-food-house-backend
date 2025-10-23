@@ -101,7 +101,7 @@ export class OrderService {
             orderNumber,
             storeId: session.storeId,
             sessionId: session.id,
-            tableName: dto.tableName ?? session.table.name,
+            tableName: dto.tableName ?? session.table?.name ?? 'Counter Order',
             status: OrderStatus.PENDING,
             orderType: dto.orderType,
             subTotal,
@@ -187,13 +187,16 @@ export class OrderService {
         throw error;
       }
 
-      this.logger.error(`[${method}] Failed to checkout cart`, error.stack);
+      this.logger.error(
+        `[${method}] Failed to checkout cart`,
+        error instanceof Error ? error.stack : String(error),
+      );
       throw new InternalServerErrorException('Failed to create order');
     }
   }
 
   /**
-   * Get order by ID
+   * Get order by ID with payment status
    */
   async findOne(orderId: string): Promise<OrderResponseDto> {
     const method = this.findOne.name;
@@ -207,6 +210,8 @@ export class OrderService {
               customizations: true,
             },
           },
+          payments: true,
+          refunds: true,
         },
       });
 
@@ -214,19 +219,43 @@ export class OrderService {
         throw new NotFoundException('Order not found');
       }
 
-      return order as OrderResponseDto;
+      // Calculate payment status inline (optimize to avoid double query)
+      const totalPaid = (order.payments || []).reduce(
+        (sum, payment) => sum.add(new Decimal(payment.amount)),
+        new Decimal('0'),
+      );
+
+      const totalRefunded = (order.refunds || []).reduce(
+        (sum, refund) => sum.add(new Decimal(refund.amount)),
+        new Decimal('0'),
+      );
+
+      const netPaid = totalPaid.sub(totalRefunded);
+      const grandTotal = new Decimal(order.grandTotal);
+      const remainingBalance = grandTotal.sub(netPaid);
+      const isPaidInFull = netPaid.greaterThanOrEqualTo(grandTotal);
+
+      return {
+        ...order,
+        totalPaid: totalPaid.toFixed(2),
+        remainingBalance: remainingBalance.toFixed(2),
+        isPaidInFull,
+      } as OrderResponseDto;
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
       }
 
-      this.logger.error(`[${method}] Failed to get order`, error.stack);
+      this.logger.error(
+        `[${method}] Failed to get order`,
+        error instanceof Error ? error.stack : String(error),
+      );
       throw new InternalServerErrorException('Failed to retrieve order');
     }
   }
 
   /**
-   * Get all orders for a store with pagination
+   * Get all orders for a store with pagination and payment status
    */
   async findByStore(
     storeId: string,
@@ -247,6 +276,8 @@ export class OrderService {
                 customizations: true,
               },
             },
+            payments: true,
+            refunds: true,
           },
           orderBy: { createdAt: 'desc' },
           skip,
@@ -257,18 +288,47 @@ export class OrderService {
         }),
       ]);
 
+      // Enhance orders with payment status
+      const enhancedOrders = orders.map((order) => {
+        // Calculate payment status inline to avoid N+1 queries
+        const totalPaid = (order.payments || []).reduce(
+          (sum, payment) => sum.add(new Decimal(payment.amount)),
+          new Decimal('0'),
+        );
+
+        const totalRefunded = (order.refunds || []).reduce(
+          (sum, refund) => sum.add(new Decimal(refund.amount)),
+          new Decimal('0'),
+        );
+
+        const netPaid = totalPaid.sub(totalRefunded);
+        const grandTotal = new Decimal(order.grandTotal);
+        const remainingBalance = grandTotal.sub(netPaid);
+        const isPaidInFull = netPaid.greaterThanOrEqualTo(grandTotal);
+
+        return {
+          ...order,
+          totalPaid: totalPaid.toFixed(2),
+          remainingBalance: remainingBalance.toFixed(2),
+          isPaidInFull,
+        } as OrderResponseDto;
+      });
+
       this.logger.log(
         `[${method}] Retrieved ${orders.length} orders for store ${storeId} (page ${page})`,
       );
 
       return PaginatedResponseDto.create(
-        orders as OrderResponseDto[],
+        enhancedOrders,
         total,
         page ?? 1,
         limit ?? 20,
       );
     } catch (error) {
-      this.logger.error(`[${method}] Failed to get orders`, error.stack);
+      this.logger.error(
+        `[${method}] Failed to get orders`,
+        error instanceof Error ? error.stack : String(error),
+      );
       throw new InternalServerErrorException('Failed to retrieve orders');
     }
   }
@@ -318,6 +378,8 @@ export class OrderService {
               },
               orderBy: { createdAt: 'asc' },
             },
+            payments: true,
+            refunds: true,
           },
           // Sort by status priority (PENDING first) then by creation time
           orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
@@ -327,24 +389,53 @@ export class OrderService {
         this.prisma.order.count({ where }),
       ]);
 
+      // Enhance orders with payment status
+      const enhancedOrders = orders.map((order) => {
+        // Calculate payment status inline to avoid N+1 queries
+        const totalPaid = (order.payments || []).reduce(
+          (sum, payment) => sum.add(new Decimal(payment.amount)),
+          new Decimal('0'),
+        );
+
+        const totalRefunded = (order.refunds || []).reduce(
+          (sum, refund) => sum.add(new Decimal(refund.amount)),
+          new Decimal('0'),
+        );
+
+        const netPaid = totalPaid.sub(totalRefunded);
+        const grandTotal = new Decimal(order.grandTotal);
+        const remainingBalance = grandTotal.sub(netPaid);
+        const isPaidInFull = netPaid.greaterThanOrEqualTo(grandTotal);
+
+        return {
+          ...order,
+          totalPaid: totalPaid.toFixed(2),
+          remainingBalance: remainingBalance.toFixed(2),
+          isPaidInFull,
+        } as OrderResponseDto;
+      });
+
       this.logger.log(
         `[${method}] Retrieved ${orders.length} KDS orders for store ${storeId} (page ${page}, status: ${status ?? 'active'})`,
       );
 
       return PaginatedResponseDto.create(
-        orders as OrderResponseDto[],
+        enhancedOrders,
         total,
         page ?? 1,
         limit ?? 20,
       );
     } catch (error) {
-      this.logger.error(`[${method}] Failed to get KDS orders`, error.stack);
+      this.logger.error(
+        `[${method}] Failed to get KDS orders`,
+        error instanceof Error ? error.stack : String(error),
+      );
       throw new InternalServerErrorException('Failed to retrieve KDS orders');
     }
   }
 
   /**
-   * Get orders by session
+   * Get orders by session with payment status
    */
   async findBySession(sessionId: string): Promise<OrderResponseDto[]> {
     const method = this.findBySession.name;
@@ -358,18 +449,123 @@ export class OrderService {
               customizations: true,
             },
           },
+          payments: true,
+          refunds: true,
         },
         orderBy: { createdAt: 'desc' },
       });
 
-      return orders as OrderResponseDto[];
+      // Enhance orders with payment status
+      const enhancedOrders = orders.map((order) => {
+        // Calculate payment status inline to avoid N+1 queries
+        const totalPaid = (order.payments || []).reduce(
+          (sum, payment) => sum.add(new Decimal(payment.amount)),
+          new Decimal('0'),
+        );
+
+        const totalRefunded = (order.refunds || []).reduce(
+          (sum, refund) => sum.add(new Decimal(refund.amount)),
+          new Decimal('0'),
+        );
+
+        const netPaid = totalPaid.sub(totalRefunded);
+        const grandTotal = new Decimal(order.grandTotal);
+        const remainingBalance = grandTotal.sub(netPaid);
+        const isPaidInFull = netPaid.greaterThanOrEqualTo(grandTotal);
+
+        return {
+          ...order,
+          totalPaid: totalPaid.toFixed(2),
+          remainingBalance: remainingBalance.toFixed(2),
+          isPaidInFull,
+        } as OrderResponseDto;
+      });
+
+      return enhancedOrders;
     } catch (error) {
       this.logger.error(
         `[${method}] Failed to get session orders`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException(
         'Failed to retrieve session orders',
+      );
+    }
+  }
+
+  /**
+   * Calculate payment status for an order
+   * Supports bill splitting by calculating total paid across multiple payments
+   */
+  async getPaymentStatus(orderId: string): Promise<{
+    totalPaid: Decimal;
+    totalRefunded: Decimal;
+    netPaid: Decimal;
+    grandTotal: Decimal;
+    remainingBalance: Decimal;
+    isPaidInFull: boolean;
+  }> {
+    const method = this.getPaymentStatus.name;
+
+    try {
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          payments: true,
+          refunds: true,
+        },
+      });
+
+      if (!order) {
+        throw new NotFoundException('Order not found');
+      }
+
+      // Calculate total paid from all payments (supports split payments)
+      const totalPaid = order.payments.reduce(
+        (sum, payment) => sum.add(new Decimal(payment.amount)),
+        new Decimal('0'),
+      );
+
+      // Calculate total refunded
+      const totalRefunded = order.refunds.reduce(
+        (sum, refund) => sum.add(new Decimal(refund.amount)),
+        new Decimal('0'),
+      );
+
+      // Calculate net paid (total paid - refunds)
+      const netPaid = totalPaid.sub(totalRefunded);
+
+      const grandTotal = new Decimal(order.grandTotal);
+
+      // Calculate remaining balance
+      const remainingBalance = grandTotal.sub(netPaid);
+
+      // Check if fully paid
+      const isPaidInFull = netPaid.greaterThanOrEqualTo(grandTotal);
+
+      this.logger.log(
+        `[${method}] Payment status for order ${orderId}: totalPaid=${totalPaid.toFixed(2)}, netPaid=${netPaid.toFixed(2)}, remaining=${remainingBalance.toFixed(2)}, isPaidInFull=${isPaidInFull}`,
+      );
+
+      return {
+        totalPaid: new Decimal(totalPaid.toFixed(2)),
+        totalRefunded: new Decimal(totalRefunded.toFixed(2)),
+        netPaid: new Decimal(netPaid.toFixed(2)),
+        grandTotal,
+        remainingBalance: new Decimal(remainingBalance.toFixed(2)),
+        isPaidInFull,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      this.logger.error(
+        `[${method}] Failed to get payment status`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw new InternalServerErrorException(
+        'Failed to calculate payment status',
       );
     }
   }
@@ -443,7 +639,7 @@ export class OrderService {
 
       this.logger.error(
         `[${method}] Failed to update order status`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException('Failed to update order status');
     }

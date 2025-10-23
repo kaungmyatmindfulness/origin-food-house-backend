@@ -7,10 +7,19 @@ import {
   ConflictException,
   InternalServerErrorException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
-import { ActiveTableSession, SessionStatus, Prisma } from '@prisma/client';
+import {
+  ActiveTableSession,
+  SessionStatus,
+  SessionType,
+  Prisma,
+  Role,
+} from '@prisma/client';
 
+import { AuthService } from '../auth/auth.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateManualSessionDto } from './dto/create-manual-session.dto';
 import { JoinSessionDto } from './dto/join-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
 
@@ -18,7 +27,10 @@ import { UpdateSessionDto } from './dto/update-session.dto';
 export class ActiveTableSessionService {
   private readonly logger = new Logger(ActiveTableSessionService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
+  ) {}
 
   /**
    * Generate a secure session token
@@ -92,11 +104,116 @@ export class ActiveTableSessionService {
 
       this.logger.error(
         `[${method}] Failed to join/create session for table ${tableId}`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException(
         'Failed to join or create session',
       );
+    }
+  }
+
+  /**
+   * Create manual session for staff-initiated orders (counter, phone, takeout)
+   * - No table association (tableId = null)
+   * - Generates secure session token
+   * - Creates empty cart automatically
+   * - Requires RBAC: OWNER, ADMIN, SERVER, or CASHIER
+   */
+  async createManualSession(
+    userId: string,
+    storeId: string,
+    dto: CreateManualSessionDto,
+  ): Promise<ActiveTableSession> {
+    const method = this.createManualSession.name;
+
+    try {
+      // Validate permissions
+      await this.authService.checkStorePermission(userId, storeId, [
+        Role.OWNER,
+        Role.ADMIN,
+        Role.SERVER,
+        Role.CASHIER,
+      ]);
+
+      // Validate sessionType is not TABLE
+      if (dto.sessionType === SessionType.TABLE) {
+        throw new BadRequestException(
+          'Cannot create manual session with type TABLE. Use join-by-table endpoint instead.',
+        );
+      }
+
+      // Generate session token
+      const sessionToken = this.generateSessionToken();
+      const guestCount = dto.guestCount ?? 1;
+
+      this.logger.log(
+        `[${method}] Creating manual ${dto.sessionType} session for store ${storeId}`,
+      );
+
+      // Create session and cart in a transaction
+      const session = await this.prisma.$transaction(async (tx) => {
+        // Create session without table
+        const newSession = await tx.activeTableSession.create({
+          data: {
+            storeId,
+            tableId: null, // Manual sessions have no table
+            sessionType: dto.sessionType,
+            sessionToken,
+            guestCount,
+            customerName: dto.customerName,
+            customerPhone: dto.customerPhone,
+            status: SessionStatus.ACTIVE,
+          },
+        });
+
+        // Create empty cart for the session
+        await tx.cart.create({
+          data: {
+            sessionId: newSession.id,
+            storeId,
+            subTotal: new Prisma.Decimal('0'),
+          },
+        });
+
+        this.logger.log(
+          `[${method}] Created manual session ${newSession.id} with cart`,
+        );
+
+        return newSession;
+      });
+
+      // Fetch session with cart included
+      const sessionWithCart = await this.prisma.activeTableSession.findUnique({
+        where: { id: session.id },
+        include: {
+          cart: {
+            include: {
+              items: {
+                include: {
+                  customizations: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return sessionWithCart!;
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ConflictException ||
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(
+        `[${method}] Failed to create manual session for store ${storeId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw new InternalServerErrorException('Failed to create manual session');
     }
   }
 
@@ -135,7 +252,7 @@ export class ActiveTableSessionService {
 
       this.logger.error(
         `[${method}] Failed to find session ${sessionId}`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException('Failed to find session');
     }
@@ -176,7 +293,7 @@ export class ActiveTableSessionService {
 
       this.logger.error(
         `[${method}] Failed to find session by token`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException('Failed to find session');
     }
@@ -211,7 +328,7 @@ export class ActiveTableSessionService {
     } catch (error) {
       this.logger.error(
         `[${method}] Failed to find active sessions for store ${storeId}`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException('Failed to find active sessions');
     }
@@ -275,7 +392,7 @@ export class ActiveTableSessionService {
 
       this.logger.error(
         `[${method}] Failed to update session ${sessionId}`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException('Failed to update session');
     }
@@ -321,7 +438,7 @@ export class ActiveTableSessionService {
 
       this.logger.error(
         `[${method}] Failed to close session ${sessionId}`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException('Failed to close session');
     }

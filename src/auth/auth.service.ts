@@ -1,5 +1,3 @@
-import * as crypto from 'crypto';
-
 import {
   Injectable,
   NotFoundException,
@@ -23,8 +21,6 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   private readonly JWT_EXPIRATION_TIME = '1d';
-  private readonly EMAIL_VERIFICATION_EXPIRY_MS = 1000 * 60 * 60 * 24;
-  private readonly PASSWORD_RESET_EXPIRY_MS = 1000 * 60 * 60;
 
   constructor(
     private userService: UserService,
@@ -204,8 +200,6 @@ export class AuthService {
               name: name ?? email.split('@')[0],
               isEmailVerified: email_verified,
               verified: email_verified,
-              // Set a random password as it won't be used with Auth0
-              password: crypto.randomBytes(32).toString('hex'),
             },
           });
         }

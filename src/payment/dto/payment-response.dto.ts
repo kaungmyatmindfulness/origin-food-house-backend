@@ -15,6 +15,12 @@ export class PaymentResponseDto {
   @ApiProperty({ enum: PaymentMethod })
   paymentMethod: PaymentMethod;
 
+  @ApiProperty({ type: String, nullable: true })
+  amountTendered: Decimal | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  change: Decimal | null;
+
   @ApiProperty({ nullable: true })
   transactionId: string | null;
 

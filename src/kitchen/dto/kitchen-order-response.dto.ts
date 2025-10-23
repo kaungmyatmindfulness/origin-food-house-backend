@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { OrderStatus, OrderType } from '@prisma/client';
+import { OrderStatus, OrderType, RoutingArea } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 /**
@@ -43,6 +43,8 @@ export class KitchenOrderResponseDto {
     menuItem?: {
       name: string;
       description?: string | null;
+      routingArea?: RoutingArea;
+      preparationTimeMinutes?: number | null;
     };
     customizations?: Array<{
       customizationOption?: {

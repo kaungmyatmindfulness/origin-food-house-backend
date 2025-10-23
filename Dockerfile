@@ -1,3 +1,14 @@
+# =============================================================================
+# Production Dockerfile - NOT for local development
+# =============================================================================
+# This Dockerfile is for PRODUCTION DEPLOYMENT only.
+# For local development, run the app natively and use docker-compose.yml
+# to start only the required services (PostgreSQL, etc.)
+#
+# To build: docker build -t origin-food-house-backend .
+# To run: See docker-compose.yml for production deployment
+# =============================================================================
+
 # Multi-stage build for production optimization
 FROM node:lts-alpine AS base
 

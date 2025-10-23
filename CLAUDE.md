@@ -2,7 +2,7 @@
 
 **Purpose:** Establish development standards, architectural guardrails, and clean code practices for Origin Food House.
 **Audience:** Claude Code and human contributors working within this repository.
-**Last Updated:** January 2025
+**Last Updated:** October 2025
 
 ## 📋 Recent Updates
 
@@ -15,24 +15,64 @@
 - ❌ Removed `POST /auth/login` endpoint (local authentication)
 - ❌ Removed `AuthService.validateUser()` method
 - ❌ Removed email/password validation logic
+- ❌ Removed `password` field from User schema
+- ❌ Removed `verificationToken`, `verificationExpiry`, `resetToken`, `resetTokenExpiry` fields
+- ❌ Removed password-related methods from UserService
 - ✅ Auth0 is now the **only** authentication method for staff users
 - ✅ Session-based auth remains for customer orders (table sessions)
+- ✅ Database no longer stores any password data
 
 **Migration Notes:**
 
 - All staff users must authenticate via Auth0
 - Existing users synced automatically on first Auth0 login
 - Frontend must implement Auth0 SDK for login flow
-- Password utilities still exist for Auth0 user sync (random passwords only)
+- No password data is stored in the database
+- Email verification and password reset handled by Auth0
 
 **Why This Change:**
 
 - Improved security through delegated authentication
+- Eliminated password storage and management overhead
 - Simplified authentication logic and reduced attack surface
 - Better user experience with SSO, social login, MFA support
 - Compliance with modern authentication best practices
+- Reduced database footprint and security liability
 
 ---
+
+### October 2025 - Codebase Audit & Documentation Update
+
+**Comprehensive audit completed to align documentation with actual implementation:**
+
+**Infrastructure Updates:**
+- ✅ Simplified Docker setup: docker-compose.yml now provides infrastructure only
+- ✅ Removed Dockerfile.dev and docker-compose.dev.yml (native development preferred)
+- ✅ Production Dockerfile optimized with multi-stage build and health checks
+
+**Module Expansion:**
+- ✅ Added PaymentModule (53.75% test coverage)
+- ✅ Added KitchenModule with WebSocket gateway (56% coverage)
+- ✅ Added ReportModule for analytics (0% coverage - needs tests)
+- ✅ Total modules increased from 11 to 14 domain modules
+
+**Testing Status:**
+- ✅ 320 tests across 11 test suites (up from 257 tests)
+- ✅ OrderModule leads with 78.02% coverage
+- ⚠️ Average coverage ~44% (below initial 80% target)
+- ❌ Critical gaps: ReportModule (0%), EmailModule (15.78%), ActiveTableSession (18.83%)
+
+**Database Schema:**
+- ✅ Expanded from 8 to 19 models
+- ✅ Added Refund, CartItem, OrderItem customization tracking
+- ✅ All entities support soft deletes and audit trails
+
+**Dependencies Updated:**
+- NestJS: v11.1.6
+- Prisma: v6.17.1
+- Jest: v30.2.0
+- Socket.io: v4.8.1
+- AWS SDK: v3.908.0
 
 ---
 
@@ -44,13 +84,13 @@ The backend is built with **NestJS**, **Prisma ORM**, and **PostgreSQL**; it fol
 
 ### Technology Stack
 
-- **Framework:** NestJS v11 (Node.js)
-- **Database:** PostgreSQL with Prisma ORM v6
-- **Authentication:** JWT + Auth0 integration
-- **Real-time:** WebSockets via Socket.io
-- **Storage:** AWS S3
-- **Testing:** Jest with >80% coverage target
-- **Code Quality:** ESLint, Prettier, Husky pre-commit hooks
+- **Framework:** NestJS v11.1.6 (Node.js)
+- **Database:** PostgreSQL 16 with Prisma ORM v6.17.1
+- **Authentication:** JWT + Auth0 integration (OAuth2/OpenID Connect)
+- **Real-time:** WebSockets via Socket.io v4.8.1
+- **Storage:** AWS S3 (via @aws-sdk/client-s3 v3.908.0)
+- **Testing:** Jest v30.2.0 - 11 test suites, 320 tests
+- **Code Quality:** ESLint v9.37.0, Prettier v3.6.2, Husky v9.1.7 pre-commit hooks
 
 ---
 
@@ -62,7 +102,7 @@ The backend is built with **NestJS**, **Prisma ORM**, and **PostgreSQL**; it fol
 npm run migrate:db      # Run Prisma migrations
 npm run generate:db     # Generate Prisma client
 npm run studio:db       # Open Prisma Studio
-npm run seed:db         # Seed demo data (owner@test.com/test1234)
+npm run seed:db         # Seed demo data (kraft@originfoodhouse.com)
 npm run reset:db        # Reset database (wipe + migrate)
 npm run drop:db         # Drop schema completely
 ```
@@ -85,6 +125,18 @@ npm run test:watch      # Watch mode
 npm run test:cov        # Coverage report
 npm run test:e2e        # End-to-end tests
 ```
+
+### Docker (Local Development - Infrastructure Only)
+
+```bash
+npm run docker:up       # Start PostgreSQL and infrastructure services
+npm run docker:down     # Stop all services
+npm run docker:logs     # View container logs
+npm run docker:ps       # Check container status
+npm run docker:clean    # Remove containers and volumes
+```
+
+**Note:** Docker Compose provides only infrastructure services (PostgreSQL). Run the app natively during development.
 
 ---
 
@@ -227,38 +279,56 @@ await this.authService.checkStorePermission(userId, storeId, [
 
 ## 🧱 Core Modules & Responsibilities
 
-| Module                       | Responsibility                                  |
-| ---------------------------- | ----------------------------------------------- |
-| **AuthModule**               | Auth0 integration, JWT generation, RBAC         |
-| **StoreModule**              | Store management, user roles                    |
-| **MenuModule**               | Menu items, customization groups                |
-| **CategoryModule**           | Category CRUD + sorting                         |
-| **TableModule**              | Table entities per store                        |
-| **ActiveTableSessionModule** | Session management & real-time dining           |
-| **OrderModule**              | Orders, VAT/service charge logic                |
-| **CartModule**               | Cart + checkout handling                        |
-| **CommonModule**             | Decorators, error handler, pagination, logger   |
-| **EmailModule**              | Email notifications (Auth0 handles auth emails) |
-| **UserModule**               | User profiles, memberships, Auth0 sync          |
+| Module                       | Responsibility                                  | Test Coverage |
+| ---------------------------- | ----------------------------------------------- | ------------- |
+| **AuthModule**               | Auth0 integration, JWT generation, RBAC         | 23.83%        |
+| **StoreModule**              | Store management, user roles                    | 53.10%        |
+| **MenuModule**               | Menu items, customization groups                | 56.41%        |
+| **CategoryModule**           | Category CRUD + sorting                         | 59.48%        |
+| **TableModule**              | Table entities per store                        | 62.10%        |
+| **ActiveTableSessionModule** | Session management & real-time dining           | 18.83%        |
+| **OrderModule**              | Orders, VAT/service charge logic                | 78.02%        |
+| **CartModule**               | Cart + checkout handling                        | 49.07%        |
+| **PaymentModule**            | Payment recording, refund processing            | 53.75%        |
+| **KitchenModule**            | Kitchen Display System (KDS), order status      | 56.00%        |
+| **ReportModule**             | Sales reports, analytics, business intelligence | 0.00%         |
+| **UserModule**               | User profiles, memberships, Auth0 sync          | 60.86%        |
+| **EmailModule**              | Email notifications (Auth0 handles auth emails) | 15.78%        |
+| **CommonModule**             | Decorators, error handler, pagination, logger   | Varies        |
+
+**Total:** 14 domain modules + infrastructure services
 
 ---
 
 ## 🧰 Infrastructure Services
 
-- **PrismaService:** Transaction-safe DB client
-- **S3Service:** File storage and retrieval
-- **CleanupService:** Scheduled removal of orphaned assets
+- **PrismaService:** Transaction-safe DB client with connection pooling
+- **S3Service:** AWS S3 file storage and retrieval with Sharp image processing
+- **UploadService:** File upload handling with validation and size limits
+- **CleanupService:** Scheduled removal of orphaned S3 assets
+- **Auth0Service:** Auth0 Management API integration for user sync
 
 ---
 
 ## 🧩 Database Schema Highlights
 
-- Entities: `User`, `Store`, `UserStore`, `MenuItem`, `Category`, `Table`, `ActiveTableSession`, `Order`
-- Relationships:
-  - `Store` ↔ `User` (many-to-many via `UserStore`)
-  - `Category` → `MenuItem`
-  - `MenuItem` → `CustomizationGroup` → `CustomizationOption`
-  - `Table` → `ActiveTableSession`
+**19 Models:** `User`, `Store`, `UserStore`, `StoreInformation`, `StoreSetting`, `Category`, `MenuItem`, `CustomizationGroup`, `CustomizationOption`, `Table`, `ActiveTableSession`, `Cart`, `CartItem`, `CartItemCustomization`, `Order`, `OrderItem`, `OrderItemCustomization`, `Payment`, `Refund`
+
+**Key Relationships:**
+- `Store` ↔ `User` (many-to-many via `UserStore`)
+- `Store` → `StoreInformation`, `StoreSetting` (one-to-one)
+- `Category` → `MenuItem` (one-to-many)
+- `MenuItem` → `CustomizationGroup` → `CustomizationOption` (nested one-to-many)
+- `Table` → `ActiveTableSession` (one-to-many)
+- `ActiveTableSession` → `Cart` → `CartItem` → `CartItemCustomization`
+- `Order` → `OrderItem` → `OrderItemCustomization`
+- `Order` → `Payment` → `Refund`
+
+**Design Patterns:**
+- All business entities support soft deletes (`deletedAt` timestamp)
+- All monetary values use `Decimal` type for precision
+- Multi-tenancy enforced via `storeId` foreign key
+- Audit trails with `createdAt` and `updatedAt` timestamps
 
 ---
 
@@ -270,7 +340,7 @@ await this.authService.checkStorePermission(userId, storeId, [
 
 - All authentication flows go through Auth0 (OAuth2/OpenID Connect)
 - Internal JWTs are generated after Auth0 token validation
-- Password utilities exist only for Auth0 user sync (random passwords)
+- No password data is stored in the database
 - Session-based auth used for customer ordering (table sessions)
 
 ---
@@ -367,10 +437,16 @@ catch (error) {
 
 ### Configuration
 
-- Use `@nestjs/config` with schema validation.
-- Validate `.env` at startup — never access `process.env` directly.
-- Maintain separate `.env.dev`, `.env.prod` files (not committed).
-- Use configuration namespaces for different concerns:
+- Use `@nestjs/config` with `ConfigService` for all environment variable access
+- **NEVER** access `process.env` directly in application code (security best practice)
+- Validate environment variables at application startup
+- Maintain separate `.env` files per environment (not committed to git)
+- Use configuration namespaces via `registerAs()` for domain-specific config
+
+**Current Configuration Files:**
+- `src/auth/config/auth0.config.ts` - Auth0 OAuth2/OIDC settings
+
+**Configuration Pattern:**
 
 ```typescript
 // auth/config/auth0.config.ts
@@ -379,9 +455,19 @@ export default registerAs(
   (): Auth0Config => ({
     domain: process.env.AUTH0_DOMAIN ?? '',
     clientId: process.env.AUTH0_CLIENT_ID ?? '',
-    // ... other config
+    clientSecret: process.env.AUTH0_CLIENT_SECRET ?? '',
+    audience: process.env.AUTH0_AUDIENCE ?? '',
+    issuer: process.env.AUTH0_ISSUER ?? '',
   }),
 );
+
+// In modules
+@Module({
+  imports: [ConfigModule.forFeature(auth0Config)],
+})
+
+// In services
+constructor(@Inject('auth0') private auth0Config: Auth0Config) {}
 ```
 
 ### Modules
@@ -571,11 +657,48 @@ return PaginatedResponseDto.create(items, total, page, limit);
 
 ---
 
-## 🧪 Testing Strategy
+## 🧪 Testing Strategy & Current Status
 
-1. **Unit Tests** — Validate isolated service logic.
-2. **Integration Tests** — Test module interactions with mocked I/O.
-3. **E2E Tests** — Full request-to-response validation using test DB.
+### Testing Approach
+
+1. **Unit Tests** — Validate isolated service logic with mocked dependencies
+2. **Integration Tests** — Test module interactions with mocked I/O
+3. **E2E Tests** — Full request-to-response validation using test DB
+
+### Current Test Statistics (October 2025)
+
+- **Total Test Suites:** 11 suites
+- **Total Tests:** 320 tests (all passing ✅)
+- **Overall Coverage:** ~44% average across all modules
+
+**Module-Level Coverage:**
+
+| Priority | Module                | Coverage | Status             | Action Needed              |
+| -------- | --------------------- | -------- | ------------------ | -------------------------- |
+| 🔴 HIGH  | ReportModule          | 0.00%    | ❌ No tests        | Create comprehensive tests |
+| 🔴 HIGH  | EmailModule           | 15.78%   | ⚠️ Minimal         | Add email template tests   |
+| 🔴 HIGH  | ActiveTableSession    | 18.83%   | ⚠️ Minimal         | Add session lifecycle tests|
+| 🟡 MED   | AuthModule            | 23.83%   | ⚠️ Partial         | Add Auth0 integration tests|
+| 🟡 MED   | CartModule            | 49.07%   | ⚠️ Moderate        | Add WebSocket tests        |
+| 🟢 LOW   | StoreModule           | 53.10%   | ✅ Moderate        | Maintain coverage          |
+| 🟢 LOW   | PaymentModule         | 53.75%   | ✅ Moderate        | Add refund scenario tests  |
+| 🟢 LOW   | KitchenModule         | 56.00%   | ✅ Moderate        | Add gateway tests          |
+| 🟢 LOW   | MenuModule            | 56.41%   | ✅ Moderate        | Maintain coverage          |
+| 🟢 LOW   | CategoryModule        | 59.48%   | ✅ Good            | Maintain coverage          |
+| 🟢 LOW   | UserModule            | 60.86%   | ✅ Good            | Maintain coverage          |
+| 🟢 LOW   | TableModule           | 62.10%   | ✅ Good            | Maintain coverage          |
+| ✅ DONE  | OrderModule           | 78.02%   | ✅ Excellent       | Production ready           |
+
+**Key Gaps:**
+- No E2E tests for critical user flows
+- WebSocket/real-time functionality undertested
+- Report generation module completely untested
+- Auth0 integration relies on manual testing
+
+**Testing Tools:**
+- Jest v30.2.0 with ts-jest for TypeScript support
+- Prisma mock helper (`createPrismaMock()`) for service tests
+- Supertest for E2E HTTP request testing
 
 ---
 
@@ -639,7 +762,7 @@ try {
 ### Authentication Anti-Patterns
 
 - ❌ Creating local password authentication (use Auth0 only)
-- ❌ Storing passwords for authentication (Auth0 users get random passwords)
+- ❌ Storing passwords in the database (Auth0 handles authentication)
 - ❌ Implementing custom JWT validation (use Auth0 JWKS)
 - ❌ Bypassing Auth0 for staff authentication
 - ❌ Using Auth0 for customer orders (use session-based auth)
@@ -838,6 +961,58 @@ src/auth/
     ├── jwt-auth.guard.ts     # JWT route protection
     └── ws-jwt.guard.ts       # WebSocket JWT validation
 ```
+
+---
+
+## 🐳 Docker & Deployment
+
+### Local Development Setup
+
+The project uses Docker Compose **only for infrastructure services** (PostgreSQL). The application runs natively on your machine for better developer experience.
+
+**docker-compose.yml** (Local Development):
+- Provides PostgreSQL 16 Alpine container
+- Exposes port 5432 for database connections
+- Includes health checks for service readiness
+- Persists data in named volume `postgres-data`
+
+**Usage:**
+```bash
+npm run docker:up      # Start PostgreSQL
+npm run dev            # Run app natively (connects to Docker PostgreSQL)
+npm run docker:down    # Stop services when done
+```
+
+### Production Deployment
+
+**Dockerfile** (Production):
+- Multi-stage build for optimized image size
+- Alpine Linux base (node:lts-alpine)
+- Non-root user (nestjs:nodejs with UID 1001)
+- Prisma client pre-generated at build time
+- Health check endpoint at `/health`
+- Startup script handles database migrations
+- Node.js memory limit: 2GB (`--max-old-space-size=2048`)
+
+**Build & Deploy:**
+```bash
+docker build -t origin-food-house-backend .
+docker run -p 3000:3000 --env-file .env.prod origin-food-house-backend
+```
+
+**Environment Requirements:**
+- `DATABASE_URL`: PostgreSQL connection string
+- `AUTH0_*`: Auth0 configuration variables
+- `JWT_SECRET`: JWT signing secret
+- `AWS_*`: S3 credentials (optional)
+- `SMTP_*`: Email configuration (optional)
+
+### Removed Files (October 2025)
+
+The following development Docker files were removed in favor of native development:
+- ❌ `Dockerfile.dev` (removed)
+- ❌ `docker-compose.dev.yml` (removed)
+- ❌ `docker-entrypoint.sh` (production only)
 
 ---
 

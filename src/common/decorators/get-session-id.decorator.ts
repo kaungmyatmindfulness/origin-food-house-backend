@@ -6,7 +6,10 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
  */
 export const GetSessionId = createParamDecorator(
   (data: unknown, ctx: ExecutionContext): string | undefined => {
-    const request = ctx.switchToHttp().getRequest();
+    const request = ctx.switchToHttp().getRequest<{
+      headers: Record<string, unknown>;
+      query?: Record<string, unknown>;
+    }>();
 
     // Try to get from header first (for WebSocket or API calls with auth)
     const headerSessionId = request.headers['x-session-id'];

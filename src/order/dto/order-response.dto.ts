@@ -79,6 +79,19 @@ export class OrderResponseDto {
   @ApiProperty({ type: String })
   grandTotal: Decimal;
 
+  @ApiProperty({
+    type: String,
+    description:
+      'Total amount paid across all payments (supports bill splitting)',
+  })
+  totalPaid: string;
+
+  @ApiProperty({ type: String, description: 'Remaining balance to be paid' })
+  remainingBalance: string;
+
+  @ApiProperty({ description: 'Whether the order is fully paid' })
+  isPaidInFull: boolean;
+
   @ApiProperty({ type: [OrderItemResponseDto] })
   orderItems: OrderItemResponseDto[];
 

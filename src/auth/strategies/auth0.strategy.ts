@@ -159,8 +159,6 @@ export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
             name: name ?? email.split('@')[0],
             isEmailVerified: emailVerified,
             verified: emailVerified,
-            // Set a random password as it won't be used with Auth0
-            password: this.generateRandomPassword(),
           },
         });
       }
@@ -176,18 +174,5 @@ export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
     }
 
     return user;
-  }
-
-  /**
-   * Generate a secure random password
-   */
-  private generateRandomPassword(): string {
-    const charset =
-      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+';
-    let password = '';
-    for (let i = 0; i < 32; i++) {
-      password += charset[Math.floor(Math.random() * charset.length)];
-    }
-    return password;
   }
 }

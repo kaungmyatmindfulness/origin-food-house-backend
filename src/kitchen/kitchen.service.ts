@@ -5,7 +5,7 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { OrderStatus, Prisma, RoutingArea } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { KitchenOrderResponseDto } from './dto/kitchen-order-response.dto';
@@ -24,11 +24,13 @@ export class KitchenService {
    * Get orders by kitchen status for KDS
    * @param storeId - Store ID
    * @param status - Optional status filter
+   * @param routingArea - Optional routing area filter
    * @returns List of orders for kitchen display
    */
   async getOrdersByStatus(
     storeId: string,
     status?: OrderStatus,
+    routingArea?: RoutingArea,
   ): Promise<KitchenOrderResponseDto[]> {
     const method = this.getOrdersByStatus.name;
 
@@ -52,6 +54,17 @@ export class KitchenService {
         };
       }
 
+      // Filter by routing area if provided
+      if (routingArea) {
+        where.orderItems = {
+          some: {
+            menuItem: {
+              routingArea,
+            },
+          },
+        };
+      }
+
       const orders = await this.prisma.order.findMany({
         where,
         include: {
@@ -61,6 +74,8 @@ export class KitchenService {
                 select: {
                   name: true,
                   description: true,
+                  routingArea: true,
+                  preparationTimeMinutes: true,
                 },
               },
               customizations: {
@@ -78,11 +93,22 @@ export class KitchenService {
         orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
       });
 
+      // If routingArea is specified, filter order items to only show items from that area
+      let filteredOrders = orders;
+      if (routingArea) {
+        filteredOrders = orders.map((order) => ({
+          ...order,
+          orderItems: order.orderItems.filter(
+            (item) => item.menuItem?.routingArea === routingArea,
+          ),
+        }));
+      }
+
       this.logger.log(
-        `[${method}] Retrieved ${orders.length} orders for store ${storeId}${status ? ` with status ${status}` : ''}`,
+        `[${method}] Retrieved ${filteredOrders.length} orders for store ${storeId}${status ? ` with status ${status}` : ''}${routingArea ? ` and routing area ${routingArea}` : ''}`,
       );
 
-      return orders as KitchenOrderResponseDto[];
+      return filteredOrders as KitchenOrderResponseDto[];
     } catch (error) {
       this.logger.error(
         `[${method}] Failed to get kitchen orders`,

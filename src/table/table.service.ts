@@ -6,7 +6,7 @@ import {
   InternalServerErrorException, // Keep for re-throwing truly unexpected errors
   Logger,
 } from '@nestjs/common';
-import { Role, Table, Prisma } from '@prisma/client';
+import { Role, Table, Prisma, TableStatus } from '@prisma/client';
 
 import { StandardErrorHandler } from 'src/common/decorators/standard-error-handler.decorator';
 
@@ -14,6 +14,7 @@ import { AuthService } from '../auth/auth.service'; // Assuming AuthService prov
 import { PrismaService } from '../prisma/prisma.service';
 import { BatchUpsertTableDto } from './dto/batch-upsert-table.dto'; // Use correct DTO
 import { CreateTableDto } from './dto/create-table.dto';
+import { UpdateTableStatusDto } from './dto/update-table-status.dto';
 import { UpdateTableDto } from './dto/update-table.dto';
 
 /**
@@ -404,4 +405,123 @@ export class TableService {
       throw new InternalServerErrorException('Could not synchronize tables.');
     }
   } // End syncTables
+
+  /**
+   * Update table status with state transition validation
+   * @param userId - User ID
+   * @param storeId - Store ID
+   * @param tableId - Table ID
+   * @param dto - Update status DTO
+   * @returns Updated table
+   */
+  async updateTableStatus(
+    userId: string,
+    storeId: string,
+    tableId: string,
+    dto: UpdateTableStatusDto,
+  ): Promise<Table> {
+    const method = this.updateTableStatus.name;
+    this.logger.log(
+      `[${method}] User ${userId} updating table ${tableId} status to ${dto.status}`,
+    );
+
+    // Check RBAC - only OWNER/ADMIN/SERVER can update table status
+    await this.authService.checkStorePermission(userId, storeId, [
+      Role.OWNER,
+      Role.ADMIN,
+      Role.SERVER,
+    ]);
+
+    try {
+      // Find the table to get current status
+      const table = await this.findOne(storeId, tableId);
+
+      // Validate state transition
+      this.validateTableStatusTransition(table.currentStatus, dto.status);
+
+      // Update the table status
+      const updatedTable = await this.prisma.table.update({
+        where: { id: tableId },
+        data: { currentStatus: dto.status },
+      });
+
+      this.logger.log(
+        `[${method}] Table ${tableId} status updated from ${table.currentStatus} to ${dto.status}`,
+      );
+
+      return updatedTable;
+    } catch (error) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(
+          `Table with ID ${tableId} not found during status update.`,
+        );
+      }
+
+      this.logger.error(
+        `[${method}] Failed to update table status for table ${tableId}`,
+        error,
+      );
+      throw new InternalServerErrorException('Could not update table status.');
+    }
+  }
+
+  /**
+   * Validate table status transitions based on state machine rules
+   * @private
+   */
+  private validateTableStatusTransition(
+    currentStatus: TableStatus,
+    newStatus: TableStatus,
+  ): void {
+    // Allow same status (idempotent operations)
+    if (currentStatus === newStatus) {
+      return;
+    }
+
+    // Define valid state transitions
+    const validTransitions: Record<TableStatus, TableStatus[]> = {
+      [TableStatus.VACANT]: [TableStatus.SEATED, TableStatus.CLEANING],
+      [TableStatus.SEATED]: [
+        TableStatus.ORDERING,
+        TableStatus.VACANT,
+        TableStatus.CLEANING,
+      ],
+      [TableStatus.ORDERING]: [
+        TableStatus.SERVED,
+        TableStatus.VACANT,
+        TableStatus.CLEANING,
+      ],
+      [TableStatus.SERVED]: [
+        TableStatus.READY_TO_PAY,
+        TableStatus.ORDERING, // Allow adding more items
+        TableStatus.VACANT,
+        TableStatus.CLEANING,
+      ],
+      [TableStatus.READY_TO_PAY]: [
+        TableStatus.CLEANING,
+        TableStatus.VACANT,
+        TableStatus.ORDERING, // Allow if payment cancelled
+      ],
+      [TableStatus.CLEANING]: [TableStatus.VACANT],
+    };
+
+    // Check if transition is valid
+    if (!validTransitions[currentStatus]?.includes(newStatus)) {
+      throw new BadRequestException(
+        `Invalid table status transition from ${currentStatus} to ${newStatus}. ` +
+          `Valid transitions from ${currentStatus} are: ${validTransitions[currentStatus]?.join(', ') || 'none'}`,
+      );
+    }
+  }
 } // End TableService

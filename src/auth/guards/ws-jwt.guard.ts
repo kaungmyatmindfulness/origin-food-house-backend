@@ -11,6 +11,20 @@ import { Socket } from 'socket.io';
 
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
 
+interface AuthenticatedSocket extends Socket {
+  data: {
+    user?: {
+      sub: string;
+      storeId?: string;
+    };
+  };
+  handshake: Socket['handshake'] & {
+    auth?: {
+      token?: string;
+    };
+  };
+}
+
 /**
  * WebSocket JWT Authentication Guard
  * Validates JWT tokens from WebSocket connections
@@ -36,7 +50,7 @@ export class WsJwtGuard implements CanActivate {
     const method = 'canActivate';
 
     try {
-      const client: Socket = context.switchToWs().getClient();
+      const client: AuthenticatedSocket = context.switchToWs().getClient();
       const token = this.extractToken(client);
 
       if (!token) {
@@ -89,7 +103,7 @@ export class WsJwtGuard implements CanActivate {
    * 2. Query parameter
    * 3. Handshake auth object
    */
-  private extractToken(client: Socket): string | null {
+  private extractToken(client: AuthenticatedSocket): string | null {
     // 1. Try Authorization header
     const authHeader = client.handshake.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {

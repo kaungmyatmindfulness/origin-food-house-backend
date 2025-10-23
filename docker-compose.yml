@@ -1,6 +1,23 @@
-version: "3.8"
+# =============================================================================
+# Origin Food House - Docker Services (Local Development)
+# =============================================================================
+# This compose file provides ONLY the infrastructure services needed for
+# local development. The application should run natively on your machine.
+#
+# Usage:
+#   docker compose up -d          # Start all services
+#   docker compose down           # Stop all services
+#   docker compose logs -f        # View logs
+#   docker compose ps             # Check status
+#
+# Or use npm scripts:
+#   npm run docker:up             # Start services
+#   npm run docker:down           # Stop services
+#   npm run docker:logs           # View logs
+# =============================================================================
 
 services:
+  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: origin-food-house-postgres
@@ -26,65 +43,6 @@ services:
       start_period: 10s
     networks:
       - origin-food-house-network
-    deploy:
-      resources:
-        limits:
-          cpus: "2"
-          memory: 1G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: origin-food-house-app
-    restart: unless-stopped
-    ports:
-      - "${APP_PORT:-3000}:3000"
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-myuser}:${POSTGRES_PASSWORD:-mypassword}@postgres:5432/${POSTGRES_DB:-mydb}
-      - PORT=3000
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
-      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-your-super-secret-refresh-jwt-key-change-in-production}
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3001,http://localhost:3002}
-      # AWS S3 Configuration (optional)
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
-      - AWS_REGION=${AWS_REGION:-}
-      - AWS_S3_BUCKET=${AWS_S3_BUCKET:-}
-      # Email Configuration (optional)
-      - SMTP_HOST=${SMTP_HOST:-}
-      - SMTP_PORT=${SMTP_PORT:-}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASS=${SMTP_PASS:-}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - app-uploads:/app/uploads
-    networks:
-      - origin-food-house-network
-    deploy:
-      resources:
-        limits:
-          cpus: "2"
-          memory: 2G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
 networks:
   origin-food-house-network:
@@ -92,6 +50,4 @@ networks:
 
 volumes:
   postgres-data:
-    driver: local
-  app-uploads:
     driver: local

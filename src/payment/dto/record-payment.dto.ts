@@ -21,6 +21,15 @@ export class RecordPaymentDto {
   paymentMethod: PaymentMethod;
 
   @ApiProperty({
+    description: 'Amount tendered by customer (for cash payments only)',
+    example: '200.00',
+    required: false,
+  })
+  @IsOptional()
+  @IsPositiveNumericString()
+  amountTendered?: string;
+
+  @ApiProperty({
     description: 'External transaction ID (for card/mobile payments)',
     example: 'TXN123456789',
     required: false,

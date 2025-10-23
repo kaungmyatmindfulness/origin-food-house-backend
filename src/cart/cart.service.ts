@@ -180,7 +180,10 @@ export class CartService {
         throw error;
       }
 
-      this.logger.error(`[${method}] Failed to get cart`, error.stack);
+      this.logger.error(
+        `[${method}] Failed to get cart`,
+        error instanceof Error ? error.stack : String(error),
+      );
       throw new InternalServerErrorException('Failed to retrieve cart');
     }
   }
@@ -318,7 +321,10 @@ export class CartService {
         throw error;
       }
 
-      this.logger.error(`[${method}] Failed to add item to cart`, error.stack);
+      this.logger.error(
+        `[${method}] Failed to add item to cart`,
+        error instanceof Error ? error.stack : String(error),
+      );
 
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2003') {
@@ -389,7 +395,10 @@ export class CartService {
         throw error;
       }
 
-      this.logger.error(`[${method}] Failed to update cart item`, error.stack);
+      this.logger.error(
+        `[${method}] Failed to update cart item`,
+        error instanceof Error ? error.stack : String(error),
+      );
       throw new InternalServerErrorException('Failed to update cart item');
     }
   }
@@ -451,7 +460,10 @@ export class CartService {
         throw error;
       }
 
-      this.logger.error(`[${method}] Failed to remove cart item`, error.stack);
+      this.logger.error(
+        `[${method}] Failed to remove cart item`,
+        error instanceof Error ? error.stack : String(error),
+      );
       throw new InternalServerErrorException('Failed to remove cart item');
     }
   }
@@ -505,7 +517,10 @@ export class CartService {
         throw error;
       }
 
-      this.logger.error(`[${method}] Failed to clear cart`, error.stack);
+      this.logger.error(
+        `[${method}] Failed to clear cart`,
+        error instanceof Error ? error.stack : String(error),
+      );
       throw new InternalServerErrorException('Failed to clear cart');
     }
   }

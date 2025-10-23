@@ -1,8 +1,4 @@
-import {
-  NotFoundException,
-  ForbiddenException,
-  BadRequestException,
-} from '@nestjs/common';
+import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrderStatus, Role } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';

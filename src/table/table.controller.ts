@@ -32,6 +32,7 @@ import { BatchUpsertTableDto } from './dto/batch-upsert-table.dto';
 import { CreateTableDto } from './dto/create-table.dto';
 import { TableDeletedResponseDto } from './dto/table-deleted-response.dto';
 import { TableResponseDto } from './dto/table-response.dto';
+import { UpdateTableStatusDto } from './dto/update-table-status.dto';
 import { UpdateTableDto } from './dto/update-table.dto';
 import { UpsertTableDto } from './dto/upsert-table.dto';
 import { TableService } from './table.service';
@@ -46,6 +47,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
   TableDeletedResponseDto,
   BatchUpsertTableDto,
   UpsertTableDto,
+  UpdateTableStatusDto,
 )
 export class TableController {
   private readonly logger = new Logger(TableController.name);
@@ -204,6 +206,49 @@ export class TableController {
     return StandardApiResponse.success(
       updatedTable,
       'Table updated successfully.',
+    );
+  }
+
+  @Patch(':tableId/status')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Update table status (OWNER/ADMIN/SERVER Required)',
+    description:
+      'Updates table status with validation of state transitions. Valid transitions follow the table lifecycle: VACANT → SEATED → ORDERING → SERVED → READY_TO_PAY → CLEANING → VACANT',
+  })
+  @ApiParam({
+    name: 'storeId',
+    description: 'ID (UUID) of the store',
+    type: String,
+  })
+  @ApiParam({
+    name: 'tableId',
+    description: 'ID (UUID) of the table to update status',
+    type: String,
+  })
+  @ApiSuccessResponse(TableResponseDto, 'Table status updated successfully.')
+  async updateTableStatus(
+    @Req() req: RequestWithUser,
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Param('tableId', ParseUUIDPipe) tableId: string,
+    @Body() dto: UpdateTableStatusDto,
+  ): Promise<StandardApiResponse<TableResponseDto>> {
+    const userId = req.user.sub;
+    this.logger.log(
+      `User ${userId} updating table ${tableId} status in Store ${storeId} to ${dto.status}`,
+    );
+    const updatedTable = await this.tableService.updateTableStatus(
+      userId,
+      storeId,
+      tableId,
+      dto,
+    );
+
+    return StandardApiResponse.success(
+      updatedTable,
+      'Table status updated successfully.',
     );
   }
 

@@ -8,10 +8,8 @@ import {
   OrderStatus,
   OrderType,
 } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
-const SALT_ROUNDS = 10;
 
 function selectCustomizations(
   availableGroups: ({
@@ -82,12 +80,12 @@ async function main() {
   const users = await Promise.all(
     Array.from({ length: 5 }).map(async (_, i) => {
       const userEmail =
-        i === 0 ? 'owner@test.com' : faker.internet.email().toLowerCase();
-      const hashedPassword = await bcrypt.hash('test1234', SALT_ROUNDS);
+        i === 0
+          ? 'kraft@originfoodhouse.com'
+          : faker.internet.email().toLowerCase();
       return await prisma.user.create({
         data: {
           email: userEmail,
-          password: hashedPassword,
           name: faker.person.fullName(),
           verified: true,
         },

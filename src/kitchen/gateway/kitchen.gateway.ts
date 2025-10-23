@@ -15,6 +15,15 @@ import { WsJwtGuard } from '../../auth/guards/ws-jwt.guard';
 import { UpdateKitchenStatusDto } from '../dto/update-kitchen-status.dto';
 import { KitchenService } from '../kitchen.service';
 
+interface AuthenticatedSocket extends Socket {
+  data: {
+    user?: {
+      sub: string;
+      storeId?: string;
+    };
+  };
+}
+
 /**
  * WebSocket Gateway for Kitchen Display System (KDS)
  * Provides real-time order updates to kitchen screens
@@ -57,14 +66,14 @@ export class KitchenGateway
   /**
    * Handle client connection
    */
-  handleConnection(client: Socket) {
+  handleConnection(client: AuthenticatedSocket) {
     this.logger.log(`[handleConnection] Client connected: ${client.id}`);
   }
 
   /**
    * Handle client disconnection
    */
-  handleDisconnect(client: Socket) {
+  handleDisconnect(client: AuthenticatedSocket) {
     this.logger.log(`[handleDisconnect] Client disconnected: ${client.id}`);
   }
 
@@ -75,7 +84,7 @@ export class KitchenGateway
   @SubscribeMessage('kitchen:join')
   async handleJoinStore(
     @MessageBody() data: { storeId: string },
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     const method = 'handleJoinStore';
 
@@ -131,7 +140,7 @@ export class KitchenGateway
       storeId: string;
       status: UpdateKitchenStatusDto;
     },
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     const method = 'handleUpdateStatus';
 

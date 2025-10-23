@@ -34,8 +34,3 @@ export const userSelectWithStores = Prisma.validator<Prisma.UserSelect>()({
 export type UserWithStoresPublicPayload = Prisma.UserGetPayload<{
   select: typeof userSelectWithStores;
 }>;
-
-// Type for only the password field, used internally
-export type UserPasswordPayload = Prisma.UserGetPayload<{
-  select: { password: true };
-}>;

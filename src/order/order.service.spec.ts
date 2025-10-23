@@ -957,7 +957,14 @@ describe('OrderService', () => {
   describe('findOne', () => {
     it('should return order by ID with items and customizations', async () => {
       // Arrange
-      prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
+      const orderWithPayments = {
+        ...mockOrder,
+        payments: [],
+        refunds: [],
+      };
+      prismaService.order.findUnique.mockResolvedValue(
+        orderWithPayments as any,
+      );
 
       // Act
       const result = await service.findOne(mockOrderId);
@@ -976,6 +983,8 @@ describe('OrderService', () => {
               customizations: true,
             },
           },
+          payments: true,
+          refunds: true,
         },
       });
     });
@@ -1016,7 +1025,10 @@ describe('OrderService', () => {
 
     it('should return paginated orders for store', async () => {
       // Arrange
-      const orders = [mockOrder, { ...mockOrder, id: 'order-456' }];
+      const orders = [
+        { ...mockOrder, payments: [], refunds: [] },
+        { ...mockOrder, id: 'order-456', payments: [], refunds: [] },
+      ];
 
       prismaService.order.findMany.mockResolvedValue(orders as any);
       prismaService.order.count.mockResolvedValue(2);
@@ -1038,6 +1050,8 @@ describe('OrderService', () => {
               customizations: true,
             },
           },
+          payments: true,
+          refunds: true,
         },
         orderBy: { createdAt: 'desc' },
         skip: 0,
@@ -1114,8 +1128,14 @@ describe('OrderService', () => {
     it('should return orders filtered by status for KDS', async () => {
       // Arrange
       const kdsOrders = [
-        mockOrder,
-        { ...mockOrder, id: 'order-456', status: OrderStatus.PREPARING },
+        { ...mockOrder, payments: [], refunds: [] },
+        {
+          ...mockOrder,
+          id: 'order-456',
+          status: OrderStatus.PREPARING,
+          payments: [],
+          refunds: [],
+        },
       ];
 
       prismaService.order.findMany.mockResolvedValue(kdsOrders as any);
@@ -1148,6 +1168,8 @@ describe('OrderService', () => {
             },
             orderBy: { createdAt: 'asc' },
           },
+          payments: true,
+          refunds: true,
         },
         orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
         skip: 0,
@@ -1231,8 +1253,14 @@ describe('OrderService', () => {
     it('should return all orders for a session', async () => {
       // Arrange
       const sessionOrders = [
-        mockOrder,
-        { ...mockOrder, id: 'order-456', orderNumber: '20251022-002' },
+        { ...mockOrder, payments: [], refunds: [] },
+        {
+          ...mockOrder,
+          id: 'order-456',
+          orderNumber: '20251022-002',
+          payments: [],
+          refunds: [],
+        },
       ];
 
       prismaService.order.findMany.mockResolvedValue(sessionOrders as any);
@@ -1252,6 +1280,8 @@ describe('OrderService', () => {
               customizations: true,
             },
           },
+          payments: true,
+          refunds: true,
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -1957,6 +1987,576 @@ describe('OrderService', () => {
           ).rejects.toThrow('Cannot update cancelled order');
         }
       });
+    });
+  });
+
+  describe('getPaymentStatus', () => {
+    describe('Single Payment Scenarios', () => {
+      it('should calculate payment status for fully paid order with single payment', async () => {
+        // Arrange
+        const orderWithPayment = {
+          ...mockOrder,
+          grandTotal: new Decimal('100.00'),
+          payments: [
+            {
+              id: 'payment-1',
+              amount: new Decimal('100.00'),
+              paymentMethod: 'CASH',
+            },
+          ],
+          refunds: [],
+        };
+
+        prismaService.order.findUnique.mockResolvedValue(
+          orderWithPayment as any,
+        );
+
+        // Act
+        const result = await service.getPaymentStatus(mockOrderId);
+
+        // Assert
+        expect(result.totalPaid).toEqual(new Decimal('100.00'));
+        expect(result.totalRefunded).toEqual(new Decimal('0'));
+        expect(result.netPaid).toEqual(new Decimal('100.00'));
+        expect(result.grandTotal).toEqual(new Decimal('100.00'));
+        expect(result.remainingBalance).toEqual(new Decimal('0'));
+        expect(result.isPaidInFull).toBe(true);
+      });
+
+      it('should calculate payment status for partially paid order', async () => {
+        // Arrange
+        const orderWithPayment = {
+          ...mockOrder,
+          grandTotal: new Decimal('100.00'),
+          payments: [
+            {
+              id: 'payment-1',
+              amount: new Decimal('60.00'),
+              paymentMethod: 'CASH',
+            },
+          ],
+          refunds: [],
+        };
+
+        prismaService.order.findUnique.mockResolvedValue(
+          orderWithPayment as any,
+        );
+
+        // Act
+        const result = await service.getPaymentStatus(mockOrderId);
+
+        // Assert
+        expect(result.totalPaid).toEqual(new Decimal('60.00'));
+        expect(result.netPaid).toEqual(new Decimal('60.00'));
+        expect(result.remainingBalance).toEqual(new Decimal('40.00'));
+        expect(result.isPaidInFull).toBe(false);
+      });
+
+      it('should calculate payment status for unpaid order', async () => {
+        // Arrange
+        const unpaidOrder = {
+          ...mockOrder,
+          grandTotal: new Decimal('100.00'),
+          payments: [],
+          refunds: [],
+        };
+
+        prismaService.order.findUnique.mockResolvedValue(unpaidOrder as any);
+
+        // Act
+        const result = await service.getPaymentStatus(mockOrderId);
+
+        // Assert
+        expect(result.totalPaid).toEqual(new Decimal('0'));
+        expect(result.netPaid).toEqual(new Decimal('0'));
+        expect(result.remainingBalance).toEqual(new Decimal('100.00'));
+        expect(result.isPaidInFull).toBe(false);
+      });
+    });
+
+    describe('Split Payment Scenarios (Bill Splitting)', () => {
+      it('should calculate payment status for 2-way bill split (50/50)', async () => {
+        // Arrange
+        const orderWithSplitPayments = {
+          ...mockOrder,
+          grandTotal: new Decimal('100.00'),
+          payments: [
+            {
+              id: 'payment-1',
+              amount: new Decimal('50.00'),
+              paymentMethod: 'CASH',
+            },
+            {
+              id: 'payment-2',
+              amount: new Decimal('50.00'),
+              paymentMethod: 'CREDIT_CARD',
+            },
+          ],
+          refunds: [],
+        };
+
+        prismaService.order.findUnique.mockResolvedValue(
+          orderWithSplitPayments as any,
+        );
+
+        // Act
+        const result = await service.getPaymentStatus(mockOrderId);
+
+        // Assert
+        expect(result.totalPaid).toEqual(new Decimal('100.00'));
+        expect(result.netPaid).toEqual(new Decimal('100.00'));
+        expect(result.remainingBalance).toEqual(new Decimal('0'));
+        expect(result.isPaidInFull).toBe(true);
+      });
+
+      it('should calculate payment status for 3-way bill split', async () => {
+        // Arrange
+        const orderWith3WaySplit = {
+          ...mockOrder,
+          grandTotal: new Decimal('150.00'),
+          payments: [
+            {
+              id: 'payment-1',
+              amount: new Decimal('50.00'),
+              paymentMethod: 'CASH',
+            },
+            {
+              id: 'payment-2',
+              amount: new Decimal('50.00'),
+              paymentMethod: 'CREDIT_CARD',
+            },
+            {
+              id: 'payment-3',
+              amount: new Decimal('50.00'),
+              paymentMethod: 'EWALLET',
+            },
+          ],
+          refunds: [],
+        };
+
+        prismaService.order.findUnique.mockResolvedValue(
+          orderWith3WaySplit as any,
+        );
+
+        // Act
+        const result = await service.getPaymentStatus(mockOrderId);
+
+        // Assert
+        expect(result.totalPaid).toEqual(new Decimal('150.00'));
+        expect(result.netPaid).toEqual(new Decimal('150.00'));
+        expect(result.remainingBalance).toEqual(new Decimal('0'));
+        expect(result.isPaidInFull).toBe(true);
+      });
+
+      it('should calculate payment status for partial split payment (2 of 3 paid)', async () => {
+        // Arrange
+        const orderWithPartialSplit = {
+          ...mockOrder,
+          grandTotal: new Decimal('150.00'),
+          payments: [
+            {
+              id: 'payment-1',
+              amount: new Decimal('50.00'),
+              paymentMethod: 'CASH',
+            },
+            {
+              id: 'payment-2',
+              amount: new Decimal('50.00'),
+              paymentMethod: 'CREDIT_CARD',
+            },
+          ],
+          refunds: [],
+        };
+
+        prismaService.order.findUnique.mockResolvedValue(
+          orderWithPartialSplit as any,
+        );
+
+        // Act
+        const result = await service.getPaymentStatus(mockOrderId);
+
+        // Assert
+        expect(result.totalPaid).toEqual(new Decimal('100.00'));
+        expect(result.netPaid).toEqual(new Decimal('100.00'));
+        expect(result.remainingBalance).toEqual(new Decimal('50.00'));
+        expect(result.isPaidInFull).toBe(false);
+      });
+
+      it('should calculate payment status for unequal split payments', async () => {
+        // Arrange
+        const orderWithUnequalSplit = {
+          ...mockOrder,
+          grandTotal: new Decimal('117.00'),
+          payments: [
+            {
+              id: 'payment-1',
+              amount: new Decimal('70.00'),
+              paymentMethod: 'CASH',
+            },
+            {
+              id: 'payment-2',
+              amount: new Decimal('30.00'),
+              paymentMethod: 'CREDIT_CARD',
+            },
+            {
+              id: 'payment-3',
+              amount: new Decimal('17.00'),
+              paymentMethod: 'EWALLET',
+            },
+          ],
+          refunds: [],
+        };
+
+        prismaService.order.findUnique.mockResolvedValue(
+          orderWithUnequalSplit as any,
+        );
+
+        // Act
+        const result = await service.getPaymentStatus(mockOrderId);
+
+        // Assert
+        expect(result.totalPaid).toEqual(new Decimal('117.00'));
+        expect(result.netPaid).toEqual(new Decimal('117.00'));
+        expect(result.remainingBalance).toEqual(new Decimal('0'));
+        expect(result.isPaidInFull).toBe(true);
+      });
+    });
+
+    describe('Refund Scenarios', () => {
+      it('should calculate net paid correctly with refunds', async () => {
+        // Arrange
+        const orderWithRefund = {
+          ...mockOrder,
+          grandTotal: new Decimal('100.00'),
+          payments: [
+            {
+              id: 'payment-1',
+              amount: new Decimal('100.00'),
+              paymentMethod: 'CASH',
+            },
+          ],
+          refunds: [
+            {
+              id: 'refund-1',
+              amount: new Decimal('20.00'),
+              reason: 'Wrong item',
+            },
+          ],
+        };
+
+        prismaService.order.findUnique.mockResolvedValue(
+          orderWithRefund as any,
+        );
+
+        // Act
+        const result = await service.getPaymentStatus(mockOrderId);
+
+        // Assert
+        expect(result.totalPaid).toEqual(new Decimal('100.00'));
+        expect(result.totalRefunded).toEqual(new Decimal('20.00'));
+        expect(result.netPaid).toEqual(new Decimal('80.00'));
+        expect(result.remainingBalance).toEqual(new Decimal('20.00'));
+        expect(result.isPaidInFull).toBe(false);
+      });
+
+      it('should calculate payment status for split payments with refund', async () => {
+        // Arrange
+        const orderWithSplitAndRefund = {
+          ...mockOrder,
+          grandTotal: new Decimal('150.00'),
+          payments: [
+            {
+              id: 'payment-1',
+              amount: new Decimal('75.00'),
+              paymentMethod: 'CASH',
+            },
+            {
+              id: 'payment-2',
+              amount: new Decimal('75.00'),
+              paymentMethod: 'CREDIT_CARD',
+            },
+          ],
+          refunds: [
+            {
+              id: 'refund-1',
+              amount: new Decimal('30.00'),
+              reason: 'Partial refund',
+            },
+          ],
+        };
+
+        prismaService.order.findUnique.mockResolvedValue(
+          orderWithSplitAndRefund as any,
+        );
+
+        // Act
+        const result = await service.getPaymentStatus(mockOrderId);
+
+        // Assert
+        expect(result.totalPaid).toEqual(new Decimal('150.00'));
+        expect(result.totalRefunded).toEqual(new Decimal('30.00'));
+        expect(result.netPaid).toEqual(new Decimal('120.00'));
+        expect(result.remainingBalance).toEqual(new Decimal('30.00'));
+        expect(result.isPaidInFull).toBe(false);
+      });
+    });
+
+    describe('Decimal Precision', () => {
+      it('should maintain decimal precision for complex split calculations', async () => {
+        // Arrange
+        const orderWithComplexSplit = {
+          ...mockOrder,
+          grandTotal: new Decimal('99.99'),
+          payments: [
+            {
+              id: 'payment-1',
+              amount: new Decimal('33.33'),
+              paymentMethod: 'CASH',
+            },
+            {
+              id: 'payment-2',
+              amount: new Decimal('33.33'),
+              paymentMethod: 'CREDIT_CARD',
+            },
+            {
+              id: 'payment-3',
+              amount: new Decimal('33.33'),
+              paymentMethod: 'EWALLET',
+            },
+          ],
+          refunds: [],
+        };
+
+        prismaService.order.findUnique.mockResolvedValue(
+          orderWithComplexSplit as any,
+        );
+
+        // Act
+        const result = await service.getPaymentStatus(mockOrderId);
+
+        // Assert
+        expect(result.totalPaid.toFixed(2)).toBe('99.99');
+        expect(result.remainingBalance.toFixed(2)).toBe('0.00');
+        expect(result.isPaidInFull).toBe(true);
+      });
+
+      it('should handle very small remaining balances correctly', async () => {
+        // Arrange
+        const orderWithSmallRemaining = {
+          ...mockOrder,
+          grandTotal: new Decimal('100.01'),
+          payments: [
+            {
+              id: 'payment-1',
+              amount: new Decimal('100.00'),
+              paymentMethod: 'CASH',
+            },
+          ],
+          refunds: [],
+        };
+
+        prismaService.order.findUnique.mockResolvedValue(
+          orderWithSmallRemaining as any,
+        );
+
+        // Act
+        const result = await service.getPaymentStatus(mockOrderId);
+
+        // Assert
+        expect(result.totalPaid.toFixed(2)).toBe('100.00');
+        expect(result.remainingBalance.toFixed(2)).toBe('0.01');
+        expect(result.isPaidInFull).toBe(false);
+      });
+    });
+
+    describe('Error Handling', () => {
+      it('should throw NotFoundException when order not found', async () => {
+        // Arrange
+        prismaService.order.findUnique.mockResolvedValue(null);
+
+        // Act & Assert
+        await expect(
+          service.getPaymentStatus('non-existent-id'),
+        ).rejects.toThrow(NotFoundException);
+        await expect(
+          service.getPaymentStatus('non-existent-id'),
+        ).rejects.toThrow('Order not found');
+      });
+
+      it('should throw InternalServerErrorException on database error', async () => {
+        // Arrange
+        prismaService.order.findUnique.mockRejectedValue(
+          new Error('Database error'),
+        );
+
+        // Act & Assert
+        await expect(service.getPaymentStatus(mockOrderId)).rejects.toThrow(
+          InternalServerErrorException,
+        );
+      });
+    });
+  });
+
+  describe('findOne with payment status', () => {
+    it('should include payment status fields in response', async () => {
+      // Arrange
+      const orderWithPayments = {
+        ...mockOrder,
+        grandTotal: new Decimal('100.00'),
+        payments: [
+          {
+            id: 'payment-1',
+            amount: new Decimal('60.00'),
+            paymentMethod: 'CASH',
+          },
+        ],
+        refunds: [],
+      };
+
+      prismaService.order.findUnique.mockResolvedValue(
+        orderWithPayments as any,
+      );
+
+      // Act
+      const result = await service.findOne(mockOrderId);
+
+      // Assert
+      expect(result.totalPaid).toBe('60.00');
+      expect(result.remainingBalance).toBe('40.00');
+      expect(result.isPaidInFull).toBe(false);
+    });
+
+    it('should show isPaidInFull as true for split payments that complete payment', async () => {
+      // Arrange
+      const orderWithSplitPayments = {
+        ...mockOrder,
+        grandTotal: new Decimal('100.00'),
+        payments: [
+          {
+            id: 'payment-1',
+            amount: new Decimal('50.00'),
+            paymentMethod: 'CASH',
+          },
+          {
+            id: 'payment-2',
+            amount: new Decimal('50.00'),
+            paymentMethod: 'CREDIT_CARD',
+          },
+        ],
+        refunds: [],
+      };
+
+      prismaService.order.findUnique.mockResolvedValue(
+        orderWithSplitPayments as any,
+      );
+
+      // Act
+      const result = await service.findOne(mockOrderId);
+
+      // Assert
+      expect(result.totalPaid).toBe('100.00');
+      expect(result.remainingBalance).toBe('0.00');
+      expect(result.isPaidInFull).toBe(true);
+    });
+  });
+
+  describe('findByStore with payment status', () => {
+    it('should include payment status for all orders in paginated response', async () => {
+      // Arrange
+      const paginationDto = {
+        page: 1,
+        limit: 20,
+        skip: 0,
+        take: 20,
+      };
+
+      const orders = [
+        {
+          ...mockOrder,
+          id: 'order-1',
+          grandTotal: new Decimal('100.00'),
+          payments: [
+            {
+              id: 'payment-1',
+              amount: new Decimal('100.00'),
+              paymentMethod: 'CASH',
+            },
+          ],
+          refunds: [],
+        },
+        {
+          ...mockOrder,
+          id: 'order-2',
+          grandTotal: new Decimal('150.00'),
+          payments: [
+            {
+              id: 'payment-2',
+              amount: new Decimal('75.00'),
+              paymentMethod: 'CASH',
+            },
+            {
+              id: 'payment-3',
+              amount: new Decimal('75.00'),
+              paymentMethod: 'CREDIT_CARD',
+            },
+          ],
+          refunds: [],
+        },
+      ];
+
+      prismaService.order.findMany.mockResolvedValue(orders as any);
+      prismaService.order.count.mockResolvedValue(2);
+
+      // Act
+      const result = await service.findByStore(mockStoreId, paginationDto);
+
+      // Assert
+      expect(result.items).toHaveLength(2);
+      expect(result.items[0].totalPaid).toBe('100.00');
+      expect(result.items[0].isPaidInFull).toBe(true);
+      expect(result.items[1].totalPaid).toBe('150.00');
+      expect(result.items[1].isPaidInFull).toBe(true);
+    });
+
+    it('should correctly calculate payment status for partially paid split orders', async () => {
+      // Arrange
+      const paginationDto = {
+        page: 1,
+        limit: 20,
+        skip: 0,
+        take: 20,
+      };
+
+      const orders = [
+        {
+          ...mockOrder,
+          grandTotal: new Decimal('150.00'),
+          payments: [
+            {
+              id: 'payment-1',
+              amount: new Decimal('50.00'),
+              paymentMethod: 'CASH',
+            },
+            {
+              id: 'payment-2',
+              amount: new Decimal('50.00'),
+              paymentMethod: 'CREDIT_CARD',
+            },
+          ],
+          refunds: [],
+        },
+      ];
+
+      prismaService.order.findMany.mockResolvedValue(orders as any);
+      prismaService.order.count.mockResolvedValue(1);
+
+      // Act
+      const result = await service.findByStore(mockStoreId, paginationDto);
+
+      // Assert
+      expect(result.items[0].totalPaid).toBe('100.00');
+      expect(result.items[0].remainingBalance).toBe('50.00');
+      expect(result.items[0].isPaidInFull).toBe(false);
     });
   });
 });

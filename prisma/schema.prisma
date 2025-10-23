@@ -8,19 +8,14 @@ generator client {
 }
 
 model User {
-  id                 String    @id @default(uuid(7))
-  email              String    @unique
-  password           String
-  name               String?
-  auth0Id            String?   @unique
-  isEmailVerified    Boolean   @default(false)
-  verified           Boolean   @default(false)
-  verificationToken  String?   @unique
-  verificationExpiry DateTime?
-  resetToken         String?   @unique
-  resetTokenExpiry   DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @default(now()) @updatedAt
+  id              String   @id @default(uuid(7))
+  email           String   @unique
+  name            String?
+  auth0Id         String?  @unique
+  isEmailVerified Boolean  @default(false)
+  verified        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
 
   userStores UserStore[]
 }
@@ -101,19 +96,21 @@ model Category {
 }
 
 model MenuItem {
-  id           String    @id @default(uuid(7))
-  name         String
-  description  String?
-  basePrice    Decimal   @db.Decimal(10, 2)
-  imageUrl     String?
-  categoryId   String
-  storeId      String
-  sortOrder    Int       @default(0)
-  isOutOfStock Boolean   @default(false)
-  isHidden     Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @default(now()) @updatedAt
-  deletedAt    DateTime?
+  id                     String      @id @default(uuid(7))
+  name                   String
+  description            String?
+  basePrice              Decimal     @db.Decimal(10, 2)
+  imageUrl               String?
+  categoryId             String
+  storeId                String
+  sortOrder              Int         @default(0)
+  isOutOfStock           Boolean     @default(false)
+  isHidden               Boolean     @default(false)
+  routingArea            RoutingArea @default(OTHER)
+  preparationTimeMinutes Int?
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @default(now()) @updatedAt
+  deletedAt              DateTime?
 
   category            Category             @relation(fields: [categoryId], references: [id])
   store               Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -122,6 +119,7 @@ model MenuItem {
   cartItems           CartItem[]
 
   @@index([storeId, categoryId, sortOrder])
+  @@index([storeId, routingArea])
   @@index([deletedAt])
   @@index([deletedAt, isHidden])
 }
@@ -158,47 +156,53 @@ model CustomizationOption {
 }
 
 model Table {
-  id        String   @id @default(uuid(7))
-  storeId   String
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  id            String      @id @default(uuid(7))
+  storeId       String
+  name          String
+  currentStatus TableStatus @default(VACANT)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @default(now()) @updatedAt
+  store         Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   activeTableSessions ActiveTableSession[]
 
   @@unique([storeId, name])
   @@index([storeId, name])
+  @@index([storeId, currentStatus])
 }
 
 model ActiveTableSession {
-  id          String    @id @default(uuid(7))
-  storeId     String
-  tableId     String
-  status      SessionStatus @default(ACTIVE)
-  guestCount  Int       @default(1)
-  sessionToken String   @unique
-  closedAt    DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now()) @updatedAt
+  id            String        @id @default(uuid(7))
+  storeId       String
+  tableId       String?
+  sessionType   SessionType   @default(TABLE)
+  status        SessionStatus @default(ACTIVE)
+  guestCount    Int           @default(1)
+  sessionToken  String        @unique
+  customerName  String?
+  customerPhone String?
+  closedAt      DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @default(now()) @updatedAt
 
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  table Table @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  cart  Cart?
+  store  Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  table  Table?  @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  cart   Cart?
   orders Order[]
 
   @@index([storeId, status])
   @@index([tableId, status])
   @@index([sessionToken])
+  @@index([storeId, sessionType])
 }
 
 model Cart {
-  id                 String   @id @default(uuid(7))
-  sessionId          String   @unique
-  storeId            String
-  subTotal           Decimal  @default(0) @db.Decimal(10, 2)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @default(now()) @updatedAt
+  id        String   @id @default(uuid(7))
+  sessionId String   @unique
+  storeId   String
+  subTotal  Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   store   Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
   session ActiveTableSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -209,18 +213,18 @@ model Cart {
 }
 
 model CartItem {
-  id                 String   @id @default(uuid(7))
-  cartId             String
-  menuItemId         String?
-  menuItemName       String   // Snapshot for if menu item is deleted
-  basePrice          Decimal  @db.Decimal(10, 2)
-  quantity           Int      @default(1)
-  notes              String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @default(now()) @updatedAt
+  id           String   @id @default(uuid(7))
+  cartId       String
+  menuItemId   String?
+  menuItemName String // Snapshot for if menu item is deleted
+  basePrice    Decimal  @db.Decimal(10, 2)
+  quantity     Int      @default(1)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
 
-  cart       Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  menuItem   MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  cart           Cart                    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  menuItem       MenuItem?               @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
   customizations CartItemCustomization[]
 
   @@index([cartId])
@@ -231,22 +235,21 @@ model CartItemCustomization {
   id                    String   @id @default(uuid(7))
   cartItemId            String
   customizationOptionId String
-  optionName            String   // Snapshot for if option is deleted
+  optionName            String // Snapshot for if option is deleted
   additionalPrice       Decimal? @db.Decimal(10, 2)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @default(now()) @updatedAt
 
-  cartItem            CartItem             @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
+  cartItem            CartItem            @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
   customizationOption CustomizationOption @relation(fields: [customizationOptionId], references: [id], onDelete: Restrict)
 
   @@unique([cartItemId, customizationOptionId])
   @@index([cartItemId])
 }
 
-
 model Order {
   id          String      @id @default(uuid(7))
-  orderNumber String      // Human-readable order number (e.g., "001", "002")
+  orderNumber String // Human-readable order number (e.g., "001", "002")
   storeId     String
   sessionId   String?
   tableName   String
@@ -261,8 +264,8 @@ model Order {
   serviceChargeAmount       Decimal  @default(0) @db.Decimal(10, 2)
   grandTotal                Decimal  @default(0) @db.Decimal(10, 2)
 
-  store      Store                   @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  session    ActiveTableSession?     @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  store      Store               @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  session    ActiveTableSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   orderItems OrderItem[]
   payments   Payment[]
   refunds    Refund[]
@@ -320,12 +323,14 @@ model OrderItemCustomization {
 }
 
 model Payment {
-  id            String        @id @default(uuid(7))
-  orderId       String
-  amount        Decimal       @db.Decimal(10, 2)
-  paymentMethod PaymentMethod
-  transactionId String?       // External payment gateway transaction ID
-  notes         String?
+  id             String        @id @default(uuid(7))
+  orderId        String
+  amount         Decimal       @db.Decimal(10, 2)
+  paymentMethod  PaymentMethod
+  amountTendered Decimal?      @db.Decimal(10, 2) // Cash only - amount given by customer
+  change         Decimal?      @db.Decimal(10, 2) // Cash only - change to return
+  transactionId  String? // External payment gateway transaction ID
+  notes          String?
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -337,10 +342,10 @@ model Payment {
 }
 
 model Refund {
-  id       String  @id @default(uuid(7))
-  orderId  String
-  amount   Decimal @db.Decimal(10, 2)
-  reason   String?
+  id         String  @id @default(uuid(7))
+  orderId    String
+  amount     Decimal @db.Decimal(10, 2)
+  reason     String?
   refundedBy String? // Staff member who processed refund
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -376,12 +381,12 @@ enum SessionStatus {
 }
 
 enum OrderStatus {
-  PENDING       // Order placed, waiting for kitchen
-  PREPARING     // Being prepared by kitchen
-  READY         // Ready for serving
-  SERVED        // Served to customer
-  COMPLETED     // Fully paid and closed
-  CANCELLED     // Order cancelled
+  PENDING // Order placed, waiting for kitchen
+  PREPARING // Being prepared by kitchen
+  READY // Ready for serving
+  SERVED // Served to customer
+  COMPLETED // Fully paid and closed
+  CANCELLED // Order cancelled
 }
 
 enum OrderType {
@@ -396,4 +401,31 @@ enum PaymentMethod {
   DEBIT_CARD
   MOBILE_PAYMENT
   OTHER
+}
+
+enum RoutingArea {
+  GRILL
+  FRY
+  SALAD
+  DRINKS
+  DESSERT
+  APPETIZER
+  SOUP
+  OTHER
+}
+
+enum TableStatus {
+  VACANT
+  SEATED
+  ORDERING
+  SERVED
+  READY_TO_PAY
+  CLEANING
+}
+
+enum SessionType {
+  TABLE
+  COUNTER
+  PHONE
+  TAKEOUT
 }

@@ -73,7 +73,7 @@ export class ReportService {
         orderCount > 0 ? totalSales.div(orderCount) : new Decimal('0');
 
       this.logger.log(
-        `[${method}] Sales summary generated for store ${storeId}: ${orderCount} orders, total ${totalSales}`,
+        `[${method}] Sales summary generated for store ${storeId}: ${orderCount} orders, total ${totalSales.toString()}`,
       );
 
       return {

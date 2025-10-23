@@ -6,7 +6,13 @@ import {
   ForbiddenException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { Prisma, OrderStatus, Role, Order } from '@prisma/client';
+import {
+  Prisma,
+  OrderStatus,
+  Role,
+  Order,
+  PaymentMethod,
+} from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 import { AuthService } from '../auth/auth.service';
@@ -130,10 +136,54 @@ export class PaymentService {
       const newTotalPaid = netPaid.add(paymentAmount);
       const grandTotal = new Decimal(order.grandTotal);
 
-      // Validate payment amount
+      // Validate payment amount - prevent overpayment
       if (newTotalPaid.greaterThan(grandTotal)) {
+        const remaining = grandTotal.sub(netPaid);
+        this.logger.warn(
+          `[${method}] Payment rejected - amount exceeds remaining balance. Order ${orderId}: grandTotal=${grandTotal.toString()}, alreadyPaid=${netPaid.toString()}, attempted=${paymentAmount.toString()}, remaining=${remaining.toString()}`,
+        );
         throw new BadRequestException(
-          `Payment amount exceeds order total. Remaining: ${grandTotal.sub(netPaid).toString()}`,
+          `Payment amount exceeds order total. Remaining balance: ${remaining.toString()}, attempted payment: ${paymentAmount.toString()}`,
+        );
+      }
+
+      // Log split payment information
+      const paymentsCount = order.payments.length;
+      if (paymentsCount > 0 || paymentAmount.lessThan(grandTotal)) {
+        this.logger.log(
+          `[${method}] Split payment detected for order ${orderId}: payment ${paymentsCount + 1}, amount=${paymentAmount.toString()}, totalPaid=${newTotalPaid.toString()}, grandTotal=${grandTotal.toString()}, remaining=${grandTotal.sub(newTotalPaid).toString()}`,
+        );
+      }
+
+      // Validate and calculate change for cash payments
+      let amountTendered: Decimal | undefined;
+      let change: Decimal | undefined;
+
+      if (dto.paymentMethod === PaymentMethod.CASH) {
+        if (dto.amountTendered) {
+          amountTendered = new Decimal(dto.amountTendered);
+
+          // Validate amount tendered is sufficient
+          if (amountTendered.lessThan(paymentAmount)) {
+            throw new BadRequestException(
+              `Insufficient amount tendered. Required: ${paymentAmount.toString()}, Tendered: ${amountTendered.toString()}`,
+            );
+          }
+
+          // Calculate change
+          change = amountTendered.sub(paymentAmount);
+
+          this.logger.log(
+            `[${method}] Cash payment: amount=${paymentAmount.toString()}, tendered=${amountTendered.toString()}, change=${change.toString()}`,
+          );
+        }
+      } else if (dto.amountTendered) {
+        // amountTendered should only be provided for cash payments
+        this.logger.warn(
+          `[${method}] amountTendered provided for non-cash payment method: ${dto.paymentMethod}`,
+        );
+        throw new BadRequestException(
+          'amountTendered is only applicable for cash payments',
         );
       }
 
@@ -145,6 +195,8 @@ export class PaymentService {
             orderId,
             amount: paymentAmount,
             paymentMethod: dto.paymentMethod,
+            amountTendered,
+            change,
             transactionId: dto.transactionId,
             notes: dto.notes,
           },
@@ -185,7 +237,10 @@ export class PaymentService {
         throw error;
       }
 
-      this.logger.error(`[${method}] Failed to record payment`, error.stack);
+      this.logger.error(
+        `[${method}] Failed to record payment`,
+        error instanceof Error ? error.stack : String(error),
+      );
 
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2003') {
@@ -232,7 +287,10 @@ export class PaymentService {
         throw error;
       }
 
-      this.logger.error(`[${method}] Failed to get payments`, error.stack);
+      this.logger.error(
+        `[${method}] Failed to get payments`,
+        error instanceof Error ? error.stack : String(error),
+      );
       throw new InternalServerErrorException('Failed to retrieve payments');
     }
   }
@@ -316,7 +374,10 @@ export class PaymentService {
         throw error;
       }
 
-      this.logger.error(`[${method}] Failed to create refund`, error.stack);
+      this.logger.error(
+        `[${method}] Failed to create refund`,
+        error instanceof Error ? error.stack : String(error),
+      );
 
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2003') {
@@ -362,7 +423,10 @@ export class PaymentService {
         throw error;
       }
 
-      this.logger.error(`[${method}] Failed to get refunds`, error.stack);
+      this.logger.error(
+        `[${method}] Failed to get refunds`,
+        error instanceof Error ? error.stack : String(error),
+      );
       throw new InternalServerErrorException('Failed to retrieve refunds');
     }
   }
@@ -441,7 +505,7 @@ export class PaymentService {
 
       this.logger.error(
         `[${method}] Failed to get payment summary`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException(
         'Failed to retrieve payment summary',

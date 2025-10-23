@@ -1,17 +1,13 @@
-import * as crypto from 'crypto';
-
 import {
   BadRequestException,
   Injectable,
-  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { User, UserStore, Prisma, Role } from '@prisma/client';
+import { UserStore, Prisma, Role } from '@prisma/client';
 import * as disposableDomains from 'disposable-email-domains';
 
-import { hashPassword } from 'src/common/utils/password.util';
 import { UserProfileResponseDto } from 'src/user/dto/user-profile-response.dto';
 import {
   UserPublicPayload,
@@ -29,8 +25,6 @@ import { CreateUserDto } from './dto/create-user.dto';
 export class UserService {
   private readonly logger = new Logger(UserService.name);
 
-  private readonly EMAIL_VERIFICATION_EXPIRY_MS = 1000 * 60 * 60 * 24;
-  private readonly PASSWORD_RESET_EXPIRY_MS = 1000 * 60 * 60;
   private readonly ALLOW_DISPOSABLE_EMAILS: boolean;
 
   constructor(
@@ -43,11 +37,15 @@ export class UserService {
   }
 
   /**
-   * Creates a new user, hashes password, sends verification email.
+   * @deprecated This method is deprecated. Auth0 handles user registration.
+   * Creates a new user, sends verification email.
    * @throws BadRequestException if email is disposable (in production), already in use.
    * @throws InternalServerErrorException on email sending failure.
    */
   async createUser(dto: CreateUserDto): Promise<UserPublicPayload> {
+    this.logger.warn(
+      'createUser called - this method is deprecated. Auth0 handles registration.',
+    );
     this.logger.log(`Attempting to create user with email: ${dto.email}`);
 
     const domain = dto.email.split('@')[1];
@@ -60,23 +58,13 @@ export class UserService {
       );
     }
 
-    const hashedPassword = await hashPassword(dto.password);
-
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    const verificationExpiry = new Date(
-      Date.now() + this.EMAIL_VERIFICATION_EXPIRY_MS,
-    );
-
     let newUser: UserPublicPayload;
     try {
       newUser = await this.prisma.user.create({
         data: {
           email: dto.email,
-          password: hashedPassword,
           name: dto.name,
           verified: false,
-          verificationToken,
-          verificationExpiry,
         },
         select: userSelectPublic,
       });
@@ -97,38 +85,7 @@ export class UserService {
       throw error;
     }
 
-    try {
-      await this.emailService.sendVerificationEmail(
-        newUser.email,
-        verificationToken,
-      );
-      this.logger.log(`Verification email sent to ${newUser.email}`);
-    } catch (error) {
-      this.logger.error(
-        `Failed to send verification email to ${newUser.email}`,
-        error,
-      );
-
-      throw new InternalServerErrorException(
-        'User created, but failed to send verification email. Please contact support or try registering again later.',
-      );
-    }
-
     return newUser;
-  }
-
-  /**
-   * Finds a user by email FOR AUTHENTICATION PURPOSES.
-   * Includes the password hash. Should only be called by AuthService.
-   * @param email User's email
-   * @returns Full User object including password, or null if not found.
-   */
-  async findUserForAuth(email: string): Promise<User | null> {
-    this.logger.verbose(`Auth lookup requested for email: ${email}`);
-
-    return await this.prisma.user.findUnique({
-      where: { email },
-    });
   }
 
   /**
@@ -154,36 +111,7 @@ export class UserService {
   }
 
   /**
-   * Finds a user by ID, selecting only the password hash. Used for internal checks.
-   * @throws NotFoundException if user not found.
-   */
-  async findPasswordById(id: string): Promise<{ password: string }> {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-      select: { password: true },
-    });
-    if (!user) {
-      this.logger.error(
-        `findPasswordById failed: User not found for ID: ${id}`,
-      );
-      throw new NotFoundException(`User with ID ${id} not found.`);
-    }
-    return user;
-  }
-
-  /**
-   * Finds a user by their active email verification token.
-   */
-  async findByVerificationToken(token: string): Promise<User | null> {
-    return await this.prisma.user.findFirst({
-      where: {
-        verificationToken: token,
-      },
-    });
-  }
-
-  /**
-   * Marks a user as verified and clears verification details.
+   * Marks a user as verified.
    * @returns Public user data.
    */
   async markUserVerified(userId: string): Promise<UserPublicPayload> {
@@ -192,8 +120,6 @@ export class UserService {
       where: { id: userId },
       data: {
         verified: true,
-        verificationToken: null,
-        verificationExpiry: null,
       },
       select: userSelectPublic,
     });
@@ -307,69 +233,5 @@ export class UserService {
       ...userProfile,
       selectedStoreRole: currentRole,
     };
-  }
-
-  /**
-   * Sets the password reset token and expiry for a user.
-   */
-  async setResetToken(
-    userId: string,
-    token: string,
-    expiry: Date,
-  ): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        resetToken: token,
-        resetTokenExpiry: expiry,
-      },
-    });
-    this.logger.log(`Reset token set for User ID ${userId}.`);
-  }
-
-  /**
-   * Finds a user by their active password reset token.
-   */
-  async findByResetToken(token: string): Promise<User | null> {
-    return await this.prisma.user.findFirst({
-      where: {
-        resetToken: token,
-      },
-    });
-  }
-
-  /**
-   * Updates user password and clears reset token details atomically.
-   */
-  async updatePasswordAndClearResetToken(
-    userId: string,
-    hashedPassword: string,
-  ): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        password: hashedPassword,
-        resetToken: null,
-        resetTokenExpiry: null,
-      },
-    });
-    this.logger.log(
-      `Password updated and reset token cleared for User ID ${userId}.`,
-    );
-  }
-
-  /**
-   * Updates only the user's password.
-   */
-  async updatePassword(userId: string, hashedPassword: string): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        password: hashedPassword,
-      },
-    });
-    this.logger.log(
-      `Password updated via changePassword for User ID ${userId}.`,
-    );
   }
 }

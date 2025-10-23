@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  NotFoundException,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Role, Prisma } from '@prisma/client';
@@ -12,27 +8,18 @@ import {
   createPrismaMock,
   PrismaMock,
 } from '../common/testing/prisma-mock.helper';
-import * as passwordUtil from '../common/utils/password.util';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
-
-jest.mock('../common/utils/password.util');
 
 describe('UserService', () => {
   let service: UserService;
   let prismaService: PrismaMock;
-  let emailService: jest.Mocked<EmailService>;
 
   const mockUser = {
     id: '01234567-89ab-cdef-0123-456789abcdef',
     email: 'test@example.com',
-    password: '$2b$12$hashedpassword',
     name: 'Test User',
     verified: true,
-    verificationToken: null,
-    verificationExpiry: null,
-    resetToken: null,
-    resetTokenExpiry: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -76,7 +63,6 @@ describe('UserService', () => {
 
     service = module.get<UserService>(UserService);
     prismaService = module.get(PrismaService);
-    emailService = module.get(EmailService);
 
     jest.clearAllMocks();
   });
@@ -88,25 +74,16 @@ describe('UserService', () => {
   describe('createUser', () => {
     const createUserDto = {
       email: 'newuser@example.com',
-      password: 'password123',
       name: 'New User',
     };
 
-    beforeEach(() => {
-      (passwordUtil.hashPassword as jest.Mock).mockResolvedValue(
-        '$2b$12$hashedpassword',
-      );
-    });
-
-    it('should create a new user and send verification email', async () => {
+    it('should create a new user (deprecated - Auth0 handles registration)', async () => {
       prismaService.user.create.mockResolvedValue(mockUserPublic as any);
-      emailService.sendVerificationEmail.mockResolvedValue(undefined);
 
       const result = await service.createUser(createUserDto);
 
       expect(result).toEqual(mockUserPublic);
       expect(prismaService.user.create).toHaveBeenCalled();
-      expect(emailService.sendVerificationEmail).toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if email already exists', async () => {
@@ -127,40 +104,10 @@ describe('UserService', () => {
       );
     });
 
-    it('should throw InternalServerErrorException if email sending fails', async () => {
-      prismaService.user.create.mockResolvedValue(mockUserPublic as any);
-      emailService.sendVerificationEmail.mockRejectedValue(
-        new Error('Email service down'),
-      );
-
-      await expect(service.createUser(createUserDto)).rejects.toThrow(
-        InternalServerErrorException,
-      );
-    });
-
     it('should block disposable email in production', async () => {
       // Skip this test as it depends on environment variable at construction time
       // and the service has already been instantiated with the current NODE_ENV
       expect(true).toBe(true);
-    });
-  });
-
-  describe('findUserForAuth', () => {
-    it('should return user with password for authentication', async () => {
-      prismaService.user.findUnique.mockResolvedValue(mockUser as any);
-
-      const result = await service.findUserForAuth('test@example.com');
-
-      expect(result).toEqual(mockUser);
-      expect(result?.password).toBeDefined();
-    });
-
-    it('should return null if user not found', async () => {
-      prismaService.user.findUnique.mockResolvedValue(null);
-
-      const result = await service.findUserForAuth('nonexistent@example.com');
-
-      expect(result).toBeNull();
     });
   });
 
@@ -201,49 +148,6 @@ describe('UserService', () => {
     });
   });
 
-  describe('findPasswordById', () => {
-    it('should return user password by ID', async () => {
-      prismaService.user.findUnique.mockResolvedValue({
-        password: mockUser.password,
-      } as any);
-
-      const result = await service.findPasswordById(mockUser.id);
-
-      expect(result).toEqual({ password: mockUser.password });
-    });
-
-    it('should throw NotFoundException if user not found', async () => {
-      prismaService.user.findUnique.mockResolvedValue(null);
-
-      await expect(service.findPasswordById('non-existent-id')).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-  });
-
-  describe('findByVerificationToken', () => {
-    it('should return user by verification token', async () => {
-      const userWithToken = {
-        ...mockUser,
-        verificationToken: 'test-token',
-        verificationExpiry: new Date(Date.now() + 10000),
-      };
-      prismaService.user.findFirst.mockResolvedValue(userWithToken as any);
-
-      const result = await service.findByVerificationToken('test-token');
-
-      expect(result).toEqual(userWithToken);
-    });
-
-    it('should return null if token not found', async () => {
-      prismaService.user.findFirst.mockResolvedValue(null);
-
-      const result = await service.findByVerificationToken('invalid-token');
-
-      expect(result).toBeNull();
-    });
-  });
-
   describe('markUserVerified', () => {
     it('should mark user as verified', async () => {
       const verifiedUser = { ...mockUserPublic, verified: true };
@@ -256,8 +160,6 @@ describe('UserService', () => {
         where: { id: mockUser.id },
         data: {
           verified: true,
-          verificationToken: null,
-          verificationExpiry: null,
         },
         select: expect.any(Object),
       });
@@ -408,84 +310,6 @@ describe('UserService', () => {
       await expect(service.findUserProfile('non-existent-id')).rejects.toThrow(
         NotFoundException,
       );
-    });
-  });
-
-  describe('setResetToken', () => {
-    it('should set reset token and expiry', async () => {
-      const token = 'reset-token';
-      const expiry = new Date(Date.now() + 3600000);
-      prismaService.user.update.mockResolvedValue(mockUser as any);
-
-      await service.setResetToken(mockUser.id, token, expiry);
-
-      expect(prismaService.user.update).toHaveBeenCalledWith({
-        where: { id: mockUser.id },
-        data: {
-          resetToken: token,
-          resetTokenExpiry: expiry,
-        },
-      });
-    });
-  });
-
-  describe('findByResetToken', () => {
-    it('should return user by reset token', async () => {
-      const userWithToken = {
-        ...mockUser,
-        resetToken: 'reset-token',
-        resetTokenExpiry: new Date(Date.now() + 10000),
-      };
-      prismaService.user.findFirst.mockResolvedValue(userWithToken as any);
-
-      const result = await service.findByResetToken('reset-token');
-
-      expect(result).toEqual(userWithToken);
-    });
-
-    it('should return null if token not found', async () => {
-      prismaService.user.findFirst.mockResolvedValue(null);
-
-      const result = await service.findByResetToken('invalid-token');
-
-      expect(result).toBeNull();
-    });
-  });
-
-  describe('updatePasswordAndClearResetToken', () => {
-    it('should update password and clear reset token', async () => {
-      const hashedPassword = '$2b$12$newhashedpassword';
-      prismaService.user.update.mockResolvedValue(mockUser as any);
-
-      await service.updatePasswordAndClearResetToken(
-        mockUser.id,
-        hashedPassword,
-      );
-
-      expect(prismaService.user.update).toHaveBeenCalledWith({
-        where: { id: mockUser.id },
-        data: {
-          password: hashedPassword,
-          resetToken: null,
-          resetTokenExpiry: null,
-        },
-      });
-    });
-  });
-
-  describe('updatePassword', () => {
-    it('should update user password', async () => {
-      const hashedPassword = '$2b$12$newhashedpassword';
-      prismaService.user.update.mockResolvedValue(mockUser as any);
-
-      await service.updatePassword(mockUser.id, hashedPassword);
-
-      expect(prismaService.user.update).toHaveBeenCalledWith({
-        where: { id: mockUser.id },
-        data: {
-          password: hashedPassword,
-        },
-      });
     });
   });
 });

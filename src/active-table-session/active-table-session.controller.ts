@@ -7,6 +7,7 @@ import {
   Body,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,9 +18,11 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 
+import { RequestWithUser } from 'src/auth/types';
 import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
 
 import { ActiveTableSessionService } from './active-table-session.service';
+import { CreateManualSessionDto } from './dto/create-manual-session.dto';
 import { JoinSessionDto } from './dto/join-session.dto';
 import { SessionResponseDto } from './dto/session-response.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
@@ -29,6 +32,35 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 @Controller('active-table-sessions')
 export class ActiveTableSessionController {
   constructor(private readonly sessionService: ActiveTableSessionService) {}
+
+  @Post('manual')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Create manual session (counter, phone, takeout)',
+    description:
+      'Staff-initiated orders without table association. Requires OWNER, ADMIN, SERVER, or CASHIER role.',
+  })
+  @ApiQuery({ name: 'storeId', description: 'Store ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Manual session created successfully',
+    type: SessionResponseDto,
+  })
+  @ApiResponse({ status: 403, description: 'Insufficient permissions' })
+  async createManualSession(
+    @Req() req: RequestWithUser,
+    @Query('storeId') storeId: string,
+    @Body() dto: CreateManualSessionDto,
+  ): Promise<StandardApiResponse<SessionResponseDto>> {
+    const userId = req.user.sub;
+    const session = await this.sessionService.createManualSession(
+      userId,
+      storeId,
+      dto,
+    );
+    return StandardApiResponse.success(session as SessionResponseDto);
+  }
 
   @Post('join-by-table/:tableId')
   @ApiOperation({

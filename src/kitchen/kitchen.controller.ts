@@ -9,7 +9,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
-import { OrderStatus, Role } from '@prisma/client';
+import { OrderStatus, Role, RoutingArea } from '@prisma/client';
 
 import { AuthService } from '../auth/auth.service';
 import { RequestWithUser } from '../auth/types';
@@ -48,6 +48,12 @@ export class KitchenController {
     description: 'Filter by order status',
     enum: OrderStatus,
   })
+  @ApiQuery({
+    name: 'routingArea',
+    required: false,
+    description: 'Filter by menu item routing area',
+    enum: RoutingArea,
+  })
   @ApiResponse({
     status: 200,
     description: 'Orders retrieved successfully',
@@ -57,6 +63,7 @@ export class KitchenController {
     @Req() req: RequestWithUser,
     @Query('storeId') storeId: string,
     @Query('status') status?: OrderStatus,
+    @Query('routingArea') routingArea?: RoutingArea,
   ): Promise<StandardApiResponse<KitchenOrderResponseDto[]>> {
     const userId = req.user.sub;
 
@@ -68,7 +75,11 @@ export class KitchenController {
       Role.OWNER,
     ]);
 
-    const orders = await this.kitchenService.getOrdersByStatus(storeId, status);
+    const orders = await this.kitchenService.getOrdersByStatus(
+      storeId,
+      status,
+      routingArea,
+    );
     return StandardApiResponse.success(orders);
   }
 

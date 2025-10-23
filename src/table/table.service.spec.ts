@@ -5,7 +5,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Role, Prisma } from '@prisma/client';
+import { Role, Prisma, TableStatus } from '@prisma/client';
 
 import { TableService } from './table.service';
 import { AuthService } from '../auth/auth.service';
@@ -28,6 +28,7 @@ describe('TableService', () => {
     id: mockTableId,
     storeId: mockStoreId,
     name: 'Table 1',
+    currentStatus: TableStatus.VACANT,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -342,6 +343,326 @@ describe('TableService', () => {
       await expect(
         service.syncTables(mockUserId, mockStoreId, invalidDto),
       ).rejects.toThrow('not found in store');
+    });
+  });
+
+  describe('updateTableStatus', () => {
+    beforeEach(() => {
+      authService.checkStorePermission.mockResolvedValue(undefined);
+      prismaService.table.findFirstOrThrow.mockResolvedValue(mockTable as any);
+    });
+
+    it('should update table status successfully', async () => {
+      const updatedTable = {
+        ...mockTable,
+        currentStatus: TableStatus.SEATED,
+      };
+      prismaService.table.update.mockResolvedValue(updatedTable as any);
+
+      const result = await service.updateTableStatus(
+        mockUserId,
+        mockStoreId,
+        mockTableId,
+        { status: TableStatus.SEATED },
+      );
+
+      expect(result.currentStatus).toBe(TableStatus.SEATED);
+      expect(authService.checkStorePermission).toHaveBeenCalledWith(
+        mockUserId,
+        mockStoreId,
+        [Role.OWNER, Role.ADMIN, Role.SERVER],
+      );
+      expect(prismaService.table.update).toHaveBeenCalledWith({
+        where: { id: mockTableId },
+        data: { currentStatus: TableStatus.SEATED },
+      });
+    });
+
+    it('should check permissions before updating', async () => {
+      authService.checkStorePermission.mockRejectedValue(
+        new ForbiddenException('Insufficient permissions'),
+      );
+
+      await expect(
+        service.updateTableStatus(mockUserId, mockStoreId, mockTableId, {
+          status: TableStatus.SEATED,
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException if table not found', async () => {
+      prismaService.table.findFirstOrThrow.mockRejectedValue(
+        new NotFoundException(),
+      );
+
+      await expect(
+        service.updateTableStatus(mockUserId, mockStoreId, mockTableId, {
+          status: TableStatus.SEATED,
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should allow idempotent status updates (same status)', async () => {
+      prismaService.table.update.mockResolvedValue(mockTable as any);
+
+      const result = await service.updateTableStatus(
+        mockUserId,
+        mockStoreId,
+        mockTableId,
+        { status: TableStatus.VACANT },
+      );
+
+      expect(result.currentStatus).toBe(TableStatus.VACANT);
+    });
+
+    it('should validate VACANT to SEATED transition', async () => {
+      prismaService.table.update.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.SEATED,
+      } as any);
+
+      const result = await service.updateTableStatus(
+        mockUserId,
+        mockStoreId,
+        mockTableId,
+        { status: TableStatus.SEATED },
+      );
+
+      expect(result.currentStatus).toBe(TableStatus.SEATED);
+    });
+
+    it('should validate SEATED to ORDERING transition', async () => {
+      prismaService.table.findFirstOrThrow.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.SEATED,
+      } as any);
+      prismaService.table.update.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.ORDERING,
+      } as any);
+
+      const result = await service.updateTableStatus(
+        mockUserId,
+        mockStoreId,
+        mockTableId,
+        { status: TableStatus.ORDERING },
+      );
+
+      expect(result.currentStatus).toBe(TableStatus.ORDERING);
+    });
+
+    it('should validate ORDERING to SERVED transition', async () => {
+      prismaService.table.findFirstOrThrow.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.ORDERING,
+      } as any);
+      prismaService.table.update.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.SERVED,
+      } as any);
+
+      const result = await service.updateTableStatus(
+        mockUserId,
+        mockStoreId,
+        mockTableId,
+        { status: TableStatus.SERVED },
+      );
+
+      expect(result.currentStatus).toBe(TableStatus.SERVED);
+    });
+
+    it('should validate SERVED to READY_TO_PAY transition', async () => {
+      prismaService.table.findFirstOrThrow.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.SERVED,
+      } as any);
+      prismaService.table.update.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.READY_TO_PAY,
+      } as any);
+
+      const result = await service.updateTableStatus(
+        mockUserId,
+        mockStoreId,
+        mockTableId,
+        { status: TableStatus.READY_TO_PAY },
+      );
+
+      expect(result.currentStatus).toBe(TableStatus.READY_TO_PAY);
+    });
+
+    it('should validate READY_TO_PAY to CLEANING transition', async () => {
+      prismaService.table.findFirstOrThrow.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.READY_TO_PAY,
+      } as any);
+      prismaService.table.update.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.CLEANING,
+      } as any);
+
+      const result = await service.updateTableStatus(
+        mockUserId,
+        mockStoreId,
+        mockTableId,
+        { status: TableStatus.CLEANING },
+      );
+
+      expect(result.currentStatus).toBe(TableStatus.CLEANING);
+    });
+
+    it('should validate CLEANING to VACANT transition', async () => {
+      prismaService.table.findFirstOrThrow.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.CLEANING,
+      } as any);
+      prismaService.table.update.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.VACANT,
+      } as any);
+
+      const result = await service.updateTableStatus(
+        mockUserId,
+        mockStoreId,
+        mockTableId,
+        { status: TableStatus.VACANT },
+      );
+
+      expect(result.currentStatus).toBe(TableStatus.VACANT);
+    });
+
+    it('should reject invalid VACANT to SERVED transition', async () => {
+      await expect(
+        service.updateTableStatus(mockUserId, mockStoreId, mockTableId, {
+          status: TableStatus.SERVED,
+        }),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.updateTableStatus(mockUserId, mockStoreId, mockTableId, {
+          status: TableStatus.SERVED,
+        }),
+      ).rejects.toThrow(/Invalid table status transition/);
+    });
+
+    it('should reject invalid VACANT to ORDERING transition', async () => {
+      await expect(
+        service.updateTableStatus(mockUserId, mockStoreId, mockTableId, {
+          status: TableStatus.ORDERING,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject invalid SEATED to READY_TO_PAY transition', async () => {
+      prismaService.table.findFirstOrThrow.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.SEATED,
+      } as any);
+
+      await expect(
+        service.updateTableStatus(mockUserId, mockStoreId, mockTableId, {
+          status: TableStatus.READY_TO_PAY,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should allow SERVED to ORDERING transition (adding more items)', async () => {
+      prismaService.table.findFirstOrThrow.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.SERVED,
+      } as any);
+      prismaService.table.update.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.ORDERING,
+      } as any);
+
+      const result = await service.updateTableStatus(
+        mockUserId,
+        mockStoreId,
+        mockTableId,
+        { status: TableStatus.ORDERING },
+      );
+
+      expect(result.currentStatus).toBe(TableStatus.ORDERING);
+    });
+
+    it('should allow READY_TO_PAY to ORDERING transition (payment cancelled)', async () => {
+      prismaService.table.findFirstOrThrow.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.READY_TO_PAY,
+      } as any);
+      prismaService.table.update.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.ORDERING,
+      } as any);
+
+      const result = await service.updateTableStatus(
+        mockUserId,
+        mockStoreId,
+        mockTableId,
+        { status: TableStatus.ORDERING },
+      );
+
+      expect(result.currentStatus).toBe(TableStatus.ORDERING);
+    });
+
+    it('should allow emergency transitions to VACANT from any status', async () => {
+      const statuses = [
+        TableStatus.SEATED,
+        TableStatus.ORDERING,
+        TableStatus.SERVED,
+        TableStatus.READY_TO_PAY,
+      ];
+
+      for (const status of statuses) {
+        prismaService.table.findFirstOrThrow.mockResolvedValue({
+          ...mockTable,
+          currentStatus: status,
+        } as any);
+        prismaService.table.update.mockResolvedValue({
+          ...mockTable,
+          currentStatus: TableStatus.VACANT,
+        } as any);
+
+        const result = await service.updateTableStatus(
+          mockUserId,
+          mockStoreId,
+          mockTableId,
+          { status: TableStatus.VACANT },
+        );
+
+        expect(result.currentStatus).toBe(TableStatus.VACANT);
+      }
+    });
+
+    it('should reject CLEANING to ORDERING transition', async () => {
+      prismaService.table.findFirstOrThrow.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.CLEANING,
+      } as any);
+
+      await expect(
+        service.updateTableStatus(mockUserId, mockStoreId, mockTableId, {
+          status: TableStatus.ORDERING,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should log state transition', async () => {
+      const loggerSpy = jest.spyOn(service['logger'], 'log');
+      prismaService.table.update.mockResolvedValue({
+        ...mockTable,
+        currentStatus: TableStatus.SEATED,
+      } as any);
+
+      await service.updateTableStatus(mockUserId, mockStoreId, mockTableId, {
+        status: TableStatus.SEATED,
+      });
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `Table ${mockTableId} status updated from ${TableStatus.VACANT} to ${TableStatus.SEATED}`,
+        ),
+      );
     });
   });
 });

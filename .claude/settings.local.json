@@ -29,7 +29,16 @@
       "Bash(npm run test:cov:*)",
       "Bash(npm run format)",
       "Bash(docker compose:*)",
-      "Bash(npm run format:*)"
+      "Bash(npm run format:*)",
+      "Bash(npx tsc:*)",
+      "Read(//Users/kaungmyat/Desktop/FILES/Codes/Personal/origin-food-house/origin-food-house-frontend/apps/restaurant-management-system/**)",
+      "Bash(lsof:*)",
+      "Bash(ps:*)",
+      "Bash(npm run dev:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm run docker:up:*)",
+      "Bash(npm run:*)",
+      "Bash(docker exec:*)"
     ],
     "deny": [],
     "ask": []
