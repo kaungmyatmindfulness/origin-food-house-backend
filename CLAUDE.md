@@ -779,28 +779,167 @@ try {
 
 ## 🛠️ Development Workflow
 
-### Pre-commit Checklist
+### 🚦 MANDATORY Task Completion Guardrails
 
-Before committing any changes:
+**CRITICAL**: Every backend task MUST pass ALL quality gates before being marked complete. No exceptions.
 
-1. **Format code:** `npm run format`
-2. **Lint code:** `npm run lint`
-3. **Run tests:** `npm run test`
-4. **Build project:** `npm run build`
-5. **Check for type errors:** `npx tsc --noEmit`
+#### Quality Gate Execution Order
+
+Run these checks in order for EVERY task:
+
+```bash
+# Step 1: Code Formatting (MUST pass)
+npm run format
+
+# Step 2: Linting (MUST pass - 0 errors, auto-fix enabled)
+npm run lint
+
+# Step 3: Type Checking (MUST pass - 0 errors)
+npx tsc --noEmit
+
+# Step 4: Tests (MUST pass - all 320+ tests)
+npm run test
+
+# Step 5: Build (MUST succeed)
+npm run build
+
+# Step 6: Database (if schema changed)
+npm run generate:db  # After schema.prisma changes
+npm run migrate:db   # To create migration (dev only)
+```
+
+#### Test Coverage Requirements
+
+**Critical Modules** (≥85% coverage MANDATORY):
+- CartModule, OrderModule, PaymentModule
+- MenuModule, CategoryModule, TableModule
+- UserModule, AuthModule
+
+**New Code Requirements**:
+- ✅ New service methods: **100% test coverage**
+- ✅ Financial calculations: **Decimal precision tests**
+- ✅ Security operations: **RBAC validation tests**
+- ✅ Database transactions: **Rollback scenario tests**
+
+#### Task NOT Complete Until
+
+**Code Quality:**
+- ✅ All 320+ tests pass
+- ✅ Build completes without errors
+- ✅ Linting shows 0 errors
+- ✅ Type checking shows 0 errors
+- ✅ Code is formatted (Prettier)
+
+**Testing:**
+- ✅ New tests added for new functionality
+- ✅ Test coverage meets requirements (≥85% for critical modules)
+- ✅ Edge cases covered
+- ✅ Error scenarios tested
+
+**Architecture & Security:**
+- ✅ No `process.env` direct access (use ConfigService)
+- ✅ Store isolation enforced (`storeId` + `deletedAt: null`)
+- ✅ RBAC permissions validated
+- ✅ DTOs have validation decorators
+- ✅ Errors mapped properly (no internal exposure)
+- ✅ Structured logging used (Logger service)
+- ✅ Soft deletes implemented (no hard deletes)
+
+**Database (if applicable):**
+- ✅ Schema changes have migrations
+- ✅ Prisma client regenerated
+- ✅ Seed data updated (if needed)
+- ✅ Foreign key constraints verified
+
+#### When Quality Gates Fail
+
+**If ANY check fails:**
+
+1. ❌ **DO NOT** mark task as complete
+2. 🔧 **FIX** the failing check immediately
+3. 🔄 **RE-RUN** ALL quality gates from Step 1
+4. ✅ **VERIFY** all checks pass before proceeding
+
+**Common Failure Resolutions:**
+
+| Failure | Resolution |
+|---------|-----------|
+| Format fails | Run `npm run format` and commit changes |
+| Lint errors | Fix errors manually or use `npm run lint` (has --fix) |
+| Type errors | Fix TypeScript errors, check imports, verify types |
+| Tests fail | Debug failed tests, update mocks, fix logic |
+| Build fails | Check syntax errors, missing dependencies |
+| Coverage low | Add tests for uncovered branches |
+
+#### Automated Verification Script
+
+**Copy-paste this to verify ALL backend quality gates:**
+
+```bash
+#!/bin/bash
+set -e  # Exit on first error
+
+echo "🔍 Running Backend Quality Gates..."
+
+echo "Step 1/5: Formatting..."
+npm run format || { echo "❌ Format failed"; exit 1; }
+
+echo "Step 2/5: Linting..."
+npm run lint || { echo "❌ Lint failed"; exit 1; }
+
+echo "Step 3/5: Type Checking..."
+npx tsc --noEmit || { echo "❌ Type check failed"; exit 1; }
+
+echo "Step 4/5: Tests..."
+npm run test || { echo "❌ Tests failed"; exit 1; }
+
+echo "Step 5/5: Build..."
+npm run build || { echo "❌ Build failed"; exit 1; }
+
+echo ""
+echo "✅✅✅ ALL BACKEND QUALITY GATES PASSED ✅✅✅"
+echo "Task is ready for completion!"
+```
+
+#### Task Completion Certification
+
+**Before marking ANY backend task complete, certify:**
+
+```
+✅ All 5 quality gate steps passed
+✅ Code formatted, linted, type-safe
+✅ All 320+ tests pass
+✅ Build succeeds
+✅ Test coverage ≥85% (critical modules)
+✅ New tests added for new functionality
+✅ Security requirements enforced
+✅ Architecture patterns followed
+✅ Database migrations created (if schema changed)
+✅ No `process.env` direct access
+✅ ConfigService used for environment variables
+✅ RBAC permissions validated
+✅ Soft deletes implemented
+✅ Structured logging used
+
+BACKEND TASK COMPLETION VERIFIED ✅
+```
+
+**RULE**: If you cannot certify ALL items above, the task is NOT complete.
 
 ### Code Review Standards
 
 Ensure your code:
 
 - ✅ Follows all architectural principles
-- ✅ Has appropriate test coverage
+- ✅ Has appropriate test coverage (≥85% for critical modules)
 - ✅ Includes proper error handling
-- ✅ Uses structured logging
-- ✅ Validates all inputs
-- ✅ Maintains store isolation
-- ✅ Documents complex logic
-- ✅ Handles edge cases
+- ✅ Uses structured logging (Logger service)
+- ✅ Validates all inputs (class-validator decorators)
+- ✅ Maintains store isolation (storeId filtering)
+- ✅ Documents complex logic (JSDoc comments)
+- ✅ Handles edge cases (tested)
+- ✅ Uses ConfigService (never process.env)
+- ✅ Implements soft deletes (deletedAt timestamp)
 
 ### Git Commit Standards
 
