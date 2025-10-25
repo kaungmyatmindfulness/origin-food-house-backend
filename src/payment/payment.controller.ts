@@ -17,12 +17,14 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 
+import { CalculateSplitDto } from './dto/calculate-split.dto';
 import { CreateRefundDto } from './dto/create-refund.dto';
 import {
   PaymentResponseDto,
   RefundResponseDto,
 } from './dto/payment-response.dto';
 import { RecordPaymentDto } from './dto/record-payment.dto';
+import { RecordSplitPaymentDto } from './dto/record-split-payment.dto';
 import { PaymentService } from './payment.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RequestWithUser } from '../auth/types';
@@ -183,5 +185,80 @@ export class PaymentController {
       orderId,
     );
     return StandardApiResponse.success(refunds);
+  }
+
+  @Post('orders/:orderId/calculate-split')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Calculate bill split amounts for an order',
+    description:
+      'Calculate how to split an order bill among guests (EVEN, BY_ITEM, or CUSTOM)',
+  })
+  @ApiParam({ name: 'orderId', description: 'Order ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Split calculation completed successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid split data' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async calculateSplit(
+    @Param('orderId') orderId: string,
+    @Body() dto: CalculateSplitDto,
+  ): Promise<
+    StandardApiResponse<{
+      splits: { guestNumber: number; amount: string }[];
+      remaining: string;
+      alreadyPaid: string;
+      grandTotal: string;
+    }>
+  > {
+    const result = await this.paymentService.calculateSplitAmounts(
+      orderId,
+      dto.splitType,
+      dto.splitData,
+    );
+
+    return StandardApiResponse.success({
+      splits: result.splits.map((s) => ({
+        guestNumber: s.guestNumber,
+        amount: s.amount.toString(),
+      })),
+      remaining: result.remaining.toString(),
+      alreadyPaid: result.alreadyPaid.toString(),
+      grandTotal: result.grandTotal.toString(),
+    });
+  }
+
+  @Post('orders/:orderId/split-payment')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Record a split payment for an order',
+    description:
+      'Record a split payment as part of a bill splitting transaction',
+  })
+  @ApiParam({ name: 'orderId', description: 'Order ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Split payment recorded successfully',
+    type: PaymentResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid payment or overpayment' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient permissions',
+  })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async recordSplitPayment(
+    @Req() req: RequestWithUser,
+    @Param('orderId') orderId: string,
+    @Body() dto: RecordSplitPaymentDto,
+  ): Promise<StandardApiResponse<PaymentResponseDto>> {
+    const userId = req.user.sub;
+    const payment = await this.paymentService.recordSplitPayment(
+      userId,
+      orderId,
+      dto,
+    );
+    return StandardApiResponse.success(payment);
   }
 }

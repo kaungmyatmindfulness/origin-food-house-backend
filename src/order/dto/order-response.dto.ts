@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { OrderStatus, OrderType } from '@prisma/client';
+import { OrderStatus, OrderType, DiscountType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 export class OrderItemCustomizationResponseDto {
@@ -78,6 +78,25 @@ export class OrderResponseDto {
 
   @ApiProperty({ type: String })
   grandTotal: Decimal;
+
+  // Discount fields
+  @ApiProperty({ enum: DiscountType, nullable: true })
+  discountType: DiscountType | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  discountValue: Decimal | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  discountAmount: Decimal | null;
+
+  @ApiProperty({ nullable: true })
+  discountReason: string | null;
+
+  @ApiProperty({ nullable: true })
+  discountAppliedBy: string | null;
+
+  @ApiProperty({ nullable: true })
+  discountAppliedAt: Date | null;
 
   @ApiProperty({
     type: String,

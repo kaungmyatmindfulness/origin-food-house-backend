@@ -99,10 +99,16 @@ export const createPrismaMock = () => ({
     findMany: jest.fn(),
     update: jest.fn(),
     count: jest.fn(),
+    aggregate: jest.fn(),
+    groupBy: jest.fn(),
+  },
+  orderItem: {
+    groupBy: jest.fn(),
   },
   payment: {
     create: jest.fn(),
     findMany: jest.fn(),
+    groupBy: jest.fn(),
   },
   refund: {
     create: jest.fn(),

@@ -264,6 +264,14 @@ model Order {
   serviceChargeAmount       Decimal  @default(0) @db.Decimal(10, 2)
   grandTotal                Decimal  @default(0) @db.Decimal(10, 2)
 
+  // Discount fields (Slice A - Task 8)
+  discountType       DiscountType? // PERCENTAGE | FIXED_AMOUNT
+  discountValue      Decimal?      @db.Decimal(10, 2) // 10% or $10.00
+  discountAmount     Decimal?      @db.Decimal(10, 2) // Calculated discount
+  discountReason     String?       // "Loyalty reward", "Manager comp", etc.
+  discountAppliedBy  String?       // User ID who approved discount
+  discountAppliedAt  DateTime?     // Timestamp of discount application
+
   store      Store               @relation(fields: [storeId], references: [id], onDelete: Restrict)
   session    ActiveTableSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   orderItems OrderItem[]
@@ -278,6 +286,7 @@ model Order {
   @@index([storeId, status])
   @@index([storeId, paidAt])
   @@index([sessionId])
+  @@index([storeId, discountType]) // For discount reporting
   // KDS Performance Indexes
   @@index([storeId, status, createdAt])
   @@index([status, createdAt])
@@ -302,6 +311,7 @@ model OrderItem {
 
   @@index([orderId])
   @@index([menuItemId])
+  @@index([orderId, menuItemId]) // For popular items report
   // KDS Performance Index
   @@index([orderId, createdAt])
 }
@@ -332,6 +342,12 @@ model Payment {
   transactionId  String? // External payment gateway transaction ID
   notes          String?
 
+  // Bill Splitting Fields (Sprint 3)
+  splitType     String? // EVEN | BY_ITEM | CUSTOM
+  splitMetadata Json? // JSON metadata for split calculation
+  guestNumber   Int? // Guest number for split payments (1, 2, 3, etc.)
+  deletedAt     DateTime? // Soft delete support
+
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
@@ -339,6 +355,9 @@ model Payment {
 
   @@index([orderId])
   @@index([transactionId])
+  @@index([orderId, paymentMethod]) // For payment breakdown report
+  @@index([deletedAt]) // For soft delete queries
+  @@index([orderId, guestNumber]) // For split payment queries
 }
 
 model Refund {
@@ -428,4 +447,9 @@ enum SessionType {
   COUNTER
   PHONE
   TAKEOUT
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
 }

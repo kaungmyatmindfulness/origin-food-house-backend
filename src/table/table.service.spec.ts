@@ -7,6 +7,7 @@ import {
 import { Test, TestingModule } from '@nestjs/testing';
 import { Role, Prisma, TableStatus } from '@prisma/client';
 
+import { TableGateway } from './table.gateway';
 import { TableService } from './table.service';
 import { AuthService } from '../auth/auth.service';
 import {
@@ -19,6 +20,7 @@ describe('TableService', () => {
   let service: TableService;
   let prismaService: PrismaMock;
   let authService: jest.Mocked<AuthService>;
+  let tableGateway: jest.Mocked<TableGateway>;
 
   const mockUserId = 'user-123';
   const mockStoreId = 'store-123';
@@ -61,12 +63,22 @@ describe('TableService', () => {
             checkStorePermission: jest.fn(),
           },
         },
+        {
+          provide: TableGateway,
+          useValue: {
+            broadcastTableCreated: jest.fn(),
+            broadcastTableUpdated: jest.fn(),
+            broadcastTableDeleted: jest.fn(),
+            broadcastTableStatusUpdate: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<TableService>(TableService);
     prismaService = module.get(PrismaService);
     authService = module.get(AuthService);
+    tableGateway = module.get(TableGateway);
 
     jest.clearAllMocks();
   });
@@ -103,6 +115,10 @@ describe('TableService', () => {
         mockUserId,
         mockStoreId,
         [Role.OWNER, Role.ADMIN],
+      );
+      expect(tableGateway.broadcastTableCreated).toHaveBeenCalledWith(
+        mockStoreId,
+        expect.objectContaining({ name: createDto.name }),
       );
     });
 
@@ -220,6 +236,10 @@ describe('TableService', () => {
 
       expect(result.name).toBe(updateDto.name);
       expect(mockTransaction.table.update).toHaveBeenCalled();
+      expect(tableGateway.broadcastTableUpdated).toHaveBeenCalledWith(
+        mockStoreId,
+        expect.objectContaining({ name: updateDto.name }),
+      );
     });
 
     it('should throw BadRequestException if name conflicts with another table', async () => {
@@ -253,6 +273,10 @@ describe('TableService', () => {
       expect(prismaService.table.delete).toHaveBeenCalledWith({
         where: { id: mockTableId },
       });
+      expect(tableGateway.broadcastTableDeleted).toHaveBeenCalledWith(
+        mockStoreId,
+        mockTableId,
+      );
     });
   });
 
@@ -376,6 +400,10 @@ describe('TableService', () => {
         where: { id: mockTableId },
         data: { currentStatus: TableStatus.SEATED },
       });
+      expect(tableGateway.broadcastTableStatusUpdate).toHaveBeenCalledWith(
+        mockStoreId,
+        expect.objectContaining({ currentStatus: TableStatus.SEATED }),
+      );
     });
 
     it('should check permissions before updating', async () => {

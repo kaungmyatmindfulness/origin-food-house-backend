@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -19,12 +20,14 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 
+import { ApplyDiscountDto } from './dto/apply-discount.dto';
 import { CheckoutCartDto } from './dto/checkout-cart.dto';
 import { KdsQueryDto } from './dto/kds-query.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrderService } from './order.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { GetUser } from '../common/decorators/get-user.decorator';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { StandardApiResponse } from '../common/dto/standard-api-response.dto';
@@ -179,6 +182,84 @@ export class OrderController {
     @Body() dto: UpdateOrderStatusDto,
   ): Promise<StandardApiResponse<OrderResponseDto>> {
     const order = await this.orderService.updateStatus(orderId, dto);
+    return StandardApiResponse.success(order);
+  }
+
+  @Post(':orderId/apply-discount')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Apply discount to order (POS)',
+    description:
+      'Apply percentage or fixed amount discount to an order. Implements 3-tier authorization: Small (<10%) = CASHIER, Medium (10-50%) = ADMIN, Large (>50%) = OWNER',
+  })
+  @ApiParam({ name: 'orderId', description: 'Order ID' })
+  @ApiQuery({ name: 'storeId', description: 'Store ID', required: true })
+  @ApiResponse({
+    status: 200,
+    description: 'Discount applied successfully',
+    type: OrderResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid discount or order already paid',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Insufficient permissions for discount amount',
+  })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async applyDiscount(
+    @GetUser('sub') userId: string,
+    @Query('storeId') storeId: string,
+    @Param('orderId') orderId: string,
+    @Body() dto: ApplyDiscountDto,
+  ): Promise<StandardApiResponse<OrderResponseDto>> {
+    const order = await this.orderService.applyDiscount(
+      userId,
+      storeId,
+      orderId,
+      dto,
+    );
+    return StandardApiResponse.success(order);
+  }
+
+  @Delete(':orderId/discount')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Remove discount from order (POS)',
+    description:
+      'Remove previously applied discount. Requires ADMIN or OWNER role.',
+  })
+  @ApiParam({ name: 'orderId', description: 'Order ID' })
+  @ApiQuery({ name: 'storeId', description: 'Store ID', required: true })
+  @ApiResponse({
+    status: 200,
+    description: 'Discount removed successfully',
+    type: OrderResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Order already paid',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Insufficient permissions',
+  })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async removeDiscount(
+    @GetUser('sub') userId: string,
+    @Query('storeId') storeId: string,
+    @Param('orderId') orderId: string,
+  ): Promise<StandardApiResponse<OrderResponseDto>> {
+    const order = await this.orderService.removeDiscount(
+      userId,
+      storeId,
+      orderId,
+    );
     return StandardApiResponse.success(order);
   }
 }

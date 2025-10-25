@@ -16,6 +16,7 @@ import { BatchUpsertTableDto } from './dto/batch-upsert-table.dto'; // Use corre
 import { CreateTableDto } from './dto/create-table.dto';
 import { UpdateTableStatusDto } from './dto/update-table-status.dto';
 import { UpdateTableDto } from './dto/update-table.dto';
+import { TableGateway } from './table.gateway';
 
 /**
  * Natural sort comparator function for strings containing numbers.
@@ -74,6 +75,7 @@ export class TableService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService, // Inject AuthService for permissions
+    private readonly tableGateway: TableGateway, // Inject TableGateway for real-time updates
   ) {}
 
   /** Helper: Checks for duplicate name within transaction */
@@ -119,6 +121,10 @@ export class TableService {
       this.logger.log(
         `Table "${newTable.name}" (ID: ${newTable.id}) created in Store ${storeId}`,
       );
+
+      // Broadcast table creation to all staff in store
+      this.tableGateway.broadcastTableCreated(storeId, newTable);
+
       return newTable;
     });
   }
@@ -181,6 +187,10 @@ export class TableService {
         this.logger.log(
           `Table ${tableId} updated successfully by User ${userId}`,
         );
+
+        // Broadcast table update to all staff in store
+        this.tableGateway.broadcastTableUpdated(storeId, updatedTable);
+
         return updatedTable;
       });
     } catch (error) {
@@ -233,6 +243,10 @@ export class TableService {
       this.logger.log(
         `Table ${tableId} deleted successfully by User ${userId}`,
       );
+
+      // Broadcast table deletion to all staff in store
+      this.tableGateway.broadcastTableDeleted(storeId, tableId);
+
       return { id: tableId, deleted: true };
     } catch (error) {
       if (
@@ -448,6 +462,9 @@ export class TableService {
       this.logger.log(
         `[${method}] Table ${tableId} status updated from ${table.currentStatus} to ${dto.status}`,
       );
+
+      // Broadcast status update to all staff in store
+      this.tableGateway.broadcastTableStatusUpdate(storeId, updatedTable);
 
       return updatedTable;
     } catch (error) {

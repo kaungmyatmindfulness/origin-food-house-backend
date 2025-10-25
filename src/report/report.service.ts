@@ -6,6 +6,7 @@ import {
 import { OrderStatus, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
+import { CacheService } from '../common/cache/cache.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   OrderStatusReportDto,
@@ -19,13 +20,19 @@ import { PopularItemDto, PopularItemsDto } from './dto/popular-items.dto';
 import { SalesSummaryDto } from './dto/sales-summary.dto';
 
 /**
- * Service for analytics and reporting
+ * Service for analytics and reporting with Redis caching
+ * Cache TTL: 5 minutes (300 seconds)
+ * Degrades gracefully if Redis unavailable
  */
 @Injectable()
 export class ReportService {
   private readonly logger = new Logger(ReportService.name);
+  private readonly CACHE_TTL = 300; // 5 minutes
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   /**
    * Get sales summary for a date range
@@ -41,7 +48,22 @@ export class ReportService {
   ): Promise<SalesSummaryDto> {
     const method = this.getSalesSummary.name;
 
+    // Generate cache key
+    const cacheKey = `report:sales:${storeId}:${startDate.toISOString()}:${endDate.toISOString()}`;
+
     try {
+      // Try cache first
+      const cached = await this.cacheService.get<SalesSummaryDto>(cacheKey);
+      if (cached) {
+        this.logger.log(`[${method}] Cache hit for sales summary: ${cacheKey}`);
+        return cached;
+      }
+
+      // Cache miss - query database
+      this.logger.log(
+        `[${method}] Cache miss - querying database for: ${cacheKey}`,
+      );
+
       const where: Prisma.OrderWhereInput = {
         storeId,
         status: OrderStatus.COMPLETED, // Only completed orders count as sales
@@ -72,11 +94,7 @@ export class ReportService {
       const averageOrderValue =
         orderCount > 0 ? totalSales.div(orderCount) : new Decimal('0');
 
-      this.logger.log(
-        `[${method}] Sales summary generated for store ${storeId}: ${orderCount} orders, total ${totalSales.toString()}`,
-      );
-
-      return {
+      const result: SalesSummaryDto = {
         totalSales,
         orderCount,
         averageOrderValue,
@@ -85,6 +103,15 @@ export class ReportService {
         startDate,
         endDate,
       };
+
+      // Cache result for 5 minutes
+      await this.cacheService.set(cacheKey, result, this.CACHE_TTL);
+
+      this.logger.log(
+        `[${method}] Sales summary generated for store ${storeId}: ${orderCount} orders, total ${totalSales.toString()}`,
+      );
+
+      return result;
     } catch (error) {
       this.logger.error(
         `[${method}] Failed to generate sales summary`,
@@ -110,7 +137,24 @@ export class ReportService {
   ): Promise<PaymentBreakdownDto> {
     const method = this.getPaymentBreakdown.name;
 
+    // Generate cache key
+    const cacheKey = `report:payment:${storeId}:${startDate.toISOString()}:${endDate.toISOString()}`;
+
     try {
+      // Try cache first
+      const cached = await this.cacheService.get<PaymentBreakdownDto>(cacheKey);
+      if (cached) {
+        this.logger.log(
+          `[${method}] Cache hit for payment breakdown: ${cacheKey}`,
+        );
+        return cached;
+      }
+
+      // Cache miss - query database
+      this.logger.log(
+        `[${method}] Cache miss - querying database for: ${cacheKey}`,
+      );
+
       // Get payments in date range
       const payments = await this.prisma.payment.groupBy({
         by: ['paymentMethod'],
@@ -156,15 +200,20 @@ export class ReportService {
         new Decimal(b.totalAmount).sub(a.totalAmount).toNumber(),
       );
 
-      this.logger.log(
-        `[${method}] Payment breakdown generated for store ${storeId}: ${breakdown.length} payment methods`,
-      );
-
-      return {
+      const result: PaymentBreakdownDto = {
         breakdown,
         startDate,
         endDate,
       };
+
+      // Cache result for 5 minutes
+      await this.cacheService.set(cacheKey, result, this.CACHE_TTL);
+
+      this.logger.log(
+        `[${method}] Payment breakdown generated for store ${storeId}: ${breakdown.length} payment methods`,
+      );
+
+      return result;
     } catch (error) {
       this.logger.error(
         `[${method}] Failed to generate payment breakdown`,
@@ -192,7 +241,22 @@ export class ReportService {
   ): Promise<PopularItemsDto> {
     const method = this.getPopularItems.name;
 
+    // Generate cache key
+    const cacheKey = `report:popular:${storeId}:${limit}:${startDate.toISOString()}:${endDate.toISOString()}`;
+
     try {
+      // Try cache first
+      const cached = await this.cacheService.get<PopularItemsDto>(cacheKey);
+      if (cached) {
+        this.logger.log(`[${method}] Cache hit for popular items: ${cacheKey}`);
+        return cached;
+      }
+
+      // Cache miss - query database
+      this.logger.log(
+        `[${method}] Cache miss - querying database for: ${cacheKey}`,
+      );
+
       // Get order items grouped by menu item
       const itemStats = await this.prisma.orderItem.groupBy({
         by: ['menuItemId'],
@@ -252,15 +316,20 @@ export class ReportService {
           orderCount: s._count.orderId,
         }));
 
-      this.logger.log(
-        `[${method}] Popular items generated for store ${storeId}: ${items.length} items`,
-      );
-
-      return {
+      const result: PopularItemsDto = {
         items,
         startDate,
         endDate,
       };
+
+      // Cache result for 5 minutes
+      await this.cacheService.set(cacheKey, result, this.CACHE_TTL);
+
+      this.logger.log(
+        `[${method}] Popular items generated for store ${storeId}: ${items.length} items`,
+      );
+
+      return result;
     } catch (error) {
       this.logger.error(
         `[${method}] Failed to generate popular items report`,
@@ -286,7 +355,25 @@ export class ReportService {
   ): Promise<OrderStatusReportDto> {
     const method = this.getOrderStatusReport.name;
 
+    // Generate cache key
+    const cacheKey = `report:status:${storeId}:${startDate.toISOString()}:${endDate.toISOString()}`;
+
     try {
+      // Try cache first
+      const cached =
+        await this.cacheService.get<OrderStatusReportDto>(cacheKey);
+      if (cached) {
+        this.logger.log(
+          `[${method}] Cache hit for order status report: ${cacheKey}`,
+        );
+        return cached;
+      }
+
+      // Cache miss - query database
+      this.logger.log(
+        `[${method}] Cache miss - querying database for: ${cacheKey}`,
+      );
+
       // Get orders grouped by status
       const statusGroups = await this.prisma.order.groupBy({
         by: ['status'],
@@ -325,16 +412,21 @@ export class ReportService {
       // Sort by count descending
       statusDistribution.sort((a, b) => b.count - a.count);
 
-      this.logger.log(
-        `[${method}] Order status report generated for store ${storeId}: ${totalOrders} total orders`,
-      );
-
-      return {
+      const result: OrderStatusReportDto = {
         statusDistribution,
         totalOrders,
         startDate,
         endDate,
       };
+
+      // Cache result for 5 minutes
+      await this.cacheService.set(cacheKey, result, this.CACHE_TTL);
+
+      this.logger.log(
+        `[${method}] Order status report generated for store ${storeId}: ${totalOrders} total orders`,
+      );
+
+      return result;
     } catch (error) {
       this.logger.error(
         `[${method}] Failed to generate order status report`,

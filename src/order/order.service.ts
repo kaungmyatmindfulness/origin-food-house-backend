@@ -4,14 +4,17 @@ import {
   NotFoundException,
   BadRequestException,
   InternalServerErrorException,
+  ForbiddenException,
 } from '@nestjs/common';
-import { Prisma, OrderStatus } from '@prisma/client';
+import { Prisma, OrderStatus, DiscountType, Role } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
+import { ApplyDiscountDto } from './dto/apply-discount.dto';
 import { CheckoutCartDto } from './dto/checkout-cart.dto';
 import { KdsQueryDto } from './dto/kds-query.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { AuthService } from '../auth/auth.service';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { KitchenGateway } from '../kitchen/gateway/kitchen.gateway';
@@ -24,6 +27,7 @@ export class OrderService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly kitchenGateway: KitchenGateway,
+    private readonly authService: AuthService,
   ) {}
 
   /**
@@ -646,6 +650,209 @@ export class OrderService {
   }
 
   /**
+   * Apply discount to an order
+   * Implements 3-tier authorization:
+   * - Small (<10%): CASHIER, ADMIN, OWNER
+   * - Medium (10-50%): ADMIN, OWNER
+   * - Large (>50%): OWNER only
+   */
+  async applyDiscount(
+    userId: string,
+    storeId: string,
+    orderId: string,
+    dto: ApplyDiscountDto,
+  ): Promise<OrderResponseDto> {
+    const method = this.applyDiscount.name;
+
+    try {
+      // Fetch order with store validation
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: { session: { include: { table: true } } },
+      });
+
+      if (
+        !order ||
+        !order.session?.table ||
+        order.session.table.storeId !== storeId
+      ) {
+        throw new NotFoundException('Order not found in this store');
+      }
+
+      // Validate order is not paid
+      const paymentStatus = await this.getPaymentStatus(orderId);
+      if (paymentStatus.isPaidInFull) {
+        throw new BadRequestException(
+          'Cannot apply discount to fully paid order',
+        );
+      }
+
+      // Calculate discount amount
+      let discountAmount: Decimal;
+      if (dto.discountType === DiscountType.PERCENTAGE) {
+        const percentage = new Decimal(dto.discountValue);
+        if (percentage.greaterThan(100)) {
+          throw new BadRequestException('Percentage cannot exceed 100%');
+        }
+        discountAmount = new Decimal(order.subTotal)
+          .mul(percentage)
+          .dividedBy(100);
+      } else {
+        discountAmount = new Decimal(dto.discountValue);
+        if (discountAmount.greaterThan(order.subTotal)) {
+          throw new BadRequestException(
+            'Discount amount cannot exceed subtotal',
+          );
+        }
+      }
+
+      // RBAC: Check discount authorization tier
+      await this.validateDiscountAuthorization(
+        userId,
+        storeId,
+        discountAmount,
+        new Decimal(order.subTotal),
+      );
+
+      // Recalculate totals
+      const newSubtotal = new Decimal(order.subTotal).minus(discountAmount);
+      const taxRate = new Decimal(order.vatRateSnapshot ?? '0');
+      const serviceChargeRate = new Decimal(
+        order.serviceChargeRateSnapshot ?? '0',
+      );
+
+      const newTax = newSubtotal.mul(taxRate);
+      const newServiceCharge = newSubtotal.mul(serviceChargeRate);
+      const newGrandTotal = newSubtotal.add(newTax).add(newServiceCharge);
+
+      // Update order
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          discountType: dto.discountType,
+          discountValue: new Decimal(dto.discountValue),
+          discountAmount,
+          discountReason: dto.reason,
+          discountAppliedBy: userId,
+          discountAppliedAt: new Date(),
+          vatAmount: newTax,
+          serviceChargeAmount: newServiceCharge,
+          grandTotal: newGrandTotal,
+        },
+      });
+
+      this.logger.log(
+        `[${method}] Applied ${dto.discountType} discount of ${discountAmount.toFixed(2)} to order ${orderId} by user ${userId}`,
+      );
+
+      return await this.findOne(orderId);
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(
+        `[${method}] Failed to apply discount`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw new InternalServerErrorException('Failed to apply discount');
+    }
+  }
+
+  /**
+   * Remove discount from an order
+   * Requires ADMIN or OWNER permission
+   */
+  async removeDiscount(
+    userId: string,
+    storeId: string,
+    orderId: string,
+  ): Promise<OrderResponseDto> {
+    const method = this.removeDiscount.name;
+
+    try {
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: { session: { include: { table: true } } },
+      });
+
+      if (
+        !order ||
+        !order.session?.table ||
+        order.session.table.storeId !== storeId
+      ) {
+        throw new NotFoundException('Order not found in this store');
+      }
+
+      // Validate order is not paid
+      const paymentStatus = await this.getPaymentStatus(orderId);
+      if (paymentStatus.isPaidInFull) {
+        throw new BadRequestException(
+          'Cannot remove discount from fully paid order',
+        );
+      }
+
+      // RBAC check - only ADMIN and OWNER can remove discounts
+      await this.authService.checkStorePermission(userId, storeId, [
+        Role.OWNER,
+        Role.ADMIN,
+      ]);
+
+      // Recalculate without discount
+      const originalSubtotal = new Decimal(order.subTotal);
+      const taxRate = new Decimal(order.vatRateSnapshot ?? '0');
+      const serviceChargeRate = new Decimal(
+        order.serviceChargeRateSnapshot ?? '0',
+      );
+
+      const originalTax = originalSubtotal.mul(taxRate);
+      const originalServiceCharge = originalSubtotal.mul(serviceChargeRate);
+      const originalGrandTotal = originalSubtotal
+        .add(originalTax)
+        .add(originalServiceCharge);
+
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          discountType: null,
+          discountValue: null,
+          discountAmount: null,
+          discountReason: null,
+          discountAppliedBy: null,
+          discountAppliedAt: null,
+          vatAmount: originalTax,
+          serviceChargeAmount: originalServiceCharge,
+          grandTotal: originalGrandTotal,
+        },
+      });
+
+      this.logger.log(
+        `[${method}] Removed discount from order ${orderId} by user ${userId}`,
+      );
+
+      return await this.findOne(orderId);
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(
+        `[${method}] Failed to remove discount`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw new InternalServerErrorException('Failed to remove discount');
+    }
+  }
+
+  /**
    * Generate unique order number for store
    * @private
    */
@@ -719,5 +926,45 @@ export class OrderService {
         `Invalid status transition from ${currentStatus} to ${newStatus}`,
       );
     }
+  }
+
+  /**
+   * Validate discount authorization based on 3-tier RBAC system
+   * - Small discount (<10%): CASHIER, ADMIN, OWNER
+   * - Medium discount (10-50%): ADMIN, OWNER
+   * - Large discount (>50%): OWNER only
+   * @private
+   */
+  private async validateDiscountAuthorization(
+    userId: string,
+    storeId: string,
+    discountAmount: Decimal,
+    subtotal: Decimal,
+  ): Promise<void> {
+    const percentage = discountAmount.dividedBy(subtotal).mul(100).toNumber();
+
+    let requiredRoles: Role[];
+
+    if (percentage < 10) {
+      // Small discount: CASHIER, ADMIN, OWNER
+      requiredRoles = [Role.OWNER, Role.ADMIN, Role.CASHIER];
+      this.logger.log(
+        `Validating small discount (<10%): ${percentage.toFixed(2)}% for user ${userId}`,
+      );
+    } else if (percentage < 50) {
+      // Medium discount: ADMIN, OWNER
+      requiredRoles = [Role.OWNER, Role.ADMIN];
+      this.logger.log(
+        `Validating medium discount (10-50%): ${percentage.toFixed(2)}% for user ${userId}`,
+      );
+    } else {
+      // Large discount: OWNER only
+      requiredRoles = [Role.OWNER];
+      this.logger.log(
+        `Validating large discount (>50%): ${percentage.toFixed(2)}% for user ${userId}`,
+      );
+    }
+
+    await this.authService.checkStorePermission(userId, storeId, requiredRoles);
   }
 }

@@ -1,15 +1,24 @@
 import {
   BadRequestException,
+  ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { OrderStatus, OrderType, SessionStatus } from '@prisma/client';
+import {
+  OrderStatus,
+  OrderType,
+  SessionStatus,
+  DiscountType,
+  Role,
+} from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
+import { ApplyDiscountDto } from './dto/apply-discount.dto';
 import { CheckoutCartDto } from './dto/checkout-cart.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrderService } from './order.service';
+import { AuthService } from '../auth/auth.service';
 import {
   createPrismaMock,
   PrismaMock,
@@ -21,6 +30,7 @@ describe('OrderService', () => {
   let service: OrderService;
   let prismaService: PrismaMock;
   let kitchenGateway: jest.Mocked<KitchenGateway>;
+  let authService: jest.Mocked<AuthService>;
 
   // Common IDs
   const mockSessionId = 'session-123';
@@ -244,6 +254,11 @@ describe('OrderService', () => {
       },
     };
 
+    // Mock AuthService
+    const mockAuthService = {
+      checkStorePermission: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrderService,
@@ -255,12 +270,17 @@ describe('OrderService', () => {
           provide: KitchenGateway,
           useValue: mockKitchenGateway,
         },
+        {
+          provide: AuthService,
+          useValue: mockAuthService,
+        },
       ],
     }).compile();
 
     service = module.get<OrderService>(OrderService);
     prismaService = module.get(PrismaService);
     kitchenGateway = module.get(KitchenGateway);
+    authService = module.get(AuthService);
 
     // Reset all mocks before each test
     jest.clearAllMocks();
@@ -2557,6 +2577,613 @@ describe('OrderService', () => {
       expect(result.items[0].totalPaid).toBe('100.00');
       expect(result.items[0].remainingBalance).toBe('50.00');
       expect(result.items[0].isPaidInFull).toBe(false);
+    });
+  });
+
+  describe('applyDiscount', () => {
+    const mockUserId = 'user-123';
+    const mockOrderWithSession = {
+      ...mockOrder,
+      id: mockOrderId,
+      subTotal: new Decimal('100.00'),
+      vatRateSnapshot: new Decimal('0.07'),
+      serviceChargeRateSnapshot: new Decimal('0.10'),
+      vatAmount: new Decimal('7.00'),
+      serviceChargeAmount: new Decimal('10.00'),
+      grandTotal: new Decimal('117.00'),
+      session: mockActiveSession,
+    };
+
+    it('should apply percentage discount successfully (small discount <10%)', async () => {
+      // Arrange
+      const dto: ApplyDiscountDto = {
+        discountType: DiscountType.PERCENTAGE,
+        discountValue: '5',
+        reason: 'Loyalty customer',
+      };
+
+      prismaService.order.findUnique.mockResolvedValue(
+        mockOrderWithSession as any,
+      );
+
+      // Mock payment status check
+      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
+        totalPaid: new Decimal('0'),
+        totalRefunded: new Decimal('0'),
+        netPaid: new Decimal('0'),
+        grandTotal: new Decimal('117.00'),
+        remainingBalance: new Decimal('117.00'),
+        isPaidInFull: false,
+      });
+
+      const updatedOrder = {
+        ...mockOrderWithSession,
+        discountType: DiscountType.PERCENTAGE,
+        discountValue: new Decimal('5'),
+        discountAmount: new Decimal('5.00'), // 5% of 100
+        discountReason: dto.reason,
+        discountAppliedBy: mockUserId,
+        vatAmount: new Decimal('6.65'), // 7% of 95
+        serviceChargeAmount: new Decimal('9.50'), // 10% of 95
+        grandTotal: new Decimal('111.15'), // 95 + 6.65 + 9.50
+      };
+
+      prismaService.order.update.mockResolvedValue(updatedOrder as any);
+      jest.spyOn(service, 'findOne').mockResolvedValue(updatedOrder as any);
+
+      // Act
+      const result = await service.applyDiscount(
+        mockUserId,
+        mockStoreId,
+        mockOrderId,
+        dto,
+      );
+
+      // Assert
+      expect(authService.checkStorePermission).toHaveBeenCalledWith(
+        mockUserId,
+        mockStoreId,
+        [Role.OWNER, Role.ADMIN, Role.CASHIER],
+      );
+      expect(prismaService.order.update).toHaveBeenCalledWith({
+        where: { id: mockOrderId },
+        data: expect.objectContaining({
+          discountType: DiscountType.PERCENTAGE,
+          discountValue: expect.any(Decimal),
+          discountAmount: expect.any(Decimal),
+          discountReason: dto.reason,
+          discountAppliedBy: mockUserId,
+        }),
+      });
+      expect(result.discountAmount).toEqual(new Decimal('5.00'));
+    });
+
+    it('should apply fixed amount discount successfully (small discount <10%)', async () => {
+      // Arrange
+      const dto: ApplyDiscountDto = {
+        discountType: DiscountType.FIXED_AMOUNT,
+        discountValue: '8.00',
+        reason: 'Special occasion',
+      };
+
+      prismaService.order.findUnique.mockResolvedValue(
+        mockOrderWithSession as any,
+      );
+
+      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
+        totalPaid: new Decimal('0'),
+        totalRefunded: new Decimal('0'),
+        netPaid: new Decimal('0'),
+        grandTotal: new Decimal('117.00'),
+        remainingBalance: new Decimal('117.00'),
+        isPaidInFull: false,
+      });
+
+      const updatedOrder = {
+        ...mockOrderWithSession,
+        discountType: DiscountType.FIXED_AMOUNT,
+        discountValue: new Decimal('8.00'),
+        discountAmount: new Decimal('8.00'),
+        discountReason: dto.reason,
+      };
+
+      prismaService.order.update.mockResolvedValue(updatedOrder as any);
+      jest.spyOn(service, 'findOne').mockResolvedValue(updatedOrder as any);
+
+      // Act
+      const result = await service.applyDiscount(
+        mockUserId,
+        mockStoreId,
+        mockOrderId,
+        dto,
+      );
+
+      // Assert
+      expect(result.discountAmount).toEqual(new Decimal('8.00'));
+    });
+
+    it('should enforce ADMIN permission for medium discount (10-50%)', async () => {
+      // Arrange
+      const dto: ApplyDiscountDto = {
+        discountType: DiscountType.PERCENTAGE,
+        discountValue: '25',
+        reason: 'Manager comp',
+      };
+
+      prismaService.order.findUnique.mockResolvedValue(
+        mockOrderWithSession as any,
+      );
+
+      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
+        totalPaid: new Decimal('0'),
+        totalRefunded: new Decimal('0'),
+        netPaid: new Decimal('0'),
+        grandTotal: new Decimal('117.00'),
+        remainingBalance: new Decimal('117.00'),
+        isPaidInFull: false,
+      });
+
+      const updatedOrder = {
+        ...mockOrderWithSession,
+        discountAmount: new Decimal('25.00'),
+      };
+
+      prismaService.order.update.mockResolvedValue(updatedOrder as any);
+      jest.spyOn(service, 'findOne').mockResolvedValue(updatedOrder as any);
+
+      // Act
+      await service.applyDiscount(mockUserId, mockStoreId, mockOrderId, dto);
+
+      // Assert
+      expect(authService.checkStorePermission).toHaveBeenCalledWith(
+        mockUserId,
+        mockStoreId,
+        [Role.OWNER, Role.ADMIN],
+      );
+    });
+
+    it('should enforce OWNER permission for large discount (>50%)', async () => {
+      // Arrange
+      const dto: ApplyDiscountDto = {
+        discountType: DiscountType.PERCENTAGE,
+        discountValue: '60',
+        reason: 'Owner approval',
+      };
+
+      prismaService.order.findUnique.mockResolvedValue(
+        mockOrderWithSession as any,
+      );
+
+      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
+        totalPaid: new Decimal('0'),
+        totalRefunded: new Decimal('0'),
+        netPaid: new Decimal('0'),
+        grandTotal: new Decimal('117.00'),
+        remainingBalance: new Decimal('117.00'),
+        isPaidInFull: false,
+      });
+
+      const updatedOrder = {
+        ...mockOrderWithSession,
+        discountAmount: new Decimal('60.00'),
+      };
+
+      prismaService.order.update.mockResolvedValue(updatedOrder as any);
+      jest.spyOn(service, 'findOne').mockResolvedValue(updatedOrder as any);
+
+      // Act
+      await service.applyDiscount(mockUserId, mockStoreId, mockOrderId, dto);
+
+      // Assert
+      expect(authService.checkStorePermission).toHaveBeenCalledWith(
+        mockUserId,
+        mockStoreId,
+        [Role.OWNER],
+      );
+    });
+
+    it('should reject discount if user lacks permission', async () => {
+      // Arrange
+      const dto: ApplyDiscountDto = {
+        discountType: DiscountType.PERCENTAGE,
+        discountValue: '60',
+        reason: 'Unauthorized',
+      };
+
+      prismaService.order.findUnique.mockResolvedValue(
+        mockOrderWithSession as any,
+      );
+
+      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
+        totalPaid: new Decimal('0'),
+        totalRefunded: new Decimal('0'),
+        netPaid: new Decimal('0'),
+        grandTotal: new Decimal('117.00'),
+        remainingBalance: new Decimal('117.00'),
+        isPaidInFull: false,
+      });
+
+      authService.checkStorePermission.mockRejectedValue(
+        new ForbiddenException('Insufficient permissions'),
+      );
+
+      // Act & Assert
+      await expect(
+        service.applyDiscount(mockUserId, mockStoreId, mockOrderId, dto),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw error if order not found', async () => {
+      // Arrange
+      const dto: ApplyDiscountDto = {
+        discountType: DiscountType.PERCENTAGE,
+        discountValue: '5',
+        reason: 'Test',
+      };
+
+      prismaService.order.findUnique.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.applyDiscount(mockUserId, mockStoreId, mockOrderId, dto),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw error if order belongs to different store', async () => {
+      // Arrange
+      const dto: ApplyDiscountDto = {
+        discountType: DiscountType.PERCENTAGE,
+        discountValue: '5',
+        reason: 'Test',
+      };
+
+      const differentStoreOrder = {
+        ...mockOrderWithSession,
+        session: {
+          ...mockActiveSession,
+          table: {
+            ...mockActiveSession.table,
+            storeId: 'different-store',
+          },
+        },
+      };
+
+      prismaService.order.findUnique.mockResolvedValue(
+        differentStoreOrder as any,
+      );
+
+      // Act & Assert
+      await expect(
+        service.applyDiscount(mockUserId, mockStoreId, mockOrderId, dto),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw error if order is already paid', async () => {
+      // Arrange
+      const dto: ApplyDiscountDto = {
+        discountType: DiscountType.PERCENTAGE,
+        discountValue: '5',
+        reason: 'Test',
+      };
+
+      prismaService.order.findUnique.mockResolvedValue(
+        mockOrderWithSession as any,
+      );
+
+      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
+        totalPaid: new Decimal('117.00'),
+        totalRefunded: new Decimal('0'),
+        netPaid: new Decimal('117.00'),
+        grandTotal: new Decimal('117.00'),
+        remainingBalance: new Decimal('0'),
+        isPaidInFull: true,
+      });
+
+      // Act & Assert
+      await expect(
+        service.applyDiscount(mockUserId, mockStoreId, mockOrderId, dto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw error if percentage exceeds 100%', async () => {
+      // Arrange
+      const dto: ApplyDiscountDto = {
+        discountType: DiscountType.PERCENTAGE,
+        discountValue: '105',
+        reason: 'Invalid',
+      };
+
+      prismaService.order.findUnique.mockResolvedValue(
+        mockOrderWithSession as any,
+      );
+
+      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
+        totalPaid: new Decimal('0'),
+        totalRefunded: new Decimal('0'),
+        netPaid: new Decimal('0'),
+        grandTotal: new Decimal('117.00'),
+        remainingBalance: new Decimal('117.00'),
+        isPaidInFull: false,
+      });
+
+      // Act & Assert
+      await expect(
+        service.applyDiscount(mockUserId, mockStoreId, mockOrderId, dto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw error if fixed amount exceeds subtotal', async () => {
+      // Arrange
+      const dto: ApplyDiscountDto = {
+        discountType: DiscountType.FIXED_AMOUNT,
+        discountValue: '150.00',
+        reason: 'Invalid',
+      };
+
+      prismaService.order.findUnique.mockResolvedValue(
+        mockOrderWithSession as any,
+      );
+
+      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
+        totalPaid: new Decimal('0'),
+        totalRefunded: new Decimal('0'),
+        netPaid: new Decimal('0'),
+        grandTotal: new Decimal('117.00'),
+        remainingBalance: new Decimal('117.00'),
+        isPaidInFull: false,
+      });
+
+      // Act & Assert
+      await expect(
+        service.applyDiscount(mockUserId, mockStoreId, mockOrderId, dto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should recalculate totals correctly with discount', async () => {
+      // Arrange
+      const dto: ApplyDiscountDto = {
+        discountType: DiscountType.PERCENTAGE,
+        discountValue: '10',
+        reason: 'Loyalty discount',
+      };
+
+      prismaService.order.findUnique.mockResolvedValue(
+        mockOrderWithSession as any,
+      );
+
+      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
+        totalPaid: new Decimal('0'),
+        totalRefunded: new Decimal('0'),
+        netPaid: new Decimal('0'),
+        grandTotal: new Decimal('117.00'),
+        remainingBalance: new Decimal('117.00'),
+        isPaidInFull: false,
+      });
+
+      let capturedUpdateData: any;
+      prismaService.order.update.mockImplementation((args) => {
+        capturedUpdateData = args.data;
+        return Promise.resolve({
+          ...mockOrderWithSession,
+          ...args.data,
+        });
+      });
+
+      jest.spyOn(service, 'findOne').mockResolvedValue({
+        ...mockOrderWithSession,
+        ...capturedUpdateData,
+      });
+
+      // Act
+      await service.applyDiscount(mockUserId, mockStoreId, mockOrderId, dto);
+
+      // Assert
+      const discountAmount = new Decimal('10.00'); // 10% of 100
+      const newSubtotal = new Decimal('90.00'); // 100 - 10
+      const expectedTax = newSubtotal.mul('0.07'); // 6.30
+      const expectedServiceCharge = newSubtotal.mul('0.10'); // 9.00
+      const expectedGrandTotal = newSubtotal
+        .add(expectedTax)
+        .add(expectedServiceCharge); // 105.30
+
+      expect(capturedUpdateData.discountAmount.toFixed(2)).toBe(
+        discountAmount.toFixed(2),
+      );
+      expect(capturedUpdateData.vatAmount.toFixed(2)).toBe(
+        expectedTax.toFixed(2),
+      );
+      expect(capturedUpdateData.serviceChargeAmount.toFixed(2)).toBe(
+        expectedServiceCharge.toFixed(2),
+      );
+      expect(capturedUpdateData.grandTotal.toFixed(2)).toBe(
+        expectedGrandTotal.toFixed(2),
+      );
+    });
+  });
+
+  describe('removeDiscount', () => {
+    const mockUserId = 'user-123';
+    const mockOrderWithDiscount = {
+      ...mockOrder,
+      id: mockOrderId,
+      subTotal: new Decimal('100.00'),
+      vatRateSnapshot: new Decimal('0.07'),
+      serviceChargeRateSnapshot: new Decimal('0.10'),
+      discountType: DiscountType.PERCENTAGE,
+      discountValue: new Decimal('10'),
+      discountAmount: new Decimal('10.00'),
+      discountReason: 'Loyalty',
+      discountAppliedBy: 'admin-123',
+      discountAppliedAt: new Date(),
+      vatAmount: new Decimal('6.30'),
+      serviceChargeAmount: new Decimal('9.00'),
+      grandTotal: new Decimal('105.30'),
+      session: mockActiveSession,
+    };
+
+    it('should remove discount successfully', async () => {
+      // Arrange
+      prismaService.order.findUnique.mockResolvedValue(
+        mockOrderWithDiscount as any,
+      );
+
+      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
+        totalPaid: new Decimal('0'),
+        totalRefunded: new Decimal('0'),
+        netPaid: new Decimal('0'),
+        grandTotal: new Decimal('105.30'),
+        remainingBalance: new Decimal('105.30'),
+        isPaidInFull: false,
+      });
+
+      const updatedOrder = {
+        ...mockOrderWithDiscount,
+        discountType: null,
+        discountValue: null,
+        discountAmount: null,
+        discountReason: null,
+        discountAppliedBy: null,
+        discountAppliedAt: null,
+        vatAmount: new Decimal('7.00'),
+        serviceChargeAmount: new Decimal('10.00'),
+        grandTotal: new Decimal('117.00'),
+      };
+
+      prismaService.order.update.mockResolvedValue(updatedOrder as any);
+      jest.spyOn(service, 'findOne').mockResolvedValue(updatedOrder as any);
+
+      // Act
+      const result = await service.removeDiscount(
+        mockUserId,
+        mockStoreId,
+        mockOrderId,
+      );
+
+      // Assert
+      expect(authService.checkStorePermission).toHaveBeenCalledWith(
+        mockUserId,
+        mockStoreId,
+        [Role.OWNER, Role.ADMIN],
+      );
+      expect(prismaService.order.update).toHaveBeenCalledWith({
+        where: { id: mockOrderId },
+        data: expect.objectContaining({
+          discountType: null,
+          discountValue: null,
+          discountAmount: null,
+          discountReason: null,
+          discountAppliedBy: null,
+          discountAppliedAt: null,
+        }),
+      });
+      expect(result.discountType).toBeNull();
+    });
+
+    it('should recalculate totals correctly after removing discount', async () => {
+      // Arrange
+      prismaService.order.findUnique.mockResolvedValue(
+        mockOrderWithDiscount as any,
+      );
+
+      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
+        totalPaid: new Decimal('0'),
+        totalRefunded: new Decimal('0'),
+        netPaid: new Decimal('0'),
+        grandTotal: new Decimal('105.30'),
+        remainingBalance: new Decimal('105.30'),
+        isPaidInFull: false,
+      });
+
+      let capturedUpdateData: any;
+      prismaService.order.update.mockImplementation((args) => {
+        capturedUpdateData = args.data;
+        return Promise.resolve({
+          ...mockOrderWithDiscount,
+          ...args.data,
+        });
+      });
+
+      jest.spyOn(service, 'findOne').mockResolvedValue({
+        ...mockOrderWithDiscount,
+        ...capturedUpdateData,
+      });
+
+      // Act
+      await service.removeDiscount(mockUserId, mockStoreId, mockOrderId);
+
+      // Assert
+      const originalSubtotal = new Decimal('100.00');
+      const expectedTax = originalSubtotal.mul('0.07'); // 7.00
+      const expectedServiceCharge = originalSubtotal.mul('0.10'); // 10.00
+      const expectedGrandTotal = originalSubtotal
+        .add(expectedTax)
+        .add(expectedServiceCharge); // 117.00
+
+      expect(capturedUpdateData.vatAmount.toFixed(2)).toBe(
+        expectedTax.toFixed(2),
+      );
+      expect(capturedUpdateData.serviceChargeAmount.toFixed(2)).toBe(
+        expectedServiceCharge.toFixed(2),
+      );
+      expect(capturedUpdateData.grandTotal.toFixed(2)).toBe(
+        expectedGrandTotal.toFixed(2),
+      );
+    });
+
+    it('should throw error if user lacks ADMIN or OWNER permission', async () => {
+      // Arrange
+      prismaService.order.findUnique.mockResolvedValue(
+        mockOrderWithDiscount as any,
+      );
+
+      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
+        totalPaid: new Decimal('0'),
+        totalRefunded: new Decimal('0'),
+        netPaid: new Decimal('0'),
+        grandTotal: new Decimal('105.30'),
+        remainingBalance: new Decimal('105.30'),
+        isPaidInFull: false,
+      });
+
+      authService.checkStorePermission.mockRejectedValue(
+        new ForbiddenException('Insufficient permissions'),
+      );
+
+      // Act & Assert
+      await expect(
+        service.removeDiscount(mockUserId, mockStoreId, mockOrderId),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw error if order not found', async () => {
+      // Arrange
+      prismaService.order.findUnique.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.removeDiscount(mockUserId, mockStoreId, mockOrderId),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw error if order is already paid', async () => {
+      // Arrange
+      prismaService.order.findUnique.mockResolvedValue(
+        mockOrderWithDiscount as any,
+      );
+
+      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
+        totalPaid: new Decimal('105.30'),
+        totalRefunded: new Decimal('0'),
+        netPaid: new Decimal('105.30'),
+        grandTotal: new Decimal('105.30'),
+        remainingBalance: new Decimal('0'),
+        isPaidInFull: true,
+      });
+
+      // Act & Assert
+      await expect(
+        service.removeDiscount(mockUserId, mockStoreId, mockOrderId),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });
