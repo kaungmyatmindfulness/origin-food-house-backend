@@ -41,6 +41,37 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    networks:
+      - origin-food-house-network
+
+  # Redis Cache (for tier usage tracking, report caching)
+  redis:
+    image: redis:7-alpine
+    container_name: origin-food-house-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+        reservations:
+          memory: 128M
     networks:
       - origin-food-house-network
 
@@ -50,4 +81,6 @@ networks:
 
 volumes:
   postgres-data:
+    driver: local
+  redis-data:
     driver: local

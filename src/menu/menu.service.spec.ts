@@ -7,17 +7,21 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Role, Prisma } from '@prisma/client';
 
 import { MenuService } from './menu.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuthService } from '../auth/auth.service';
 import {
   createPrismaMock,
   PrismaMock,
 } from '../common/testing/prisma-mock.helper';
 import { PrismaService } from '../prisma/prisma.service';
+import { TierService } from '../tier/tier.service';
 
 describe('MenuService', () => {
   let service: MenuService;
   let prismaService: PrismaMock;
   let authService: jest.Mocked<AuthService>;
+  let _auditLogService: jest.Mocked<AuditLogService>;
+  let _tierService: jest.Mocked<TierService>;
 
   const mockStoreId = 'store-123';
   const mockUserId = 'user-123';
@@ -96,12 +100,26 @@ describe('MenuService', () => {
             checkStorePermission: jest.fn(),
           },
         },
+        {
+          provide: AuditLogService,
+          useValue: {
+            logMenuPriceChange: jest.fn(),
+          },
+        },
+        {
+          provide: TierService,
+          useValue: {
+            invalidateUsageCache: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<MenuService>(MenuService);
     prismaService = module.get(PrismaService);
     authService = module.get(AuthService);
+    _auditLogService = module.get(AuditLogService);
+    _tierService = module.get(TierService);
 
     jest.clearAllMocks();
   });

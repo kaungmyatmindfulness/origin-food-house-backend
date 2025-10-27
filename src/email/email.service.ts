@@ -141,4 +141,55 @@ export class EmailService {
       );
     }
   }
+
+  /**
+   * Sends a staff invitation email to the recipient.
+   * @param to Recipient email address.
+   * @param invitationToken The invitation token.
+   * @param storeId The store ID the user is being invited to.
+   */
+  async sendStaffInvitation(
+    to: string,
+    invitationToken: string,
+    storeId: string,
+  ): Promise<void> {
+    // Construct invitation link (points to frontend acceptance page)
+    const invitationLink = `${this.frontendUrl}/auth/accept-invitation?token=${invitationToken}`;
+
+    const mailOptions = {
+      from: this.mailFrom,
+      to,
+      subject: `You've been invited to join a restaurant team on ${this.appName}`,
+      html: `
+        <h2>You've been invited!</h2>
+        <p>You've been invited to join a restaurant team on ${this.appName}.</p>
+        <p>Click the link below to accept the invitation and set up your account:</p>
+        <p><a href="${invitationLink}" style="padding: 10px 15px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Accept Invitation</a></p>
+        <p>If the button doesn't work, copy and paste this link into your browser:</p>
+        <p>${invitationLink}</p>
+        <br>
+        <p>This invitation will expire in 7 days.</p>
+        <p>If you didn't expect this invitation, you can safely ignore this email.</p>
+      `,
+      text: `You've been invited to join a restaurant team on ${this.appName}. Accept invitation: ${invitationLink}`,
+    };
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const info = await this.transporter.sendMail(mailOptions);
+      this.logger.log(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        `Staff invitation email sent to ${to} for store ${storeId}. Message ID: ${info.messageId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send staff invitation email to ${to}`,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        `Failed to send staff invitation email to ${to}`,
+      );
+    }
+  }
 }

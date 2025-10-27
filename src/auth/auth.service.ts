@@ -90,12 +90,32 @@ export class AuthService {
 
   /**
    * Generates a standard JWT access token without store context.
-   * @param user User object (requires at least 'id')
+   * @param user User object (requires at least 'id' and 'jwtVersion')
    * @returns Signed JWT string.
    */
-  generateAccessTokenNoStore(user: { id: string }): string {
-    const payload = { sub: user.id };
-    this.logger.log(`Generating basic access token for user ID: ${user.id}`);
+  async generateAccessTokenNoStore(user: {
+    id: string;
+    jwtVersion?: number;
+  }): Promise<string> {
+    const method = this.generateAccessTokenNoStore.name;
+
+    // Fetch jwtVersion if not provided
+    let { jwtVersion } = user;
+    if (jwtVersion === undefined) {
+      const dbUser = await this.prisma.user.findUnique({
+        where: { id: user.id },
+        select: { jwtVersion: true },
+      });
+      jwtVersion = dbUser?.jwtVersion ?? 0;
+    }
+
+    const payload = {
+      sub: user.id,
+      jwtVersion,
+    };
+    this.logger.log(
+      `[${method}] Generating basic access token for user ID: ${user.id} (JWT version: ${jwtVersion})`,
+    );
     return this.jwtService.sign(payload, {
       expiresIn: this.JWT_EXPIRATION_TIME,
     });
@@ -138,12 +158,19 @@ export class AuthService {
       );
     }
 
+    // Fetch jwtVersion for the user
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { jwtVersion: true },
+    });
+
     const payload = {
       sub: userId,
       storeId: membership.storeId,
+      jwtVersion: user?.jwtVersion ?? 0,
     };
     this.logger.log(
-      `Generating store-context access token for User ID: ${userId}, Store ID: ${storeId}, Role: ${membership.role}`,
+      `Generating store-context access token for User ID: ${userId}, Store ID: ${storeId}, Role: ${membership.role}, JWT version: ${payload.jwtVersion}`,
     );
     return this.jwtService.sign(payload, {
       expiresIn: this.JWT_EXPIRATION_TIME,

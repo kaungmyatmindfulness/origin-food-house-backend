@@ -8,6 +8,7 @@ import { OrderStatus, Role } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 import { PaymentService } from './payment.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuthService } from '../auth/auth.service';
 import {
   createPrismaMock,
@@ -22,6 +23,7 @@ describe('PaymentService', () => {
   let service: PaymentService;
   let prismaService: PrismaMock;
   let authService: jest.Mocked<AuthService>;
+  let _auditLogService: jest.Mocked<AuditLogService>;
 
   const mockUserId = 'user-123';
   const mockOrderId = 'order-456';
@@ -54,12 +56,19 @@ describe('PaymentService', () => {
             checkStorePermission: jest.fn(),
           },
         },
+        {
+          provide: AuditLogService,
+          useValue: {
+            logPaymentRefund: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<PaymentService>(PaymentService);
     prismaService = module.get(PrismaService);
     authService = module.get(AuthService);
+    _auditLogService = module.get(AuditLogService);
   });
 
   afterEach(() => {

@@ -37,6 +37,8 @@ import { UpdateTableDto } from './dto/update-table.dto';
 import { UpsertTableDto } from './dto/upsert-table.dto';
 import { TableService } from './table.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UseTierLimit } from '../common/decorators/tier-limit.decorator';
+import { TierLimitGuard } from '../common/guards/tier-limit.guard';
 
 @ApiTags('Stores / Tables')
 @Controller('stores/:storeId/tables')
@@ -55,7 +57,8 @@ export class TableController {
   constructor(private readonly tableService: TableService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, TierLimitGuard)
+  @UseTierLimit({ resource: 'tables', increment: 1 })
   @ApiBearerAuth('access-token')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new table (OWNER/ADMIN Required)' })

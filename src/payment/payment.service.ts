@@ -15,6 +15,7 @@ import {
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuthService } from '../auth/auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRefundDto } from './dto/create-refund.dto';
@@ -32,6 +33,7 @@ export class PaymentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   /**
@@ -365,6 +367,18 @@ export class PaymentService {
         `[${method}] User ${userId} created refund of ${dto.amount} for order ${orderId} in store ${order.storeId}`,
       );
 
+      // Audit log the refund
+      await this.auditLogService.logPaymentRefund(
+        order.storeId,
+        userId,
+        refund.id,
+        {
+          amount: dto.amount,
+          reason: dto.reason ?? 'No reason provided',
+          orderId,
+        },
+      );
+
       return refund as RefundResponseDto;
     } catch (error) {
       if (
@@ -639,7 +653,9 @@ export class PaymentService {
       }
 
       default:
-        throw new BadRequestException(`Invalid split type: ${splitType}`);
+        throw new BadRequestException(
+          `Invalid split type: ${splitType as string}`,
+        );
     }
 
     // Validate total doesn't exceed remaining

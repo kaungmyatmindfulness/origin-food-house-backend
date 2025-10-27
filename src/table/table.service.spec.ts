@@ -15,12 +15,14 @@ import {
   PrismaMock,
 } from '../common/testing/prisma-mock.helper';
 import { PrismaService } from '../prisma/prisma.service';
+import { TierService } from '../tier/tier.service';
 
 describe('TableService', () => {
   let service: TableService;
   let prismaService: PrismaMock;
   let authService: jest.Mocked<AuthService>;
   let tableGateway: jest.Mocked<TableGateway>;
+  let _tierService: jest.Mocked<TierService>;
 
   const mockUserId = 'user-123';
   const mockStoreId = 'store-123';
@@ -72,6 +74,12 @@ describe('TableService', () => {
             broadcastTableStatusUpdate: jest.fn(),
           },
         },
+        {
+          provide: TierService,
+          useValue: {
+            invalidateUsageCache: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -79,6 +87,7 @@ describe('TableService', () => {
     prismaService = module.get(PrismaService);
     authService = module.get(AuthService);
     tableGateway = module.get(TableGateway);
+    _tierService = module.get(TierService);
 
     jest.clearAllMocks();
   });

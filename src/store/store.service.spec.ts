@@ -7,7 +7,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Role, Prisma, Currency } from '@prisma/client';
 
 import { StoreService } from './store.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuthService } from '../auth/auth.service';
+import { S3Service } from '../common/infra/s3.service';
 import {
   createPrismaMock,
   PrismaMock,
@@ -23,6 +25,8 @@ describe('StoreService', () => {
   let service: StoreService;
   let prismaService: PrismaMock;
   let authService: jest.Mocked<AuthService>;
+  let auditLogService: jest.Mocked<AuditLogService>;
+  let s3Service: jest.Mocked<S3Service>;
 
   const mockUserId = 'user-123';
   const mockStoreId = 'store-123';
@@ -101,12 +105,27 @@ describe('StoreService', () => {
             getUserStoreRole: jest.fn(),
           },
         },
+        {
+          provide: AuditLogService,
+          useValue: {
+            logStoreSettingChange: jest.fn(),
+            createLog: jest.fn(),
+          },
+        },
+        {
+          provide: S3Service,
+          useValue: {
+            uploadFile: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<StoreService>(StoreService);
     prismaService = module.get(PrismaService);
     authService = module.get(AuthService);
+    auditLogService = module.get(AuditLogService);
+    s3Service = module.get(S3Service);
 
     jest.clearAllMocks();
   });
@@ -389,6 +408,548 @@ describe('StoreService', () => {
       );
 
       expect(result.role).toBe(Role.CHEF);
+    });
+  });
+
+  describe('updateTaxAndServiceCharge', () => {
+    const vatRate = '0.07';
+    const serviceChargeRate = '0.10';
+
+    it('should update tax and service charge rates successfully', async () => {
+      const oldSetting = {
+        ...mockStoreSetting,
+        vatRate: new Prisma.Decimal('0.05'),
+        serviceChargeRate: new Prisma.Decimal('0.05'),
+      };
+      const updatedSetting = {
+        ...mockStoreSetting,
+        vatRate: new Prisma.Decimal(vatRate),
+        serviceChargeRate: new Prisma.Decimal(serviceChargeRate),
+      };
+
+      authService.checkStorePermission.mockResolvedValue(undefined);
+      prismaService.storeSetting.findUnique.mockResolvedValue(oldSetting);
+      prismaService.storeSetting.update.mockResolvedValue(updatedSetting);
+      auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
+
+      const result = await service.updateTaxAndServiceCharge(
+        mockUserId,
+        mockStoreId,
+        vatRate,
+        serviceChargeRate,
+      );
+
+      expect(authService.checkStorePermission).toHaveBeenCalledWith(
+        mockUserId,
+        mockStoreId,
+        [Role.OWNER, Role.ADMIN],
+      );
+      expect(prismaService.storeSetting.update).toHaveBeenCalledWith({
+        where: { storeId: mockStoreId },
+        data: {
+          vatRate: expect.any(Prisma.Decimal),
+          serviceChargeRate: expect.any(Prisma.Decimal),
+        },
+      });
+      expect(auditLogService.logStoreSettingChange).toHaveBeenCalled();
+      expect(result.vatRate?.toString()).toBe(vatRate);
+    });
+
+    it('should reject VAT rate > 30%', async () => {
+      authService.checkStorePermission.mockResolvedValue(undefined);
+
+      await expect(
+        service.updateTaxAndServiceCharge(
+          mockUserId,
+          mockStoreId,
+          '0.35',
+          serviceChargeRate,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject service charge rate > 30%', async () => {
+      authService.checkStorePermission.mockResolvedValue(undefined);
+
+      await expect(
+        service.updateTaxAndServiceCharge(
+          mockUserId,
+          mockStoreId,
+          vatRate,
+          '0.40',
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject negative rates', async () => {
+      authService.checkStorePermission.mockResolvedValue(undefined);
+
+      await expect(
+        service.updateTaxAndServiceCharge(
+          mockUserId,
+          mockStoreId,
+          '-0.05',
+          serviceChargeRate,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should require Owner/Admin permission', async () => {
+      authService.checkStorePermission.mockRejectedValue(
+        new ForbiddenException(),
+      );
+
+      await expect(
+        service.updateTaxAndServiceCharge(
+          mockUserId,
+          mockStoreId,
+          vatRate,
+          serviceChargeRate,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException if setting not found', async () => {
+      authService.checkStorePermission.mockResolvedValue(undefined);
+      prismaService.storeSetting.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updateTaxAndServiceCharge(
+          mockUserId,
+          mockStoreId,
+          vatRate,
+          serviceChargeRate,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should use Decimal precision for rates', async () => {
+      const oldSetting = mockStoreSetting;
+      authService.checkStorePermission.mockResolvedValue(undefined);
+      prismaService.storeSetting.findUnique.mockResolvedValue(oldSetting);
+      prismaService.storeSetting.update.mockResolvedValue(mockStoreSetting);
+      auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
+
+      await service.updateTaxAndServiceCharge(
+        mockUserId,
+        mockStoreId,
+        '0.07',
+        '0.10',
+      );
+
+      const updateCall = prismaService.storeSetting.update.mock.calls[0][0];
+      expect(updateCall.data.vatRate).toBeInstanceOf(Prisma.Decimal);
+      expect(updateCall.data.serviceChargeRate).toBeInstanceOf(Prisma.Decimal);
+    });
+  });
+
+  describe('updateBusinessHours', () => {
+    const validBusinessHours = {
+      monday: { closed: false, open: '09:00', close: '22:00' },
+      tuesday: { closed: false, open: '09:00', close: '22:00' },
+      wednesday: { closed: false, open: '09:00', close: '22:00' },
+      thursday: { closed: false, open: '09:00', close: '22:00' },
+      friday: { closed: false, open: '09:00', close: '23:00' },
+      saturday: { closed: false, open: '10:00', close: '23:00' },
+      sunday: { closed: true, open: null, close: null },
+    };
+
+    it('should update business hours successfully', async () => {
+      const updatedSetting = {
+        ...mockStoreSetting,
+        businessHours: validBusinessHours as any,
+      };
+
+      authService.checkStorePermission.mockResolvedValue(undefined);
+      prismaService.storeSetting.update.mockResolvedValue(updatedSetting);
+      auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
+
+      const result = await service.updateBusinessHours(
+        mockUserId,
+        mockStoreId,
+        validBusinessHours as any,
+      );
+
+      expect(authService.checkStorePermission).toHaveBeenCalledWith(
+        mockUserId,
+        mockStoreId,
+        [Role.OWNER, Role.ADMIN],
+      );
+      expect(prismaService.storeSetting.update).toHaveBeenCalledWith({
+        where: { storeId: mockStoreId },
+        data: { businessHours: validBusinessHours },
+      });
+      expect(auditLogService.logStoreSettingChange).toHaveBeenCalled();
+      expect(result).toEqual(updatedSetting);
+    });
+
+    it('should reject invalid time format', async () => {
+      authService.checkStorePermission.mockResolvedValue(undefined);
+
+      const invalidHours = {
+        ...validBusinessHours,
+        monday: { closed: false, open: '25:00', close: '22:00' },
+      };
+
+      await expect(
+        service.updateBusinessHours(
+          mockUserId,
+          mockStoreId,
+          invalidHours as any,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject missing open/close when not closed', async () => {
+      authService.checkStorePermission.mockResolvedValue(undefined);
+
+      const invalidHours = {
+        ...validBusinessHours,
+        monday: { closed: false, open: null, close: null },
+      };
+
+      await expect(
+        service.updateBusinessHours(
+          mockUserId,
+          mockStoreId,
+          invalidHours as any,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should allow closed days without times', async () => {
+      authService.checkStorePermission.mockResolvedValue(undefined);
+      prismaService.storeSetting.update.mockResolvedValue(mockStoreSetting);
+      auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
+
+      const hoursWithClosedDay = {
+        ...validBusinessHours,
+        sunday: { closed: true },
+      };
+
+      await expect(
+        service.updateBusinessHours(
+          mockUserId,
+          mockStoreId,
+          hoursWithClosedDay as any,
+        ),
+      ).resolves.toBeDefined();
+    });
+
+    it('should require Owner/Admin permission', async () => {
+      authService.checkStorePermission.mockRejectedValue(
+        new ForbiddenException(),
+      );
+
+      await expect(
+        service.updateBusinessHours(
+          mockUserId,
+          mockStoreId,
+          validBusinessHours as any,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('uploadBranding', () => {
+    const mockLogoFile: Express.Multer.File = {
+      buffer: Buffer.from('logo'),
+      originalname: 'logo.png',
+      mimetype: 'image/png',
+      size: 1024,
+    } as any;
+
+    const mockCoverFile: Express.Multer.File = {
+      buffer: Buffer.from('cover'),
+      originalname: 'cover.jpg',
+      mimetype: 'image/jpeg',
+      size: 2048,
+    } as any;
+
+    it('should upload logo successfully', async () => {
+      const updatedInfo = {
+        ...mockStoreInformation,
+        logoUrl: 'https://s3.example.com/logo.png',
+      };
+
+      authService.checkStorePermission.mockResolvedValue(undefined);
+      s3Service.uploadFile.mockResolvedValue('https://s3.example.com/logo.png');
+      prismaService.storeInformation.update.mockResolvedValue(updatedInfo);
+      auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
+
+      const result = await service.uploadBranding(
+        mockUserId,
+        mockStoreId,
+        mockLogoFile,
+        undefined,
+      );
+
+      expect(s3Service.uploadFile).toHaveBeenCalledWith(
+        expect.stringContaining('store-logos'),
+        mockLogoFile.buffer,
+        mockLogoFile.mimetype,
+      );
+      expect(prismaService.storeInformation.update).toHaveBeenCalledWith({
+        where: { storeId: mockStoreId },
+        data: { logoUrl: 'https://s3.example.com/logo.png' },
+      });
+      expect(result.logoUrl).toBe('https://s3.example.com/logo.png');
+    });
+
+    it('should upload cover photo successfully', async () => {
+      const updatedInfo = {
+        ...mockStoreInformation,
+        coverPhotoUrl: 'https://s3.example.com/cover.jpg',
+      };
+
+      authService.checkStorePermission.mockResolvedValue(undefined);
+      s3Service.uploadFile.mockResolvedValue(
+        'https://s3.example.com/cover.jpg',
+      );
+      prismaService.storeInformation.update.mockResolvedValue(updatedInfo);
+      auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
+
+      const result = await service.uploadBranding(
+        mockUserId,
+        mockStoreId,
+        undefined,
+        mockCoverFile,
+      );
+
+      expect(s3Service.uploadFile).toHaveBeenCalledWith(
+        expect.stringContaining('store-covers'),
+        mockCoverFile.buffer,
+        mockCoverFile.mimetype,
+      );
+      expect(result.coverPhotoUrl).toBe('https://s3.example.com/cover.jpg');
+    });
+
+    it('should upload both logo and cover', async () => {
+      const updatedInfo = {
+        ...mockStoreInformation,
+        logoUrl: 'https://s3.example.com/logo.png',
+        coverPhotoUrl: 'https://s3.example.com/cover.jpg',
+      };
+
+      authService.checkStorePermission.mockResolvedValue(undefined);
+      s3Service.uploadFile
+        .mockResolvedValueOnce('https://s3.example.com/logo.png')
+        .mockResolvedValueOnce('https://s3.example.com/cover.jpg');
+      prismaService.storeInformation.update.mockResolvedValue(updatedInfo);
+      auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
+
+      const result = await service.uploadBranding(
+        mockUserId,
+        mockStoreId,
+        mockLogoFile,
+        mockCoverFile,
+      );
+
+      expect(s3Service.uploadFile).toHaveBeenCalledTimes(2);
+      expect(result.logoUrl).toBe('https://s3.example.com/logo.png');
+      expect(result.coverPhotoUrl).toBe('https://s3.example.com/cover.jpg');
+    });
+
+    it('should require Owner/Admin permission', async () => {
+      authService.checkStorePermission.mockRejectedValue(
+        new ForbiddenException(),
+      );
+
+      await expect(
+        service.uploadBranding(
+          mockUserId,
+          mockStoreId,
+          mockLogoFile,
+          undefined,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should log audit trail', async () => {
+      authService.checkStorePermission.mockResolvedValue(undefined);
+      s3Service.uploadFile.mockResolvedValue('https://s3.example.com/logo.png');
+      prismaService.storeInformation.update.mockResolvedValue(
+        mockStoreInformation,
+      );
+      auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
+
+      await service.uploadBranding(
+        mockUserId,
+        mockStoreId,
+        mockLogoFile,
+        undefined,
+      );
+
+      expect(auditLogService.logStoreSettingChange).toHaveBeenCalledWith(
+        mockStoreId,
+        mockUserId,
+        expect.objectContaining({ field: 'branding' }),
+        undefined,
+        undefined,
+      );
+    });
+  });
+
+  describe('updateLoyaltyRules', () => {
+    const pointRate = '0.1';
+    const redemptionRate = '0.1';
+    const expiryDays = 365;
+
+    it('should update loyalty rules successfully', async () => {
+      const updatedSetting = {
+        ...mockStoreSetting,
+        loyaltyPointRate: new Prisma.Decimal(pointRate),
+        loyaltyRedemptionRate: new Prisma.Decimal(redemptionRate),
+        loyaltyPointExpiryDays: expiryDays,
+      };
+
+      authService.checkStorePermission.mockResolvedValue(undefined);
+      prismaService.storeSetting.update.mockResolvedValue(updatedSetting);
+      auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
+
+      const result = await service.updateLoyaltyRules(
+        mockUserId,
+        mockStoreId,
+        pointRate,
+        redemptionRate,
+        expiryDays,
+      );
+
+      expect(authService.checkStorePermission).toHaveBeenCalledWith(
+        mockUserId,
+        mockStoreId,
+        [Role.OWNER],
+      );
+      expect(prismaService.storeSetting.update).toHaveBeenCalledWith({
+        where: { storeId: mockStoreId },
+        data: {
+          loyaltyPointRate: expect.any(Prisma.Decimal),
+          loyaltyRedemptionRate: expect.any(Prisma.Decimal),
+          loyaltyPointExpiryDays: expiryDays,
+        },
+      });
+      expect(auditLogService.logStoreSettingChange).toHaveBeenCalled();
+      expect(result).toEqual(updatedSetting);
+    });
+
+    it('should require Owner permission only', async () => {
+      authService.checkStorePermission.mockRejectedValue(
+        new ForbiddenException(),
+      );
+
+      await expect(
+        service.updateLoyaltyRules(
+          mockUserId,
+          mockStoreId,
+          pointRate,
+          redemptionRate,
+          expiryDays,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(authService.checkStorePermission).toHaveBeenCalledWith(
+        mockUserId,
+        mockStoreId,
+        [Role.OWNER],
+      );
+    });
+
+    it('should reject zero or negative point rate', async () => {
+      authService.checkStorePermission.mockResolvedValue(undefined);
+
+      await expect(
+        service.updateLoyaltyRules(
+          mockUserId,
+          mockStoreId,
+          '0',
+          redemptionRate,
+          expiryDays,
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        service.updateLoyaltyRules(
+          mockUserId,
+          mockStoreId,
+          '-0.1',
+          redemptionRate,
+          expiryDays,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject zero or negative redemption rate', async () => {
+      authService.checkStorePermission.mockResolvedValue(undefined);
+
+      await expect(
+        service.updateLoyaltyRules(
+          mockUserId,
+          mockStoreId,
+          pointRate,
+          '0',
+          expiryDays,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject invalid expiry days', async () => {
+      authService.checkStorePermission.mockResolvedValue(undefined);
+
+      await expect(
+        service.updateLoyaltyRules(
+          mockUserId,
+          mockStoreId,
+          pointRate,
+          redemptionRate,
+          -1,
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        service.updateLoyaltyRules(
+          mockUserId,
+          mockStoreId,
+          pointRate,
+          redemptionRate,
+          3651,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should use Decimal precision for rates', async () => {
+      authService.checkStorePermission.mockResolvedValue(undefined);
+      prismaService.storeSetting.update.mockResolvedValue(mockStoreSetting);
+      auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
+
+      await service.updateLoyaltyRules(
+        mockUserId,
+        mockStoreId,
+        pointRate,
+        redemptionRate,
+        expiryDays,
+      );
+
+      const updateCall = prismaService.storeSetting.update.mock.calls[0][0];
+      expect(updateCall.data.loyaltyPointRate).toBeInstanceOf(Prisma.Decimal);
+      expect(updateCall.data.loyaltyRedemptionRate).toBeInstanceOf(
+        Prisma.Decimal,
+      );
+    });
+
+    it('should allow zero expiry days (no expiration)', async () => {
+      authService.checkStorePermission.mockResolvedValue(undefined);
+      prismaService.storeSetting.update.mockResolvedValue(mockStoreSetting);
+      auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
+
+      await expect(
+        service.updateLoyaltyRules(
+          mockUserId,
+          mockStoreId,
+          pointRate,
+          redemptionRate,
+          0,
+        ),
+      ).resolves.toBeDefined();
     });
   });
 });

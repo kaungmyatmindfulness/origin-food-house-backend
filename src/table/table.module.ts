@@ -7,9 +7,10 @@ import { TableController } from './table.controller';
 import { TableGateway } from './table.gateway';
 import { TableService } from './table.service';
 import { AuthModule } from '../auth/auth.module';
+import { TierModule } from '../tier/tier.module';
 
 @Module({
-  imports: [AuthModule, ConfigModule],
+  imports: [AuthModule, ConfigModule, TierModule],
   controllers: [TableController],
   providers: [TableService, TableGateway, PrismaService],
   exports: [TableService, TableGateway],

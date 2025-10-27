@@ -97,15 +97,21 @@ describe('AuthService', () => {
   });
 
   describe('generateAccessTokenNoStore', () => {
-    it('should generate JWT token with user ID', () => {
+    it('should generate JWT token with user ID', async () => {
       const mockToken = 'mock.jwt.token';
       jwtService.sign.mockReturnValue(mockToken);
+      prismaService.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        jwtVersion: 0,
+      } as any);
 
-      const result = service.generateAccessTokenNoStore({ id: mockUser.id });
+      const result = await service.generateAccessTokenNoStore({
+        id: mockUser.id,
+      });
 
       expect(result).toBe(mockToken);
       expect(jwtService.sign).toHaveBeenCalledWith(
-        { sub: mockUser.id },
+        { sub: mockUser.id, jwtVersion: 0 },
         { expiresIn: '1d' },
       );
     });
@@ -125,6 +131,10 @@ describe('AuthService', () => {
       const mockToken = 'mock.jwt.token';
       userService.getUserStores.mockResolvedValue([mockMembership]);
       jwtService.sign.mockReturnValue(mockToken);
+      prismaService.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        jwtVersion: 0,
+      } as any);
 
       const result = await service.generateAccessTokenWithStore(
         mockUser.id,
@@ -133,7 +143,7 @@ describe('AuthService', () => {
 
       expect(result).toBe(mockToken);
       expect(jwtService.sign).toHaveBeenCalledWith(
-        { sub: mockUser.id, storeId: 'store-id' },
+        { sub: mockUser.id, storeId: 'store-id', jwtVersion: 0 },
         { expiresIn: '1d' },
       );
     });

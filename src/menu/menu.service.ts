@@ -13,8 +13,10 @@ import {
   CustomizationGroup as PrismaCustomizationGroup,
 } from '@prisma/client';
 
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuthService } from '../auth/auth.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TierService } from '../tier/tier.service';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 import { UpsertCategoryDto } from './dto/upsert-category.dto';
@@ -36,6 +38,8 @@ export class MenuService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
+    private readonly auditLogService: AuditLogService,
+    private readonly tierService: TierService,
   ) {}
 
   /**
@@ -114,7 +118,7 @@ export class MenuService {
     }
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const newItem = await this.prisma.$transaction(async (tx) => {
         const categoryId = await this.upsertCategory(tx, dto.category, storeId);
         const maxSort = await tx.menuItem.aggregate({
           where: { storeId, categoryId, deletedAt: null },
@@ -154,6 +158,11 @@ export class MenuService {
           include: this.menuItemInclude,
         });
       });
+
+      // Track usage after successful creation (invalidates cache)
+      await this.tierService.invalidateUsageCache(storeId);
+
+      return newItem;
     } catch (error) {
       if (
         error instanceof ForbiddenException ||
@@ -231,6 +240,12 @@ export class MenuService {
         this.logger.debug(
           `[Transaction] Updating menu item ${itemId} basic fields`,
         );
+
+        // Check if price is changing for audit logging
+        const isPriceChanging =
+          dto.basePrice &&
+          dto.basePrice !== existingMenuItem.basePrice.toString();
+
         await tx.menuItem.update({
           where: { id: itemId },
           data: {
@@ -245,6 +260,23 @@ export class MenuService {
                 : undefined,
           },
         });
+
+        // Log price change after successful update
+        if (isPriceChanging) {
+          this.logger.log(
+            `[Transaction] Price changed for item ${itemId} from ${existingMenuItem.basePrice.toString()} to ${dto.basePrice}`,
+          );
+          await this.auditLogService.logMenuPriceChange(
+            storeId,
+            userId,
+            itemId,
+            {
+              itemName: existingMenuItem.name,
+              oldPrice: existingMenuItem.basePrice.toString(),
+              newPrice: dto.basePrice,
+            },
+          );
+        }
 
         if (dto.customizationGroups !== undefined) {
           this.logger.debug(
@@ -302,7 +334,7 @@ export class MenuService {
     await this.authService.checkStorePermission(userId, storeId, requiredRoles);
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const result = await this.prisma.$transaction(async (tx) => {
         this.logger.debug(
           `[Transaction] Verifying item ${itemId} for deletion`,
         );
@@ -338,6 +370,11 @@ export class MenuService {
 
         return { id: itemId };
       });
+
+      // Track usage after successful deletion (invalidates cache)
+      await this.tierService.invalidateUsageCache(storeId);
+
+      return result;
     } catch (error) {
       if (
         error instanceof ForbiddenException ||

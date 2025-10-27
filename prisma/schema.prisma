@@ -8,14 +8,23 @@ generator client {
 }
 
 model User {
-  id              String   @id @default(uuid(7))
-  email           String   @unique
+  id              String    @id @default(uuid(7))
+  email           String    @unique
   name            String?
-  auth0Id         String?  @unique
-  isEmailVerified Boolean  @default(false)
-  verified        Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @default(now()) @updatedAt
+  auth0Id         String?   @unique
+  isEmailVerified Boolean   @default(false)
+  verified        Boolean   @default(false)
+
+  // Slice B: Suspension tracking
+  isSuspended     Boolean   @default(false)
+  suspendedAt     DateTime?
+  suspendedReason String?
+
+  // JWT invalidation version (incremented on suspension or security events)
+  jwtVersion      Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
 
   userStores UserStore[]
 }
@@ -35,6 +44,9 @@ model Store {
   orders              Order[]
   activeTableSessions ActiveTableSession[]
   carts               Cart[]
+  tier                StoreTier?
+  auditLogs           AuditLog[]
+  staffInvitations    StaffInvitation[]
 
   @@index([slug])
 }
@@ -74,6 +86,18 @@ model StoreSetting {
   currency          Currency @default(USD)
   vatRate           Decimal? @default(0.07) @db.Decimal(4, 3)
   serviceChargeRate Decimal? @default(0.0) @db.Decimal(4, 3)
+
+  // Slice B: Business Hours
+  businessHours          Json?    // { "monday": { "open": "09:00", "close": "22:00" }, ... }
+  specialHours           Json?    // [{ "date": "2025-12-25", "open": null, "close": null, "reason": "Christmas" }]
+  acceptOrdersWhenClosed Boolean  @default(false)
+
+  // Slice B: Loyalty Program Rules
+  loyaltyEnabled         Boolean  @default(false)
+  loyaltyPointRate       Decimal? @db.Decimal(10, 4) // e.g., 0.1 (1 point per 10 THB)
+  loyaltyRedemptionRate  Decimal? @db.Decimal(10, 4) // e.g., 0.1 (100 points = 10 THB)
+  loyaltyPointExpiryDays Int?     @default(365)
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @default(now()) @updatedAt
 }
@@ -375,6 +399,65 @@ model Refund {
   @@index([orderId])
 }
 
+model StoreTier {
+  id                 String             @id @default(uuid(7))
+  storeId            String             @unique
+  tier               Tier               @default(FREE)
+  subscriptionId     String?            // Stripe subscription ID
+  subscriptionStatus SubscriptionStatus @default(ACTIVE)
+  billingCycle       BillingCycle       @default(MONTHLY)
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  trialEndsAt        DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @default(now()) @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([tier])
+  @@index([subscriptionStatus])
+}
+
+model AuditLog {
+  id         String      @id @default(uuid(7))
+  storeId    String
+  userId     String?     // Nullable for system actions
+  action     AuditAction
+  entityType String      // "Store", "MenuItem", "Payment", "UserStore"
+  entityId   String?     // UUID of affected entity
+  details    Json?       // Flexible JSON for action-specific data
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime    @default(now())
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, createdAt])
+  @@index([storeId, action])
+  @@index([storeId, userId])
+  @@index([createdAt])
+}
+
+model StaffInvitation {
+  id              String    @id @default(uuid(7))
+  storeId         String
+  email           String
+  role            Role
+  invitedBy       String    // userId
+  invitationToken String    @unique
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, email])
+  @@index([storeId])
+  @@index([invitationToken])
+  @@index([expiresAt])
+}
+
 enum Role {
   OWNER
   ADMIN
@@ -452,4 +535,35 @@ enum SessionType {
 enum DiscountType {
   PERCENTAGE
   FIXED_AMOUNT
+}
+
+enum Tier {
+  FREE
+  STANDARD
+  PREMIUM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+}
+
+enum BillingCycle {
+  MONTHLY
+  ANNUAL
+}
+
+enum AuditAction {
+  STORE_SETTING_CHANGED
+  MENU_PRICE_CHANGED
+  MENU_ITEM_86D
+  PAYMENT_REFUNDED
+  ORDER_VOIDED
+  USER_ROLE_CHANGED
+  USER_SUSPENDED
+  USER_REACTIVATED
+  TIER_UPGRADED
+  TIER_DOWNGRADED
 }

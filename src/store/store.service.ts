@@ -16,7 +16,10 @@ import {
 } from '@prisma/client';
 import slugify from 'slugify';
 
+import { AuditLogService } from 'src/audit-log/audit-log.service';
 import { AuthService } from 'src/auth/auth.service';
+import { S3Service } from 'src/common/infra/s3.service';
+import { BusinessHoursDto } from 'src/store/dto/business-hours.dto';
 import { CreateStoreDto } from 'src/store/dto/create-store.dto';
 import { UpdateStoreInformationDto } from 'src/store/dto/update-store-information.dto';
 import { UpdateStoreSettingDto } from 'src/store/dto/update-store-setting.dto';
@@ -39,6 +42,8 @@ export class StoreService {
   constructor(
     private prisma: PrismaService,
     private authService: AuthService,
+    private auditLogService: AuditLogService,
+    private s3Service: S3Service,
   ) {}
 
   /**
@@ -379,6 +384,416 @@ export class StoreService {
         error,
       );
       throw new InternalServerErrorException('Could not assign role to user.');
+    }
+  }
+
+  /**
+   * Updates tax and service charge rates for a store.
+   * Requires OWNER or ADMIN role.
+   * @param userId The ID of the user performing the action.
+   * @param storeId The ID of the Store whose settings are being updated.
+   * @param vatRate VAT rate as decimal string (e.g., "0.07" for 7%)
+   * @param serviceChargeRate Service charge rate as decimal string (e.g., "0.10" for 10%)
+   * @returns The updated StoreSetting object.
+   * @throws {BadRequestException} If rates are invalid (must be 0-30%).
+   * @throws {ForbiddenException} If user lacks permission for the Store.
+   * @throws {InternalServerErrorException} On unexpected database errors.
+   */
+  async updateTaxAndServiceCharge(
+    userId: string,
+    storeId: string,
+    vatRate: string,
+    serviceChargeRate: string,
+  ): Promise<StoreSetting> {
+    const method = this.updateTaxAndServiceCharge.name;
+    this.logger.log(
+      `[${method}] User ${userId} attempting to update tax/service charge for Store ID: ${storeId}`,
+    );
+
+    // RBAC: Owner/Admin only
+    await this.authService.checkStorePermission(userId, storeId, [
+      Role.OWNER,
+      Role.ADMIN,
+    ]);
+
+    // Validation: 0-30%
+    const vat = new Prisma.Decimal(vatRate);
+    const service = new Prisma.Decimal(serviceChargeRate);
+
+    if (vat.lt(0) || vat.gt(0.3)) {
+      this.logger.warn(
+        `[${method}] Invalid VAT rate ${vatRate} by User ${userId}`,
+      );
+      throw new BadRequestException('VAT rate must be between 0% and 30%');
+    }
+    if (service.lt(0) || service.gt(0.3)) {
+      this.logger.warn(
+        `[${method}] Invalid service charge rate ${serviceChargeRate} by User ${userId}`,
+      );
+      throw new BadRequestException(
+        'Service charge rate must be between 0% and 30%',
+      );
+    }
+
+    try {
+      // Get old values for audit log
+      const oldSetting = await this.prisma.storeSetting.findUnique({
+        where: { storeId },
+      });
+
+      if (!oldSetting) {
+        this.logger.warn(
+          `[${method}] StoreSetting for Store ID ${storeId} not found.`,
+        );
+        throw new NotFoundException(
+          `Settings for store with ID ${storeId} not found.`,
+        );
+      }
+
+      // Update settings
+      const updated = await this.prisma.storeSetting.update({
+        where: { storeId },
+        data: {
+          vatRate: vat,
+          serviceChargeRate: service,
+        },
+      });
+
+      // Audit log
+      await this.auditLogService.logStoreSettingChange(
+        storeId,
+        userId,
+        {
+          field: 'taxAndServiceCharge',
+          oldValue: {
+            vat: oldSetting.vatRate?.toString() ?? '0',
+            service: oldSetting.serviceChargeRate?.toString() ?? '0',
+          },
+          newValue: { vat: vatRate, service: serviceChargeRate },
+        },
+        undefined,
+        undefined,
+      );
+
+      this.logger.log(
+        `[${method}] Tax/service charge updated for Store ${storeId} by User ${userId}`,
+      );
+      return updated;
+    } catch (error) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+      this.logger.error(
+        `[${method}] Failed to update tax/service charge for Store ID ${storeId}`,
+        error,
+      );
+      throw new InternalServerErrorException(
+        'Could not update tax and service charge.',
+      );
+    }
+  }
+
+  /**
+   * Updates business hours for a store.
+   * Requires OWNER or ADMIN role.
+   * @param userId The ID of the user performing the action.
+   * @param storeId The ID of the Store whose settings are being updated.
+   * @param businessHours Business hours object with days of the week
+   * @returns The updated StoreSetting object.
+   * @throws {BadRequestException} If business hours structure is invalid.
+   * @throws {ForbiddenException} If user lacks permission for the Store.
+   * @throws {InternalServerErrorException} On unexpected database errors.
+   */
+  async updateBusinessHours(
+    userId: string,
+    storeId: string,
+    businessHours: BusinessHoursDto,
+  ): Promise<StoreSetting> {
+    const method = this.updateBusinessHours.name;
+    this.logger.log(
+      `[${method}] User ${userId} attempting to update business hours for Store ID: ${storeId}`,
+    );
+
+    // RBAC: Owner/Admin only
+    await this.authService.checkStorePermission(userId, storeId, [
+      Role.OWNER,
+      Role.ADMIN,
+    ]);
+
+    // Validate business hours JSON structure
+    this.validateBusinessHours(businessHours);
+
+    try {
+      // Update settings
+      const updated = await this.prisma.storeSetting.update({
+        where: { storeId },
+        data: {
+          businessHours: businessHours as Prisma.InputJsonValue, // Prisma JSON type
+        },
+      });
+
+      // Audit log
+      await this.auditLogService.logStoreSettingChange(
+        storeId,
+        userId,
+        { field: 'businessHours', oldValue: null, newValue: businessHours },
+        undefined,
+        undefined,
+      );
+
+      this.logger.log(
+        `[${method}] Business hours updated for Store ${storeId} by User ${userId}`,
+      );
+      return updated;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        this.logger.warn(
+          `[${method}] Update failed: StoreSetting for Store ID ${storeId} not found.`,
+        );
+        throw new NotFoundException(
+          `Settings for store with ID ${storeId} not found.`,
+        );
+      }
+      this.logger.error(
+        `[${method}] Failed to update business hours for Store ID ${storeId}`,
+        error,
+      );
+      throw new InternalServerErrorException(
+        'Could not update business hours.',
+      );
+    }
+  }
+
+  /**
+   * Validates business hours structure
+   * @private
+   */
+  private validateBusinessHours(hours: BusinessHoursDto): void {
+    const days: Array<keyof BusinessHoursDto> = [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ];
+
+    for (const day of days) {
+      if (!hours[day]) {
+        throw new BadRequestException(`Missing business hours for ${day}`);
+      }
+      const dayHours = hours[day];
+      if (dayHours.closed) continue;
+
+      if (!dayHours.open || !dayHours.close) {
+        throw new BadRequestException(`Invalid hours for ${day}`);
+      }
+
+      // Validate time format HH:MM
+      const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(dayHours.open) || !timeRegex.test(dayHours.close)) {
+        throw new BadRequestException(`Invalid time format for ${day}`);
+      }
+    }
+  }
+
+  /**
+   * Uploads branding images (logo and/or cover) for a store.
+   * Requires OWNER or ADMIN role.
+   * @param userId The ID of the user performing the action.
+   * @param storeId The ID of the Store whose branding is being updated.
+   * @param logo Optional logo file to upload
+   * @param cover Optional cover photo file to upload
+   * @returns The updated StoreSetting object.
+   * @throws {ForbiddenException} If user lacks permission for the Store.
+   * @throws {InternalServerErrorException} On upload or database errors.
+   */
+  async uploadBranding(
+    userId: string,
+    storeId: string,
+    logo?: Express.Multer.File,
+    cover?: Express.Multer.File,
+  ): Promise<StoreInformation> {
+    const method = this.uploadBranding.name;
+    this.logger.log(
+      `[${method}] User ${userId} attempting to upload branding for Store ID: ${storeId}`,
+    );
+
+    // RBAC: Owner/Admin only
+    await this.authService.checkStorePermission(userId, storeId, [
+      Role.OWNER,
+      Role.ADMIN,
+    ]);
+
+    try {
+      const updates: { logoUrl?: string; coverPhotoUrl?: string } = {};
+
+      // Upload logo to S3
+      if (logo) {
+        this.logger.log(`[${method}] Uploading logo for Store ${storeId}`);
+        const logoUrl = await this.s3Service.uploadFile(
+          `store-logos/${storeId}-${Date.now()}-${logo.originalname}`,
+          logo.buffer,
+          logo.mimetype,
+        );
+        updates.logoUrl = logoUrl;
+      }
+
+      // Upload cover to S3
+      if (cover) {
+        this.logger.log(
+          `[${method}] Uploading cover photo for Store ${storeId}`,
+        );
+        const coverUrl = await this.s3Service.uploadFile(
+          `store-covers/${storeId}-${Date.now()}-${cover.originalname}`,
+          cover.buffer,
+          cover.mimetype,
+        );
+        updates.coverPhotoUrl = coverUrl;
+      }
+
+      // Update store information
+      const updated = await this.prisma.storeInformation.update({
+        where: { storeId },
+        data: updates,
+      });
+
+      // Audit log
+      await this.auditLogService.logStoreSettingChange(
+        storeId,
+        userId,
+        { field: 'branding', oldValue: '', newValue: JSON.stringify(updates) },
+        undefined,
+        undefined,
+      );
+
+      this.logger.log(
+        `[${method}] Branding updated for Store ${storeId} by User ${userId}`,
+      );
+      return updated;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        this.logger.warn(
+          `[${method}] Update failed: StoreInformation for Store ID ${storeId} not found.`,
+        );
+        throw new NotFoundException(
+          `Information for store with ID ${storeId} not found.`,
+        );
+      }
+      this.logger.error(
+        `[${method}] Failed to upload branding for Store ID ${storeId}`,
+        error,
+      );
+      throw new InternalServerErrorException('Could not upload branding.');
+    }
+  }
+
+  /**
+   * Updates loyalty program rules for a store.
+   * Requires OWNER role only.
+   * @param userId The ID of the user performing the action.
+   * @param storeId The ID of the Store whose loyalty rules are being updated.
+   * @param pointRate Points per currency unit (e.g., '0.1' = 1 point per 10 THB)
+   * @param redemptionRate Currency per point (e.g., '0.1' = 10 THB per 100 points)
+   * @param expiryDays Number of days before points expire (0-3650)
+   * @returns The updated StoreSetting object.
+   * @throws {BadRequestException} If rates or expiry days are invalid.
+   * @throws {ForbiddenException} If user lacks OWNER permission.
+   * @throws {InternalServerErrorException} On unexpected database errors.
+   */
+  async updateLoyaltyRules(
+    userId: string,
+    storeId: string,
+    pointRate: string,
+    redemptionRate: string,
+    expiryDays: number,
+  ): Promise<StoreSetting> {
+    const method = this.updateLoyaltyRules.name;
+    this.logger.log(
+      `[${method}] User ${userId} attempting to update loyalty rules for Store ID: ${storeId}`,
+    );
+
+    // RBAC: Owner only
+    await this.authService.checkStorePermission(userId, storeId, [Role.OWNER]);
+
+    // Validation
+    const pointRateDecimal = new Prisma.Decimal(pointRate);
+    const redemptionRateDecimal = new Prisma.Decimal(redemptionRate);
+
+    if (pointRateDecimal.lte(0)) {
+      this.logger.warn(
+        `[${method}] Invalid point rate ${pointRate} by User ${userId}`,
+      );
+      throw new BadRequestException('Point rate must be positive');
+    }
+    if (redemptionRateDecimal.lte(0)) {
+      this.logger.warn(
+        `[${method}] Invalid redemption rate ${redemptionRate} by User ${userId}`,
+      );
+      throw new BadRequestException('Redemption rate must be positive');
+    }
+    if (expiryDays < 0 || expiryDays > 3650) {
+      this.logger.warn(
+        `[${method}] Invalid expiry days ${expiryDays} by User ${userId}`,
+      );
+      throw new BadRequestException('Expiry days must be between 0 and 3650');
+    }
+
+    try {
+      // Update settings
+      const updated = await this.prisma.storeSetting.update({
+        where: { storeId },
+        data: {
+          loyaltyPointRate: pointRateDecimal,
+          loyaltyRedemptionRate: redemptionRateDecimal,
+          loyaltyPointExpiryDays: expiryDays,
+        },
+      });
+
+      // Audit log
+      await this.auditLogService.logStoreSettingChange(
+        storeId,
+        userId,
+        {
+          field: 'loyaltyRules',
+          oldValue: null,
+          newValue: { pointRate, redemptionRate, expiryDays },
+        },
+        undefined,
+        undefined,
+      );
+
+      this.logger.log(
+        `[${method}] Loyalty rules updated for Store ${storeId} by User ${userId}`,
+      );
+      return updated;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        this.logger.warn(
+          `[${method}] Update failed: StoreSetting for Store ID ${storeId} not found.`,
+        );
+        throw new NotFoundException(
+          `Settings for store with ID ${storeId} not found.`,
+        );
+      }
+      this.logger.error(
+        `[${method}] Failed to update loyalty rules for Store ID ${storeId}`,
+        error,
+      );
+      throw new InternalServerErrorException('Could not update loyalty rules.');
     }
   }
 }

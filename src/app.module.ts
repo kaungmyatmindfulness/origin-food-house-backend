@@ -6,6 +6,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { ActiveTableSessionModule } from 'src/active-table-session/active-table-session.module';
+import { AuditLogModule } from 'src/audit-log/audit-log.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { CartModule } from 'src/cart/cart.module';
 import { CategoryModule } from 'src/category/category.module';
@@ -21,6 +22,7 @@ import { PaymentModule } from 'src/payment/payment.module';
 import { ReportModule } from 'src/report/report.module';
 import { StoreModule } from 'src/store/store.module';
 import { TableModule } from 'src/table/table.module';
+import { TierModule } from 'src/tier/tier.module';
 import { UserModule } from 'src/user/user.module';
 
 import { AppService } from './app.service';
@@ -42,6 +44,7 @@ import { PrismaService } from './prisma/prisma.service';
     EventEmitterModule.forRoot(),
     CacheModule, // Global Redis caching module
     ActiveTableSessionModule,
+    AuditLogModule,
     AuthModule,
     CartModule,
     CategoryModule,
@@ -53,8 +56,9 @@ import { PrismaService } from './prisma/prisma.service';
     PaymentModule,
     ReportModule,
     StoreModule,
-    UserModule,
     TableModule,
+    TierModule,
+    UserModule,
   ],
   controllers: [],
   providers: [

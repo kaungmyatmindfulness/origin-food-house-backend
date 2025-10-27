@@ -37,6 +37,8 @@ import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 import { MenuService } from './menu.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UseTierLimit } from '../common/decorators/tier-limit.decorator';
+import { TierLimitGuard } from '../common/guards/tier-limit.guard';
 
 @ApiTags('Menu')
 @Controller('menu-items')
@@ -100,7 +102,8 @@ export class MenuController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, TierLimitGuard)
+  @UseTierLimit({ resource: 'menuItems', increment: 1 })
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a menu item (OWNER or ADMIN)' })

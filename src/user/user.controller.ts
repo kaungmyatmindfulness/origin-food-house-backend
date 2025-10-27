@@ -8,6 +8,7 @@ import {
   NotFoundException,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -27,18 +28,24 @@ import {
   ApiTags,
   ApiExtraModels,
 } from '@nestjs/swagger';
-import { Prisma, UserStore } from '@prisma/client';
+import { Prisma, UserStore, StaffInvitation, User } from '@prisma/client';
 
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RequestWithUser } from 'src/auth/types';
 import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
+import { GetUser } from 'src/common/decorators/get-user.decorator';
+import { UseTierLimit } from 'src/common/decorators/tier-limit.decorator';
 import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
 import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
+import { TierLimitGuard } from 'src/common/guards/tier-limit.guard';
 import { GetProfileQueryDto } from 'src/user/dto/get-profile-query.dto';
 import { UserProfileResponseDto } from 'src/user/dto/user-profile-response.dto';
 
 import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
+import { ChangeRoleDto } from './dto/change-role.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { InviteStaffDto } from './dto/invite-staff.dto';
+import { SuspendUserDto } from './dto/suspend-user.dto';
 import { UserPublicPayload } from './types/user-payload.types';
 import { UserService } from './user.service';
 
@@ -197,5 +204,211 @@ export class UserController {
       userProfile,
       'Profile retrieved successfully.',
     );
+  }
+
+  @Post('stores/:storeId/invite-staff')
+  @UseGuards(JwtAuthGuard, TierLimitGuard)
+  @UseTierLimit({ resource: 'staff', increment: 1 })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Invite a staff member to join a store (Owner/Admin only)',
+  })
+  @ApiParam({
+    name: 'storeId',
+    description: 'ID (UUID) of the store',
+    type: String,
+    format: 'uuid',
+  })
+  @ApiCreatedResponse({
+    description: 'Staff invitation sent successfully.',
+    type: StandardApiResponse,
+  })
+  @ApiForbiddenResponse({
+    description: 'Insufficient permissions or tier limit reached',
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid input or user already a member',
+  })
+  async inviteStaff(
+    @GetUser('sub') userId: string,
+    @Param('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
+    @Body() dto: InviteStaffDto,
+  ): Promise<StandardApiResponse<StaffInvitation | null>> {
+    const method = this.inviteStaff.name;
+    this.logger.log(
+      `[${method}] User ${userId} inviting ${dto.email} to store ${storeId} as ${dto.role}`,
+    );
+
+    const invitation = await this.userService.inviteStaff(
+      userId,
+      storeId,
+      dto.email,
+      dto.role,
+    );
+
+    if (invitation === null) {
+      return StandardApiResponse.success(
+        null,
+        'User already exists and has been added to the store.',
+      );
+    }
+
+    return StandardApiResponse.success(
+      invitation,
+      'Staff invitation sent successfully.',
+    );
+  }
+
+  @Patch('stores/:storeId/users/:targetUserId/role')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Change a user's role within a store (Owner only)" })
+  @ApiParam({
+    name: 'storeId',
+    description: 'ID (UUID) of the store',
+    type: String,
+    format: 'uuid',
+  })
+  @ApiParam({
+    name: 'targetUserId',
+    description: 'ID (UUID) of the user whose role to change',
+    type: String,
+    format: 'uuid',
+  })
+  @ApiOkResponse({
+    description: 'User role updated successfully.',
+    type: StandardApiResponse,
+  })
+  @ApiForbiddenResponse({
+    description: 'Insufficient permissions (Owner only)',
+  })
+  @ApiBadRequestResponse({
+    description: 'Cannot change own role',
+  })
+  @ApiNotFoundResponse({
+    description: 'User not found in store',
+  })
+  async changeRole(
+    @GetUser('sub') userId: string,
+    @Param('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
+    @Param('targetUserId', new ParseUUIDPipe({ version: '7' }))
+    targetUserId: string,
+    @Body() dto: ChangeRoleDto,
+  ): Promise<StandardApiResponse<UserStore>> {
+    const method = this.changeRole.name;
+    this.logger.log(
+      `[${method}] User ${userId} changing role of ${targetUserId} to ${dto.role} in store ${storeId}`,
+    );
+
+    const updated = await this.userService.changeUserRole(
+      userId,
+      targetUserId,
+      storeId,
+      dto.role,
+    );
+
+    return StandardApiResponse.success(
+      updated,
+      'User role updated successfully.',
+    );
+  }
+
+  @Patch('stores/:storeId/users/:targetUserId/suspend')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Suspend a user account (Owner/Admin only)' })
+  @ApiParam({
+    name: 'storeId',
+    description: 'ID (UUID) of the store',
+    type: String,
+    format: 'uuid',
+  })
+  @ApiParam({
+    name: 'targetUserId',
+    description: 'ID (UUID) of the user to suspend',
+    type: String,
+    format: 'uuid',
+  })
+  @ApiOkResponse({
+    description: 'User suspended successfully.',
+    type: StandardApiResponse,
+  })
+  @ApiForbiddenResponse({
+    description: 'Insufficient permissions (Owner/Admin only)',
+  })
+  @ApiBadRequestResponse({
+    description: 'Cannot suspend yourself',
+  })
+  @ApiNotFoundResponse({
+    description: 'User not found',
+  })
+  async suspendUser(
+    @GetUser('sub') userId: string,
+    @Param('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
+    @Param('targetUserId', new ParseUUIDPipe({ version: '7' }))
+    targetUserId: string,
+    @Body() dto: SuspendUserDto,
+  ): Promise<StandardApiResponse<User>> {
+    const method = this.suspendUser.name;
+    this.logger.log(
+      `[${method}] User ${userId} suspending ${targetUserId} in store ${storeId}. Reason: ${dto.reason}`,
+    );
+
+    const user = await this.userService.suspendUser(
+      userId,
+      targetUserId,
+      storeId,
+      dto.reason,
+    );
+
+    return StandardApiResponse.success(user, 'User suspended successfully.');
+  }
+
+  @Patch('stores/:storeId/users/:targetUserId/reactivate')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Reactivate a suspended user account (Owner/Admin only)',
+  })
+  @ApiParam({
+    name: 'storeId',
+    description: 'ID (UUID) of the store',
+    type: String,
+    format: 'uuid',
+  })
+  @ApiParam({
+    name: 'targetUserId',
+    description: 'ID (UUID) of the user to reactivate',
+    type: String,
+    format: 'uuid',
+  })
+  @ApiOkResponse({
+    description: 'User reactivated successfully.',
+    type: StandardApiResponse,
+  })
+  @ApiForbiddenResponse({
+    description: 'Insufficient permissions (Owner/Admin only)',
+  })
+  @ApiNotFoundResponse({
+    description: 'User not found',
+  })
+  async reactivateUser(
+    @GetUser('sub') userId: string,
+    @Param('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
+    @Param('targetUserId', new ParseUUIDPipe({ version: '7' }))
+    targetUserId: string,
+  ): Promise<StandardApiResponse<User>> {
+    const method = this.reactivateUser.name;
+    this.logger.log(
+      `[${method}] User ${userId} reactivating ${targetUserId} in store ${storeId}`,
+    );
+
+    const user = await this.userService.reactivateUser(
+      userId,
+      targetUserId,
+      storeId,
+    );
+
+    return StandardApiResponse.success(user, 'User reactivated successfully.');
   }
 }

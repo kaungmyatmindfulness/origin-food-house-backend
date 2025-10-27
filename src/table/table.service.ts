@@ -12,6 +12,7 @@ import { StandardErrorHandler } from 'src/common/decorators/standard-error-handl
 
 import { AuthService } from '../auth/auth.service'; // Assuming AuthService provides checkStorePermission
 import { PrismaService } from '../prisma/prisma.service';
+import { TierService } from '../tier/tier.service';
 import { BatchUpsertTableDto } from './dto/batch-upsert-table.dto'; // Use correct DTO
 import { CreateTableDto } from './dto/create-table.dto';
 import { UpdateTableStatusDto } from './dto/update-table-status.dto';
@@ -76,6 +77,7 @@ export class TableService {
     private readonly prisma: PrismaService,
     private readonly authService: AuthService, // Inject AuthService for permissions
     private readonly tableGateway: TableGateway, // Inject TableGateway for real-time updates
+    private readonly tierService: TierService, // Inject TierService for usage tracking
   ) {}
 
   /** Helper: Checks for duplicate name within transaction */
@@ -113,20 +115,25 @@ export class TableService {
       Role.ADMIN,
     ]);
     // Use transaction for check + create consistency
-    return await this.prisma.$transaction(async (tx) => {
+    const newTable = await this.prisma.$transaction(async (tx) => {
       await this.checkDuplicateTableName(tx, storeId, dto.name);
-      const newTable = await tx.table.create({
+      const table = await tx.table.create({
         data: { name: dto.name, storeId },
       });
       this.logger.log(
-        `Table "${newTable.name}" (ID: ${newTable.id}) created in Store ${storeId}`,
+        `Table "${table.name}" (ID: ${table.id}) created in Store ${storeId}`,
       );
 
       // Broadcast table creation to all staff in store
-      this.tableGateway.broadcastTableCreated(storeId, newTable);
+      this.tableGateway.broadcastTableCreated(storeId, table);
 
-      return newTable;
+      return table;
     });
+
+    // Track usage after successful creation (invalidates cache)
+    await this.tierService.invalidateUsageCache(storeId);
+
+    return newTable;
   }
 
   /** Finds all tables for a store, sorted naturally by name */
@@ -246,6 +253,9 @@ export class TableService {
 
       // Broadcast table deletion to all staff in store
       this.tableGateway.broadcastTableDeleted(storeId, tableId);
+
+      // Track usage after successful deletion (invalidates cache)
+      await this.tierService.invalidateUsageCache(storeId);
 
       return { id: tableId, deleted: true };
     } catch (error) {
