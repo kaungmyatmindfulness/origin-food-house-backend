@@ -1,6 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { OrderStatus, OrderType, DiscountType } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { ApiProperty } from "@nestjs/swagger";
+import { OrderStatus, OrderType, DiscountType } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 
 export class OrderItemCustomizationResponseDto {
   @ApiProperty()
@@ -101,14 +101,14 @@ export class OrderResponseDto {
   @ApiProperty({
     type: String,
     description:
-      'Total amount paid across all payments (supports bill splitting)',
+      "Total amount paid across all payments (supports bill splitting)",
   })
   totalPaid: string;
 
-  @ApiProperty({ type: String, description: 'Remaining balance to be paid' })
+  @ApiProperty({ type: String, description: "Remaining balance to be paid" })
   remainingBalance: string;
 
-  @ApiProperty({ description: 'Whether the order is fully paid' })
+  @ApiProperty({ description: "Whether the order is fully paid" })
   isPaidInFull: boolean;
 
   @ApiProperty({ type: [OrderItemResponseDto] })

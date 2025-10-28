@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Welcome to Your 30-Day Trial - Origin Food House</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="margin: 0; font-size: 28px;">🎉 Welcome to Origin Food House!</h1>
+    <p style="margin: 10px 0 0 0; font-size: 16px;">Your 30-Day Standard Tier Trial Starts Now</p>
+  </div>
+
+  <div style="padding: 30px; background: #ffffff; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+    <p>Hi {{ownerName}},</p>
+
+    <p>Congratulations on creating <strong>{{storeName}}</strong>! We're excited to help you grow your restaurant business.</p>
+
+    <div style="background: #f3e5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #7b1fa2;">Trial Details:</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px 0;"><strong>Tier:</strong></td>
+          <td style="padding: 8px 0;">Standard (Free Trial)</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Started:</strong></td>
+          <td style="padding: 8px 0;">{{trialStartedAt}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Ends:</strong></td>
+          <td style="padding: 8px 0; font-weight: bold;">{{trialEndsAt}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Days Remaining:</strong></td>
+          <td style="padding: 8px 0; color: #7b1fa2; font-size: 20px; font-weight: bold;">30 days</td>
+        </tr>
+      </table>
+    </div>
+
+    <p><strong>What's included in your Standard Trial:</strong></p>
+    <ul>
+      <li>✅ Up to 10 tables</li>
+      <li>✅ Up to 100 menu items</li>
+      <li>✅ Up to 5 staff accounts</li>
+      <li>✅ Up to 500 orders per month</li>
+      <li>✅ QR code table ordering</li>
+      <li>✅ Kitchen Display System</li>
+      <li>✅ Real-time analytics</li>
+    </ul>
+
+    <p style="text-align: center; margin: 30px 0;">
+      <a href="{{dashboardUrl}}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 28px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+        Get Started
+      </a>
+    </p>
+
+    <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; font-size: 14px;">
+      <p style="margin: 0;">
+        <strong>What happens after 30 days?</strong><br>
+        Your account will automatically downgrade to the Free tier unless you upgrade to a paid plan. Don't worry - we'll remind you before your trial ends!
+      </p>
+    </div>
+
+    <p><strong>Quick Start Guide:</strong></p>
+    <ol>
+      <li>Set up your menu items and categories</li>
+      <li>Add your tables and print QR codes</li>
+      <li>Invite your staff members</li>
+      <li>Start accepting orders!</li>
+    </ol>
+
+    <p style="color: #666; font-size: 14px; margin-top: 30px;">
+      Need help getting started? Check out our documentation or contact support@originfoodhouse.com
+    </p>
+  </div>
+
+  <div style="background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; margin-top: 20px; border-radius: 8px;">
+    &copy; {{year}} Origin Food House. All rights reserved.
+  </div>
+</body>
+</html>

@@ -1,13 +1,13 @@
-import * as path from 'path'; // Import path module
+import * as path from "path"; // Import path module
 
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule'; // Use CronExpression for readability
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule"; // Use CronExpression for readability
 
-import { PrismaService } from '../../prisma/prisma.service';
-import { S3Service } from '../infra/s3.service';
+import { PrismaService } from "../../prisma/prisma.service";
+import { S3Service } from "../infra/s3.service";
 
 // Configuration (Consider moving to config file/service)
-const S3_IMAGE_PREFIX = 'uploads/'; // Match the prefix used in UploadService
+const S3_IMAGE_PREFIX = "uploads/"; // Match the prefix used in UploadService
 const IMAGE_SUFFIX_REGEX = /-(medium|thumb)(\..+)$/i; // Regex to match suffixes and extensions
 
 @Injectable()
@@ -29,7 +29,7 @@ export class UnusedImageCleanupService {
       return null;
     }
     // Remove suffix and extension (e.g., "-thumb.webp")
-    const baseIdentifier = s3Key.replace(IMAGE_SUFFIX_REGEX, '');
+    const baseIdentifier = s3Key.replace(IMAGE_SUFFIX_REGEX, "");
     // Ensure the replacement actually happened (i.e., it had a suffix we expect)
     // and that the base isn't empty or just the prefix
     if (
@@ -71,15 +71,15 @@ export class UnusedImageCleanupService {
   @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT) // Use readable expression
   async handleCleanupUnusedImages() {
     if (this.isJobRunning) {
-      this.logger.warn('Cleanup job already running. Skipping this execution.');
+      this.logger.warn("Cleanup job already running. Skipping this execution.");
       return;
     }
     this.isJobRunning = true;
-    this.logger.log('Starting monthly cleanup of unused images...');
+    this.logger.log("Starting monthly cleanup of unused images...");
 
     try {
       // 1. Get all base identifiers used in the database
-      this.logger.verbose('Fetching used image keys from database...');
+      this.logger.verbose("Fetching used image keys from database...");
       const usedBaseIdentifiers = await this.getUsedBaseIdentifiersFromDB();
       this.logger.log(
         `Found ${usedBaseIdentifiers.size} unique base image identifiers in use.`,
@@ -124,7 +124,7 @@ export class UnusedImageCleanupService {
       }
 
       if (keysToDelete.length === 0) {
-        this.logger.log('No unused images found to delete.');
+        this.logger.log("No unused images found to delete.");
       } else {
         this.logger.log(
           `Identified ${keysToDelete.length} unused S3 object(s) for deletion.`,
@@ -148,7 +148,7 @@ export class UnusedImageCleanupService {
       // Handle specific errors if needed
     } finally {
       this.isJobRunning = false; // Release lock
-      this.logger.log('Finished weekly cleanup job execution.');
+      this.logger.log("Finished weekly cleanup job execution.");
     }
   }
 

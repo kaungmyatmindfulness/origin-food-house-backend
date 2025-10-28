@@ -2,30 +2,30 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
-} from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Role, Prisma } from '@prisma/client';
+} from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import { Role, Prisma } from "@prisma/client";
 
-import { CategoryService } from './category.service';
-import { AuthService } from '../auth/auth.service';
+import { CategoryService } from "./category.service";
+import { AuthService } from "../auth/auth.service";
 import {
   createPrismaMock,
   PrismaMock,
-} from '../common/testing/prisma-mock.helper';
-import { PrismaService } from '../prisma/prisma.service';
+} from "../common/testing/prisma-mock.helper";
+import { PrismaService } from "../prisma/prisma.service";
 
-describe('CategoryService', () => {
+describe("CategoryService", () => {
   let service: CategoryService;
   let prismaService: PrismaMock;
   let authService: jest.Mocked<AuthService>;
 
-  const mockUserId = 'user-123';
-  const mockStoreId = 'store-123';
-  const mockCategoryId = 'category-123';
+  const mockUserId = "user-123";
+  const mockStoreId = "store-123";
+  const mockCategoryId = "category-123";
 
   const mockCategory = {
     id: mockCategoryId,
-    name: 'Appetizers',
+    name: "Appetizers",
     storeId: mockStoreId,
     sortOrder: 0,
     createdAt: new Date(),
@@ -37,8 +37,11 @@ describe('CategoryService', () => {
     ...mockCategory,
     menuItems: [
       {
-        id: 'item-123',
-        name: 'Spring Rolls',
+        id: "item-123",
+        name: "Spring Rolls",
+        description: "Delicious spring rolls",
+        basePrice: { toString: () => "9.99" },
+        imageUrl: null,
         storeId: mockStoreId,
         categoryId: mockCategoryId,
         sortOrder: 0,
@@ -92,12 +95,12 @@ describe('CategoryService', () => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('create', () => {
-    const createDto = { name: 'New Category' };
+  describe("create", () => {
+    const createDto = { name: "New Category" };
 
     beforeEach(() => {
       authService.checkStorePermission.mockResolvedValue(undefined);
@@ -106,7 +109,7 @@ describe('CategoryService', () => {
       );
     });
 
-    it('should create category successfully', async () => {
+    it("should create category successfully", async () => {
       mockTransaction.category.findFirst.mockResolvedValue(null);
       mockTransaction.category.aggregate.mockResolvedValue({
         _max: { sortOrder: 5 },
@@ -128,7 +131,7 @@ describe('CategoryService', () => {
       );
     });
 
-    it('should throw BadRequestException if category name already exists', async () => {
+    it("should throw BadRequestException if category name already exists", async () => {
       mockTransaction.category.findFirst.mockResolvedValue(mockCategory as any);
 
       await expect(
@@ -136,9 +139,9 @@ describe('CategoryService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should check permissions before creating', async () => {
+    it("should check permissions before creating", async () => {
       authService.checkStorePermission.mockRejectedValue(
-        new ForbiddenException('Insufficient permissions'),
+        new ForbiddenException("Insufficient permissions"),
       );
 
       await expect(
@@ -146,7 +149,7 @@ describe('CategoryService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should assign sortOrder 0 for first category', async () => {
+    it("should assign sortOrder 0 for first category", async () => {
       mockTransaction.category.findFirst.mockResolvedValue(null);
       mockTransaction.category.aggregate.mockResolvedValue({
         _max: { sortOrder: null },
@@ -162,22 +165,32 @@ describe('CategoryService', () => {
     });
   });
 
-  describe('findAll', () => {
-    it('should return all categories for store by ID', async () => {
+  describe("findAll", () => {
+    it("should return all categories for store by ID", async () => {
       prismaService.store.count.mockResolvedValue(1);
       prismaService.category.findMany.mockResolvedValue([mockCategory] as any);
 
       const result = await service.findAll({ storeId: mockStoreId }, false);
 
-      expect(result).toEqual([mockCategory]);
+      expect(result).toEqual([
+        {
+          id: mockCategory.id,
+          name: mockCategory.name,
+          storeId: mockCategory.storeId,
+          sortOrder: mockCategory.sortOrder,
+          createdAt: mockCategory.createdAt,
+          updatedAt: mockCategory.updatedAt,
+          menuItems: [],
+        },
+      ]);
       expect(prismaService.category.findMany).toHaveBeenCalledWith({
         where: { deletedAt: null, storeId: mockStoreId },
         include: undefined,
-        orderBy: { sortOrder: 'asc' },
+        orderBy: { sortOrder: "asc" },
       });
     });
 
-    it('should return categories with menu items when includeItems is true', async () => {
+    it("should return categories with menu items when includeItems is true", async () => {
       prismaService.store.count.mockResolvedValue(1);
       prismaService.category.findMany.mockResolvedValue([
         mockCategoryWithItems,
@@ -185,7 +198,26 @@ describe('CategoryService', () => {
 
       const result = await service.findAll({ storeId: mockStoreId }, true);
 
-      expect(result).toEqual([mockCategoryWithItems]);
+      expect(result).toEqual([
+        {
+          id: mockCategory.id,
+          name: mockCategory.name,
+          storeId: mockCategory.storeId,
+          sortOrder: mockCategory.sortOrder,
+          createdAt: mockCategory.createdAt,
+          updatedAt: mockCategory.updatedAt,
+          menuItems: [
+            {
+              id: "item-123",
+              name: "Spring Rolls",
+              description: "Delicious spring rolls",
+              basePrice: "9.99",
+              imageUrl: null,
+              sortOrder: 0,
+            },
+          ],
+        },
+      ]);
       expect(prismaService.category.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           include: expect.any(Object),
@@ -193,22 +225,22 @@ describe('CategoryService', () => {
       );
     });
 
-    it('should find categories by store slug', async () => {
+    it("should find categories by store slug", async () => {
       prismaService.store.count.mockResolvedValue(1);
       prismaService.category.findMany.mockResolvedValue([mockCategory] as any);
 
-      const result = await service.findAll({ storeSlug: 'test-store' }, false);
+      const result = await service.findAll({ storeSlug: "test-store" }, false);
 
       expect(result).toBeDefined();
     });
 
-    it('should throw BadRequestException if neither storeId nor storeSlug provided', async () => {
+    it("should throw BadRequestException if neither storeId nor storeSlug provided", async () => {
       await expect(service.findAll({}, false)).rejects.toThrow(
         BadRequestException,
       );
     });
 
-    it('should throw NotFoundException if store not found', async () => {
+    it("should throw NotFoundException if store not found", async () => {
       prismaService.store.count.mockResolvedValue(0);
 
       await expect(
@@ -217,8 +249,8 @@ describe('CategoryService', () => {
     });
   });
 
-  describe('findOne', () => {
-    it('should return category by ID', async () => {
+  describe("findOne", () => {
+    it("should return category by ID", async () => {
       prismaService.category.findFirstOrThrow.mockResolvedValue(
         mockCategory as any,
       );
@@ -235,12 +267,12 @@ describe('CategoryService', () => {
       });
     });
 
-    it('should throw NotFoundException if category not found', async () => {
+    it("should throw NotFoundException if category not found", async () => {
       const prismaError = new Prisma.PrismaClientKnownRequestError(
-        'Not found',
+        "Not found",
         {
-          code: 'P2025',
-          clientVersion: '5.0.0',
+          code: "P2025",
+          clientVersion: "5.0.0",
         },
       );
       prismaService.category.findFirstOrThrow.mockRejectedValue(prismaError);
@@ -251,8 +283,8 @@ describe('CategoryService', () => {
     });
   });
 
-  describe('update', () => {
-    const updateDto = { name: 'Updated Category' };
+  describe("update", () => {
+    const updateDto = { name: "Updated Category" };
 
     beforeEach(() => {
       authService.checkStorePermission.mockResolvedValue(undefined);
@@ -261,7 +293,7 @@ describe('CategoryService', () => {
       );
     });
 
-    it('should update category name successfully', async () => {
+    it("should update category name successfully", async () => {
       mockTransaction.category.findFirst
         .mockResolvedValueOnce(mockCategory as any)
         .mockResolvedValueOnce(null);
@@ -284,7 +316,7 @@ describe('CategoryService', () => {
       });
     });
 
-    it('should throw NotFoundException if category not found', async () => {
+    it("should throw NotFoundException if category not found", async () => {
       mockTransaction.category.findFirst.mockResolvedValue(null);
 
       await expect(
@@ -292,11 +324,11 @@ describe('CategoryService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw BadRequestException if name conflicts with another category', async () => {
+    it("should throw BadRequestException if name conflicts with another category", async () => {
       mockTransaction.category.findFirst
         .mockResolvedValueOnce(mockCategory as any)
         .mockResolvedValueOnce({
-          id: 'other-category',
+          id: "other-category",
           name: updateDto.name,
         } as any);
 
@@ -306,7 +338,7 @@ describe('CategoryService', () => {
     });
   });
 
-  describe('remove', () => {
+  describe("remove", () => {
     beforeEach(() => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.$transaction.mockImplementation((callback: any) =>
@@ -314,7 +346,7 @@ describe('CategoryService', () => {
       );
     });
 
-    it('should soft delete category successfully when no active menu items', async () => {
+    it("should soft delete category successfully when no active menu items", async () => {
       mockTransaction.category.findFirst.mockResolvedValue(mockCategory as any);
       mockTransaction.menuItem.count.mockResolvedValue(0);
       mockTransaction.category.update.mockResolvedValue(mockCategory as any);
@@ -332,7 +364,7 @@ describe('CategoryService', () => {
       });
     });
 
-    it('should throw NotFoundException if category not found', async () => {
+    it("should throw NotFoundException if category not found", async () => {
       mockTransaction.category.findFirst.mockResolvedValue(null);
 
       await expect(
@@ -340,7 +372,7 @@ describe('CategoryService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw BadRequestException if category has active menu items', async () => {
+    it("should throw BadRequestException if category has active menu items", async () => {
       mockTransaction.category.findFirst.mockResolvedValue(mockCategory as any);
       mockTransaction.menuItem.count.mockResolvedValue(5);
 
@@ -349,23 +381,23 @@ describe('CategoryService', () => {
       ).rejects.toThrow(BadRequestException);
       await expect(
         service.remove(mockUserId, mockStoreId, mockCategoryId),
-      ).rejects.toThrow('contains 5 active menu item');
+      ).rejects.toThrow("contains 5 active menu item");
     });
   });
 
-  describe('sortCategoriesAndMenuItems', () => {
+  describe("sortCategoriesAndMenuItems", () => {
     const sortPayload = {
       categories: [
         {
-          id: 'cat-1',
+          id: "cat-1",
           sortOrder: 0,
           menuItems: [
-            { id: 'item-1', sortOrder: 0 },
-            { id: 'item-2', sortOrder: 1 },
+            { id: "item-1", sortOrder: 0 },
+            { id: "item-2", sortOrder: 1 },
           ],
         },
         {
-          id: 'cat-2',
+          id: "cat-2",
           sortOrder: 1,
           menuItems: [],
         },
@@ -376,10 +408,10 @@ describe('CategoryService', () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
     });
 
-    it('should sort categories and menu items successfully', async () => {
+    it("should sort categories and menu items successfully", async () => {
       const validEntities = {
-        categories: [{ id: 'cat-1' }, { id: 'cat-2' }],
-        menuItems: [{ id: 'item-1' }, { id: 'item-2' }],
+        categories: [{ id: "cat-1" }, { id: "cat-2" }],
+        menuItems: [{ id: "item-1" }, { id: "item-2" }],
       };
       prismaService.store.findUnique.mockResolvedValue(validEntities as any);
       prismaService.$transaction.mockResolvedValue(undefined);
@@ -390,11 +422,11 @@ describe('CategoryService', () => {
         sortPayload,
       );
 
-      expect(result.message).toContain('reordered successfully');
+      expect(result.message).toContain("reordered successfully");
       expect(prismaService.$transaction).toHaveBeenCalled();
     });
 
-    it('should throw NotFoundException if store not found', async () => {
+    it("should throw NotFoundException if store not found", async () => {
       prismaService.store.findUnique.mockResolvedValue(null);
 
       await expect(
@@ -406,10 +438,10 @@ describe('CategoryService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw BadRequestException if category does not belong to store', async () => {
+    it("should throw BadRequestException if category does not belong to store", async () => {
       const validEntities = {
-        categories: [{ id: 'cat-2' }], // cat-1 is missing
-        menuItems: [{ id: 'item-1' }, { id: 'item-2' }],
+        categories: [{ id: "cat-2" }], // cat-1 is missing
+        menuItems: [{ id: "item-1" }, { id: "item-2" }],
       };
       prismaService.store.findUnique.mockResolvedValue(validEntities as any);
 
@@ -426,13 +458,13 @@ describe('CategoryService', () => {
           mockStoreId,
           sortPayload,
         ),
-      ).rejects.toThrow('does not belong to your store');
+      ).rejects.toThrow("does not belong to your store");
     });
 
-    it('should throw BadRequestException if menu item does not belong to store', async () => {
+    it("should throw BadRequestException if menu item does not belong to store", async () => {
       const validEntities = {
-        categories: [{ id: 'cat-1' }, { id: 'cat-2' }],
-        menuItems: [{ id: 'item-2' }], // item-1 is missing
+        categories: [{ id: "cat-1" }, { id: "cat-2" }],
+        menuItems: [{ id: "item-2" }], // item-1 is missing
       };
       prismaService.store.findUnique.mockResolvedValue(validEntities as any);
 
@@ -445,7 +477,7 @@ describe('CategoryService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should return success message if no operations needed', async () => {
+    it("should return success message if no operations needed", async () => {
       const emptyPayload = { categories: [] };
       const validEntities = {
         categories: [],
@@ -459,7 +491,7 @@ describe('CategoryService', () => {
         emptyPayload,
       );
 
-      expect(result.message).toContain('No categories or items to reorder');
+      expect(result.message).toContain("No categories or items to reorder");
     });
   });
 });

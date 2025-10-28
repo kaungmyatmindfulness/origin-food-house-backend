@@ -1,32 +1,32 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PassportStrategy } from '@nestjs/passport';
-import { User } from '@prisma/client';
-import { passportJwtSecret } from 'jwks-rsa';
-import { ExtractJwt, Strategy, StrategyOptions } from 'passport-jwt';
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PassportStrategy } from "@nestjs/passport";
+import { User } from "@prisma/client";
+import { passportJwtSecret } from "jwks-rsa";
+import { ExtractJwt, Strategy, StrategyOptions } from "passport-jwt";
 
-import { PrismaService } from 'src/prisma/prisma.service';
-import { UserService } from 'src/user/user.service';
+import { PrismaService } from "src/prisma/prisma.service";
+import { UserService } from "src/user/user.service";
 
-import { Auth0Config } from '../config/auth0.config';
-import { Auth0Service } from '../services/auth0.service';
+import { Auth0Config } from "../config/auth0.config";
+import { Auth0Service } from "../services/auth0.service";
 import {
   Auth0TokenPayload,
   Auth0AuthenticatedUser,
-} from '../types/auth0.types';
+} from "../types/auth0.types";
 
 @Injectable()
-export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
+export class Auth0Strategy extends PassportStrategy(Strategy, "auth0") {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly userService: UserService,
     private readonly auth0Service: Auth0Service,
   ) {
-    const auth0Config = configService.get<Auth0Config>('auth0');
+    const auth0Config = configService.get<Auth0Config>("auth0");
 
     if (!auth0Config) {
-      throw new Error('Auth0 configuration is missing');
+      throw new Error("Auth0 configuration is missing");
     }
 
     const strategyOptions: StrategyOptions = {
@@ -39,7 +39,7 @@ export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       audience: auth0Config.audience,
       issuer: auth0Config.issuer,
-      algorithms: ['RS256'],
+      algorithms: ["RS256"],
     };
 
     super(strategyOptions);
@@ -50,7 +50,7 @@ export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
    */
   async validate(payload: Auth0TokenPayload): Promise<Auth0AuthenticatedUser> {
     if (!payload?.sub) {
-      throw new UnauthorizedException('Invalid token payload');
+      throw new UnauthorizedException("Invalid token payload");
     }
 
     // Extract user information from Auth0 token
@@ -68,7 +68,7 @@ export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
     );
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException("User not found");
     }
 
     // Return user with Auth0 metadata
@@ -86,12 +86,12 @@ export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
   ): string | undefined {
     // Check for custom claims with namespace
     const customClaims = Object.keys(payload).filter((key) =>
-      key.startsWith('https://'),
+      key.startsWith("https://"),
     );
     for (const claim of customClaims) {
-      if (claim.includes('email')) {
+      if (claim.includes("email")) {
         const value = payload[claim as keyof Auth0TokenPayload];
-        if (typeof value === 'string') {
+        if (typeof value === "string") {
           return value;
         }
       }
@@ -107,12 +107,12 @@ export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
   ): string | undefined {
     // Check for custom claims with namespace
     const customClaims = Object.keys(payload).filter((key) =>
-      key.startsWith('https://'),
+      key.startsWith("https://"),
     );
     for (const claim of customClaims) {
-      if (claim.includes('name')) {
+      if (claim.includes("name")) {
         const value = payload[claim as keyof Auth0TokenPayload];
-        if (typeof value === 'string') {
+        if (typeof value === "string") {
           return value;
         }
       }
@@ -156,7 +156,7 @@ export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
           data: {
             auth0Id: auth0UserId,
             email,
-            name: name ?? email.split('@')[0],
+            name: name ?? email.split("@")[0],
             isEmailVerified: emailVerified,
             verified: emailVerified,
           },

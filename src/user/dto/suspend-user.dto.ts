@@ -1,10 +1,10 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, MinLength, MaxLength } from 'class-validator';
+import { ApiProperty } from "@nestjs/swagger";
+import { IsString, MinLength, MaxLength } from "class-validator";
 
 export class SuspendUserDto {
   @ApiProperty({
-    description: 'Reason for suspending the user',
-    example: 'Violated company policy on multiple occasions',
+    description: "Reason for suspending the user",
+    example: "Violated company policy on multiple occasions",
     minLength: 10,
     maxLength: 500,
   })

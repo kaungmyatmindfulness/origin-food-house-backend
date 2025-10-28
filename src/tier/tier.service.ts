@@ -1,14 +1,14 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { StoreTier, Tier } from '@prisma/client';
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { StoreTier, Tier } from "@prisma/client";
 
-import { CacheService } from '../common/cache/cache.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from "../common/cache/cache.service";
+import { PrismaService } from "../prisma/prisma.service";
 import {
   StoreUsageDto,
   ResourceUsageDto,
   UsageBreakdownDto,
   FeatureAccessDto,
-} from './dto/store-usage.dto';
+} from "./dto/store-usage.dto";
 
 /**
  * Tier limits configuration
@@ -254,7 +254,7 @@ export class TierService {
    */
   async hasFeatureAccess(
     storeId: string,
-    feature: keyof (typeof TIER_LIMITS)['FREE']['features'],
+    feature: keyof (typeof TIER_LIMITS)["FREE"]["features"],
   ): Promise<boolean> {
     const method = this.hasFeatureAccess.name;
 
@@ -321,7 +321,7 @@ export class TierService {
     await this.invalidateUsageCache(storeId);
 
     this.logger.debug(
-      `[${method}] Cache invalidated for ${storeId} after ${resource} change (${delta > 0 ? '+' : ''}${delta})`,
+      `[${method}] Cache invalidated for ${storeId} after ${resource} change (${delta > 0 ? "+" : ""}${delta})`,
     );
   }
 
@@ -334,7 +334,7 @@ export class TierService {
    */
   async checkFeatureAccess(
     storeId: string,
-    feature: keyof (typeof TIER_LIMITS)['FREE']['features'],
+    feature: keyof (typeof TIER_LIMITS)["FREE"]["features"],
   ): Promise<boolean> {
     return await this.hasFeatureAccess(storeId, feature);
   }

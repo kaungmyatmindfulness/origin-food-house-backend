@@ -26,7 +26,12 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @default(now()) @updatedAt
 
-  userStores UserStore[]
+  userStores      UserStore[]
+  userTrialUsages UserTrialUsage[]
+  suspensions     UserSuspension[]
+  impersonationSessions ImpersonationSession[]
+
+  @@index([isSuspended])
 }
 
 model Store {
@@ -35,20 +40,34 @@ model Store {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  userStores          UserStore[]
-  categories          Category[]
-  menuItems           MenuItem[]
-  tables              Table[]
-  information         StoreInformation?
-  setting             StoreSetting?
-  orders              Order[]
-  activeTableSessions ActiveTableSession[]
-  carts               Cart[]
-  tier                StoreTier?
-  auditLogs           AuditLog[]
-  staffInvitations    StaffInvitation[]
+  // Admin Platform: Suspension tracking
+  suspensionStatus SuspensionStatus @default(ACTIVE)
+  suspendedAt      DateTime?
+  suspensionReason String?
+
+  userStores           UserStore[]
+  categories           Category[]
+  menuItems            MenuItem[]
+  tables               Table[]
+  information          StoreInformation?
+  setting              StoreSetting?
+  orders               Order[]
+  activeTableSessions  ActiveTableSession[]
+  carts                Cart[]
+  tier                 StoreTier?
+  auditLogs            AuditLog[]
+  staffInvitations     StaffInvitation[]
+  subscription         Subscription?
+  ownershipTransfers   OwnershipTransfer[]
+  userTrialUsages      UserTrialUsage[]
+  suspensions          StoreSuspension[]
+  userSuspensions      UserSuspension[]
+  supportTickets       SupportTicket[]
+  impersonationSessions ImpersonationSession[]
 
   @@index([slug])
+  @@index([suspensionStatus])
+  @@index([suspensionStatus, suspendedAt])
 }
 
 model UserStore {
@@ -459,6 +478,7 @@ model StaffInvitation {
 }
 
 enum Role {
+  PLATFORM_ADMIN
   OWNER
   ADMIN
   CHEF
@@ -544,7 +564,11 @@ enum Tier {
 }
 
 enum SubscriptionStatus {
+  TRIAL
   ACTIVE
+  EXPIRED
+  CANCELLED
+  SUSPENDED
   PAST_DUE
   CANCELED
   TRIALING
@@ -566,4 +590,697 @@ enum AuditAction {
   USER_REACTIVATED
   TIER_UPGRADED
   TIER_DOWNGRADED
+  PAYMENT_REQUEST_CREATED
+  PAYMENT_VERIFIED
+  SUBSCRIPTION_ACTIVATED
+  SUBSCRIPTION_CANCELLED
+  SUBSCRIPTION_EXPIRED
+  TRIAL_STARTED
+  TRIAL_EXPIRED
+  TRIAL_CONVERTED
+  REFUND_REQUESTED
+  REFUND_APPROVED
+  REFUND_REJECTED
+  REFUND_PROCESSED
+  OWNERSHIP_TRANSFER_INITIATED
+  OWNERSHIP_TRANSFER_COMPLETED
+  TIER_AUTO_DOWNGRADED
+  TRIAL_WARNING_SENT
+  // Admin Platform actions
+  ADMIN_STORE_SUSPENDED
+  ADMIN_STORE_BANNED
+  ADMIN_STORE_REACTIVATED
+  ADMIN_USER_SUSPENDED
+  ADMIN_USER_BANNED
+  ADMIN_USER_REACTIVATED
+  ADMIN_SUBSCRIPTION_OVERRIDDEN
+  ADMIN_PAYMENT_VERIFIED
+  ADMIN_PAYMENT_REJECTED
+  ADMIN_REFUND_APPROVED
+  ADMIN_IMPERSONATION_STARTED
+  ADMIN_IMPERSONATION_ENDED
+}
+
+enum SubscriptionTier {
+  FREE
+  STANDARD
+  PREMIUM
+}
+
+enum PaymentStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  ACTIVATED
+  REJECTED
+}
+
+enum RefundStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  PROCESSED
+}
+
+enum TransferStatus {
+  PENDING_OTP
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+enum TransactionType {
+  PAYMENT
+  REFUND
+  TRIAL_CONVERSION
+  UPGRADE
+  DOWNGRADE
+}
+
+enum PaymentMethodType {
+  BANK_TRANSFER
+  CREDIT_CARD
+  MOBILE_PAYMENT
+  STORE_CREDIT
+  OTHER
+}
+
+model Subscription {
+  id                   String             @id @default(uuid(7))
+  storeId              String             @unique
+  tier                 SubscriptionTier   @default(FREE)
+  status               SubscriptionStatus @default(TRIAL)
+
+  // Trial Management
+  isTrialUsed          Boolean            @default(false)
+  trialStartedAt       DateTime?
+  trialEndsAt          DateTime?
+
+  // Subscription Period
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  billingCycle         BillingCycle       @default(ANNUAL)
+
+  // Cancellation
+  cancelledAt          DateTime?
+  cancellationReason   String?
+
+  // Admin Platform: Admin Override
+  overriddenBy         String? // AdminUser ID
+  overrideReason       String?
+  overriddenAt         DateTime?
+
+  // Metadata
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @default(now()) @updatedAt
+
+  // Relations
+  store                Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  paymentRequests      PaymentRequest[]
+  paymentTransactions  PaymentTransaction[]
+  refundRequests       RefundRequest[]
+  overriddenByAdmin    AdminUser?         @relation("SubscriptionOverride", fields: [overriddenBy], references: [id], onDelete: SetNull)
+
+  @@index([storeId])
+  @@index([tier])
+  @@index([status])
+  @@index([currentPeriodEnd])
+  @@index([status, currentPeriodEnd])
+  @@index([overriddenBy])
+}
+
+model PaymentRequest {
+  id                   String             @id @default(uuid(7))
+  subscriptionId       String
+  requestedTier        SubscriptionTier
+  requestedDuration    Int                @default(365)
+
+  // Payment Details
+  amount               Decimal            @db.Decimal(10, 2)
+  currency             Currency           @default(USD)
+  paymentProofUrl      String?
+  bankTransferDetails  Json?
+
+  // Verification Workflow
+  status               PaymentStatus      @default(PENDING_VERIFICATION)
+  requestedBy          String
+  requestedAt          DateTime           @default(now())
+
+  // Admin Actions
+  verifiedBy           String?
+  verifiedAt           DateTime?
+  rejectionReason      String?
+
+  // Activation
+  activatedBy          String?
+  activatedAt          DateTime?
+
+  // Metadata
+  notes                String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @default(now()) @updatedAt
+
+  // Relations
+  subscription         Subscription       @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([requestedBy])
+  @@index([requestedAt])
+  @@index([status, requestedAt])
+}
+
+model PaymentTransaction {
+  id                   String             @id @default(uuid(7))
+  subscriptionId       String
+
+  // Transaction Details
+  transactionType      TransactionType
+  amount               Decimal            @db.Decimal(10, 2)
+  currency             Currency           @default(USD)
+
+  // Tier Information
+  tier                 SubscriptionTier
+  billingCycle         BillingCycle       @default(ANNUAL)
+  periodStart          DateTime
+  periodEnd            DateTime
+
+  // Payment Method
+  paymentMethod        PaymentMethodType  @default(BANK_TRANSFER)
+  paymentProofUrl      String?
+  externalReference    String?
+
+  // Transaction Metadata
+  processedBy          String
+  processedAt          DateTime           @default(now())
+  notes                String?
+
+  // Soft Delete
+  deletedAt            DateTime?
+
+  // Timestamps
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @default(now()) @updatedAt
+
+  // Relations
+  subscription         Subscription       @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  refundRequests       RefundRequest[]
+
+  @@index([subscriptionId])
+  @@index([transactionType])
+  @@index([processedAt])
+  @@index([deletedAt])
+  @@index([subscriptionId, processedAt])
+}
+
+model RefundRequest {
+  id                   String             @id @default(uuid(7))
+  subscriptionId       String
+  transactionId        String
+
+  // Refund Details
+  requestedAmount      Decimal            @db.Decimal(10, 2)
+  currency             Currency           @default(USD)
+  reason               String
+
+  // Workflow
+  status               RefundStatus       @default(REQUESTED)
+  requestedBy          String
+  requestedAt          DateTime           @default(now())
+
+  // Admin Actions
+  reviewedBy           String?
+  reviewedAt           DateTime?
+  approvalNotes        String?
+  rejectionReason      String?
+
+  // Processing
+  processedBy          String?
+  processedAt          DateTime?
+  refundMethod         String?
+  refundProofUrl       String?
+
+  // Metadata
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @default(now()) @updatedAt
+
+  // Relations
+  subscription         Subscription       @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  transaction          PaymentTransaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+
+  @@index([subscriptionId])
+  @@index([transactionId])
+  @@index([status])
+  @@index([requestedBy])
+  @@index([requestedAt])
+}
+
+model OwnershipTransfer {
+  id                   String             @id @default(uuid(7))
+  storeId              String
+
+  // Transfer Parties
+  currentOwnerId       String
+  newOwnerEmail        String
+  newOwnerId           String?
+
+  // OTP Verification
+  otpCode              String
+  otpGeneratedAt       DateTime           @default(now())
+  otpExpiresAt         DateTime
+  otpVerifiedAt        DateTime?
+  otpAttempts          Int                @default(0)
+
+  // Transfer Status
+  status               TransferStatus     @default(PENDING_OTP)
+
+  // Completion
+  completedAt          DateTime?
+  completedBy          String?
+
+  // Cancellation
+  cancelledAt          DateTime?
+  cancellationReason   String?
+
+  // Metadata
+  notes                String?
+  ipAddress            String?
+  userAgent            String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @default(now()) @updatedAt
+
+  // Relations
+  store                Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([status])
+  @@index([currentOwnerId])
+  @@index([newOwnerEmail])
+  @@index([otpExpiresAt])
+  @@index([createdAt])
+}
+
+model UserTrialUsage {
+  id                   String             @id @default(uuid(7))
+  userId               String
+  storeId              String
+
+  // Trial Details
+  trialTier            SubscriptionTier   @default(STANDARD)
+  trialStartedAt       DateTime           @default(now())
+  trialEndsAt          DateTime
+
+  // Status
+  isActive             Boolean            @default(true)
+  convertedToActive    Boolean            @default(false)
+  convertedAt          DateTime?
+
+  // Metadata
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @default(now()) @updatedAt
+
+  // Relations
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store                Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storeId])
+  @@index([userId])
+  @@index([userId, isActive])
+  @@index([storeId])
+  @@index([trialEndsAt])
+}
+
+// ============================================================================
+// ADMIN PLATFORM TABLES (Phase 1)
+// ============================================================================
+
+enum AdminRole {
+  SUPER_ADMIN        // Full platform access - all operations
+  PLATFORM_ADMIN     // Platform operations - stores, users, settings
+  SUPPORT_AGENT      // Customer support - tickets, impersonation (limited)
+  FINANCE_ADMIN      // Payment/subscription management
+  COMPLIANCE_OFFICER // Compliance and moderation - suspensions, bans
+}
+
+enum SuspensionStatus {
+  ACTIVE             // Not suspended
+  SUSPENDED          // Temporarily suspended
+  BANNED             // Permanently banned
+  PENDING_REVIEW     // Under review for suspension
+}
+
+enum AdminActionType {
+  // Store actions
+  STORE_SUSPENDED
+  STORE_BANNED
+  STORE_REACTIVATED
+  STORE_SETTINGS_OVERRIDDEN
+
+  // User actions
+  USER_SUSPENDED
+  USER_BANNED
+  USER_REACTIVATED
+  USER_PLATFORM_BAN
+
+  // Payment actions
+  PAYMENT_VERIFIED
+  PAYMENT_REJECTED
+  REFUND_APPROVED
+  REFUND_REJECTED
+
+  // Subscription actions
+  SUBSCRIPTION_OVERRIDDEN
+  TRIAL_EXTENDED
+  SUBSCRIPTION_FORCE_ACTIVATED
+  SUBSCRIPTION_FORCE_CANCELLED
+
+  // Support actions
+  SUPPORT_TICKET_CREATED
+  SUPPORT_TICKET_ASSIGNED
+  SUPPORT_TICKET_RESOLVED
+  SUPPORT_TICKET_ESCALATED
+
+  // Impersonation
+  IMPERSONATION_STARTED
+  IMPERSONATION_ENDED
+
+  // Announcements
+  ANNOUNCEMENT_PUBLISHED
+  ANNOUNCEMENT_DELETED
+
+  // System actions
+  ADMIN_USER_CREATED
+  ADMIN_USER_DEACTIVATED
+  ADMIN_ROLE_CHANGED
+}
+
+enum AnnouncementAudience {
+  ALL_STORES         // All stores
+  SPECIFIC_TIER      // Stores in specific tier (FREE, STANDARD, PREMIUM)
+  SPECIFIC_STORES    // Manually selected stores
+  TRIAL_STORES       // Stores in trial period
+  EXPIRED_STORES     // Stores with expired subscriptions
+}
+
+enum SupportTicketStatus {
+  OPEN               // New ticket
+  IN_PROGRESS        // Being worked on
+  WAITING_CUSTOMER   // Waiting for store owner response
+  ESCALATED          // Escalated to higher tier
+  RESOLVED           // Resolved
+  CLOSED             // Closed
+}
+
+enum SupportPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum AdminNotificationType {
+  INFO               // Informational
+  WARNING            // Warning
+  ALERT              // Alert requiring attention
+  TASK_ASSIGNED      // Task assignment
+  APPROVAL_REQUIRED  // Approval required
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model AdminUser {
+  id              String    @id @default(uuid(7))
+  email           String    @unique
+  name            String
+  auth0Id         String?   @unique // Separate Auth0 tenant for admins
+  role            AdminRole @default(SUPPORT_AGENT)
+  isActive        Boolean   @default(true)
+  lastLoginAt     DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+
+  // Relations
+  storeSuspensions          StoreSuspension[]     @relation("AdminSuspendedStore")
+  storeReactivations        StoreSuspension[]     @relation("AdminReactivatedStore")
+  userSuspensions           UserSuspension[]      @relation("AdminSuspendedUser")
+  userReactivations         UserSuspension[]      @relation("AdminReactivatedUser")
+  adminActions              AdminAction[]
+  createdAnnouncements      PlatformAnnouncement[]
+  assignedTickets           SupportTicket[]       @relation("AssignedTickets")
+  resolvedTickets           SupportTicket[]       @relation("ResolvedTickets")
+  impersonationSessions     ImpersonationSession[]
+  overriddenSubscriptions   Subscription[]        @relation("SubscriptionOverride")
+  notifications             AdminNotification[]
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@index([role, isActive])
+}
+
+model StoreSuspension {
+  id                String           @id @default(uuid(7))
+  storeId           String
+
+  // Suspension details
+  suspendedBy       String // AdminUser ID
+  reason            String
+  status            SuspensionStatus @default(SUSPENDED)
+  suspendedAt       DateTime         @default(now())
+
+  // Reactivation details
+  reactivatedAt     DateTime?
+  reactivatedBy     String? // AdminUser ID
+  reactivationNotes String?
+
+  // Metadata
+  notes             String? // Internal admin notes
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now()) @updatedAt
+
+  // Relations
+  store             Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  suspendedByAdmin  AdminUser  @relation("AdminSuspendedStore", fields: [suspendedBy], references: [id], onDelete: Restrict)
+  reactivatedByAdmin AdminUser? @relation("AdminReactivatedStore", fields: [reactivatedBy], references: [id], onDelete: Restrict)
+
+  @@index([storeId])
+  @@index([status])
+  @@index([suspendedBy])
+  @@index([suspendedAt])
+  @@index([storeId, status])
+  @@index([status, suspendedAt])
+}
+
+model UserSuspension {
+  id                String           @id @default(uuid(7))
+  userId            String
+
+  // Suspension details
+  suspendedBy       String // AdminUser ID
+  reason            String
+  status            SuspensionStatus @default(SUSPENDED)
+  suspendedAt       DateTime         @default(now())
+
+  // Scope (platform-wide vs store-specific)
+  affectedStoreId   String? // If null, platform-wide ban
+
+  // Reactivation details
+  reactivatedAt     DateTime?
+  reactivatedBy     String? // AdminUser ID
+  reactivationNotes String?
+
+  // Metadata
+  notes             String? // Internal admin notes
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now()) @updatedAt
+
+  // Relations
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  suspendedByAdmin  AdminUser  @relation("AdminSuspendedUser", fields: [suspendedBy], references: [id], onDelete: Restrict)
+  reactivatedByAdmin AdminUser? @relation("AdminReactivatedUser", fields: [reactivatedBy], references: [id], onDelete: Restrict)
+  affectedStore     Store?     @relation(fields: [affectedStoreId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([suspendedBy])
+  @@index([affectedStoreId])
+  @@index([userId, status])
+  @@index([userId, affectedStoreId])
+  @@index([status, suspendedAt])
+}
+
+model AdminAction {
+  id              String          @id @default(uuid(7))
+  adminUserId     String
+
+  // Action details
+  actionType      AdminActionType
+  targetType      String // STORE, USER, PAYMENT, SUBSCRIPTION, ANNOUNCEMENT, etc.
+  targetId        String?
+
+  // Context
+  details         Json? // Flexible action-specific metadata
+  ipAddress       String?
+  userAgent       String?
+
+  timestamp       DateTime @default(now())
+
+  // Relations
+  adminUser       AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Restrict)
+
+  @@index([adminUserId])
+  @@index([actionType])
+  @@index([targetType])
+  @@index([targetType, targetId])
+  @@index([timestamp])
+  @@index([adminUserId, timestamp])
+  @@index([actionType, timestamp])
+}
+
+model PlatformAnnouncement {
+  id                String    @id @default(uuid(7))
+
+  // Content
+  title             String
+  message           String    @db.Text
+
+  // Targeting
+  targetAudience    AnnouncementAudience @default(ALL_STORES)
+  targetTier        SubscriptionTier? // If targeting specific tier
+  targetStoreIds    String[] // If targeting specific stores
+
+  // Lifecycle
+  createdBy         String // AdminUser ID
+  publishedAt       DateTime?
+  expiresAt         DateTime?
+
+  // Soft delete
+  deletedAt         DateTime?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+
+  // Relations
+  createdByAdmin    AdminUser @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([targetAudience])
+  @@index([publishedAt])
+  @@index([expiresAt])
+  @@index([deletedAt])
+  @@index([targetAudience, publishedAt])
+  @@index([publishedAt, expiresAt])
+}
+
+model SupportTicket {
+  id                String             @id @default(uuid(7))
+
+  // Ticket details
+  storeId           String
+  subject           String
+  description       String             @db.Text
+  status            SupportTicketStatus @default(OPEN)
+  priority          SupportPriority    @default(MEDIUM)
+
+  // Assignment
+  assignedTo        String? // AdminUser ID
+
+  // Resolution
+  resolvedAt        DateTime?
+  resolvedBy        String? // AdminUser ID
+  resolutionNotes   String?            @db.Text
+
+  // Metadata
+  notes             String?            @db.Text // Internal admin notes
+  attachments       String[] // URLs to S3 attachments
+
+  // Soft delete
+  deletedAt         DateTime?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+
+  // Relations
+  store             Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  assignedToAdmin   AdminUser? @relation("AssignedTickets", fields: [assignedTo], references: [id], onDelete: SetNull)
+  resolvedByAdmin   AdminUser? @relation("ResolvedTickets", fields: [resolvedBy], references: [id], onDelete: SetNull)
+
+  @@index([storeId])
+  @@index([status])
+  @@index([priority])
+  @@index([assignedTo])
+  @@index([deletedAt])
+  @@index([storeId, status])
+  @@index([status, priority])
+  @@index([assignedTo, status])
+}
+
+model ImpersonationSession {
+  id                String    @id @default(uuid(7))
+
+  // Impersonation details
+  adminUserId       String
+  targetUserId      String
+  storeId           String
+
+  // Justification
+  reason            String
+  findings          String?   @db.Text // What was discovered during session
+
+  // Lifecycle
+  startedAt         DateTime  @default(now())
+  endedAt           DateTime?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+
+  // Relations
+  adminUser         AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Restrict)
+  targetUser        User      @relation(fields: [targetUserId], references: [id], onDelete: Cascade)
+  store             Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId])
+  @@index([targetUserId])
+  @@index([storeId])
+  @@index([startedAt])
+  @@index([endedAt])
+  @@index([adminUserId, startedAt])
+}
+
+model AdminNotification {
+  id                String              @id @default(uuid(7))
+  adminUserId       String
+
+  // Content
+  title             String
+  message           String              @db.Text
+  type              AdminNotificationType @default(INFO)
+  priority          NotificationPriority @default(NORMAL)
+
+  // Related entity
+  relatedEntityType String? // STORE, USER, PAYMENT, TICKET, etc.
+  relatedEntityId   String?
+  actionUrl         String? // Deep link to related entity
+
+  // Read status
+  isRead            Boolean  @default(false)
+  readAt            DateTime?
+
+  createdAt         DateTime @default(now())
+
+  // Relations
+  adminUser         AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId])
+  @@index([isRead])
+  @@index([type])
+  @@index([priority])
+  @@index([createdAt])
+  @@index([adminUserId, isRead])
+  @@index([adminUserId, createdAt])
 }

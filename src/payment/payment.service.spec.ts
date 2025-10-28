@@ -2,38 +2,38 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
-} from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import { OrderStatus, Role } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+} from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import { OrderStatus, Role } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 
-import { PaymentService } from './payment.service';
-import { AuditLogService } from '../audit-log/audit-log.service';
-import { AuthService } from '../auth/auth.service';
+import { PaymentService } from "./payment.service";
+import { AuditLogService } from "../audit-log/audit-log.service";
+import { AuthService } from "../auth/auth.service";
 import {
   createPrismaMock,
   PrismaMock,
-} from '../common/testing/prisma-mock.helper';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateRefundDto } from './dto/create-refund.dto';
-import { RecordPaymentDto } from './dto/record-payment.dto';
-import { RecordSplitPaymentDto } from './dto/record-split-payment.dto';
+} from "../common/testing/prisma-mock.helper";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateRefundDto } from "./dto/create-refund.dto";
+import { RecordPaymentDto } from "./dto/record-payment.dto";
+import { RecordSplitPaymentDto } from "./dto/record-split-payment.dto";
 
-describe('PaymentService', () => {
+describe("PaymentService", () => {
   let service: PaymentService;
   let prismaService: PrismaMock;
   let authService: jest.Mocked<AuthService>;
   let _auditLogService: jest.Mocked<AuditLogService>;
 
-  const mockUserId = 'user-123';
-  const mockOrderId = 'order-456';
-  const mockStoreId = 'store-789';
+  const mockUserId = "user-123";
+  const mockOrderId = "order-456";
+  const mockStoreId = "store-789";
 
   const mockOrder = {
     id: mockOrderId,
     storeId: mockStoreId,
-    tableName: 'Table 5',
-    grandTotal: new Decimal('100.00'),
+    tableName: "Table 5",
+    grandTotal: new Decimal("100.00"),
     paidAt: null,
     status: OrderStatus.SERVED,
     createdAt: new Date(),
@@ -75,14 +75,14 @@ describe('PaymentService', () => {
     jest.clearAllMocks();
   });
 
-  describe('Store Isolation Security', () => {
-    describe('recordPayment', () => {
+  describe("Store Isolation Security", () => {
+    describe("recordPayment", () => {
       const recordPaymentDto: RecordPaymentDto = {
-        amount: '50.00',
-        paymentMethod: 'CASH',
+        amount: "50.00",
+        paymentMethod: "CASH",
       };
 
-      it('should allow payment from user with OWNER role', async () => {
+      it("should allow payment from user with OWNER role", async () => {
         // Setup: User has OWNER permission
         authService.checkStorePermission.mockResolvedValue(undefined);
         prismaService.order.findUnique
@@ -94,10 +94,10 @@ describe('PaymentService', () => {
           } as any); // For payment processing
 
         const mockPayment = {
-          id: 'payment-1',
+          id: "payment-1",
           orderId: mockOrderId,
-          amount: new Decimal('50.00'),
-          paymentMethod: 'CASH',
+          amount: new Decimal("50.00"),
+          paymentMethod: "CASH",
           createdAt: new Date(),
         };
 
@@ -117,7 +117,7 @@ describe('PaymentService', () => {
         );
       });
 
-      it('should allow payment from user with CASHIER role', async () => {
+      it("should allow payment from user with CASHIER role", async () => {
         authService.checkStorePermission.mockResolvedValue(undefined);
         prismaService.order.findUnique
           .mockResolvedValueOnce(mockOrder as any)
@@ -128,10 +128,10 @@ describe('PaymentService', () => {
           } as any);
 
         const mockPayment = {
-          id: 'payment-1',
+          id: "payment-1",
           orderId: mockOrderId,
-          amount: new Decimal('50.00'),
-          paymentMethod: 'CASH',
+          amount: new Decimal("50.00"),
+          paymentMethod: "CASH",
           createdAt: new Date(),
         };
 
@@ -151,10 +151,10 @@ describe('PaymentService', () => {
         );
       });
 
-      it('should reject payment from user without store permission', async () => {
+      it("should reject payment from user without store permission", async () => {
         authService.checkStorePermission.mockRejectedValue(
           new ForbiddenException(
-            'User is not a member of store. Access denied.',
+            "User is not a member of store. Access denied.",
           ),
         );
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
@@ -171,7 +171,7 @@ describe('PaymentService', () => {
         expect(prismaService.$transaction).not.toHaveBeenCalled();
       });
 
-      it('should reject payment for non-existent order', async () => {
+      it("should reject payment for non-existent order", async () => {
         prismaService.order.findUnique.mockResolvedValue(null);
 
         await expect(
@@ -182,28 +182,28 @@ describe('PaymentService', () => {
       });
     });
 
-    describe('createRefund', () => {
+    describe("createRefund", () => {
       const createRefundDto: CreateRefundDto = {
-        amount: '25.00',
-        reason: 'Customer request',
+        amount: "25.00",
+        reason: "Customer request",
         refundedBy: mockUserId,
       };
 
-      it('should allow refund from user with OWNER role', async () => {
+      it("should allow refund from user with OWNER role", async () => {
         authService.checkStorePermission.mockResolvedValue(undefined);
         prismaService.order.findUnique
           .mockResolvedValueOnce(mockOrder as any)
           .mockResolvedValueOnce({
             ...mockOrder,
-            payments: [{ amount: new Decimal('100.00') }],
+            payments: [{ amount: new Decimal("100.00") }],
             refunds: [],
           } as any);
 
         const mockRefund = {
-          id: 'refund-1',
+          id: "refund-1",
           orderId: mockOrderId,
-          amount: new Decimal('25.00'),
-          reason: 'Customer request',
+          amount: new Decimal("25.00"),
+          reason: "Customer request",
           refundedBy: mockUserId,
           createdAt: new Date(),
         };
@@ -219,10 +219,10 @@ describe('PaymentService', () => {
         );
       });
 
-      it('should reject refund from user with CASHIER role', async () => {
+      it("should reject refund from user with CASHIER role", async () => {
         authService.checkStorePermission.mockRejectedValue(
           new ForbiddenException(
-            'Access denied. Required roles: OWNER or ADMIN.',
+            "Access denied. Required roles: OWNER or ADMIN.",
           ),
         );
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
@@ -239,10 +239,10 @@ describe('PaymentService', () => {
         expect(prismaService.refund.create).not.toHaveBeenCalled();
       });
 
-      it('should reject refund from user without store permission', async () => {
+      it("should reject refund from user without store permission", async () => {
         authService.checkStorePermission.mockRejectedValue(
           new ForbiddenException(
-            'User is not a member of store. Access denied.',
+            "User is not a member of store. Access denied.",
           ),
         );
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
@@ -255,8 +255,8 @@ describe('PaymentService', () => {
       });
     });
 
-    describe('findPaymentsByOrder', () => {
-      it('should allow viewing payments with proper permission', async () => {
+    describe("findPaymentsByOrder", () => {
+      it("should allow viewing payments with proper permission", async () => {
         authService.checkStorePermission.mockResolvedValue(undefined);
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
         prismaService.payment.findMany.mockResolvedValue([]);
@@ -270,10 +270,10 @@ describe('PaymentService', () => {
         );
       });
 
-      it('should reject viewing payments without store permission', async () => {
+      it("should reject viewing payments without store permission", async () => {
         authService.checkStorePermission.mockRejectedValue(
           new ForbiddenException(
-            'User is not a member of store. Access denied.',
+            "User is not a member of store. Access denied.",
           ),
         );
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
@@ -286,8 +286,8 @@ describe('PaymentService', () => {
       });
     });
 
-    describe('findRefundsByOrder', () => {
-      it('should allow viewing refunds with ADMIN permission', async () => {
+    describe("findRefundsByOrder", () => {
+      it("should allow viewing refunds with ADMIN permission", async () => {
         authService.checkStorePermission.mockResolvedValue(undefined);
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
         prismaService.refund.findMany.mockResolvedValue([]);
@@ -301,10 +301,10 @@ describe('PaymentService', () => {
         );
       });
 
-      it('should reject viewing refunds from CASHIER role', async () => {
+      it("should reject viewing refunds from CASHIER role", async () => {
         authService.checkStorePermission.mockRejectedValue(
           new ForbiddenException(
-            'Access denied. Required roles: OWNER or ADMIN.',
+            "Access denied. Required roles: OWNER or ADMIN.",
           ),
         );
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
@@ -317,8 +317,8 @@ describe('PaymentService', () => {
       });
     });
 
-    describe('getPaymentSummary', () => {
-      it('should allow viewing summary with proper permission', async () => {
+    describe("getPaymentSummary", () => {
+      it("should allow viewing summary with proper permission", async () => {
         authService.checkStorePermission.mockResolvedValue(undefined);
         prismaService.order.findUnique
           .mockResolvedValueOnce(mockOrder as any)
@@ -337,10 +337,10 @@ describe('PaymentService', () => {
         );
       });
 
-      it('should reject viewing summary without store permission', async () => {
+      it("should reject viewing summary without store permission", async () => {
         authService.checkStorePermission.mockRejectedValue(
           new ForbiddenException(
-            'User is not a member of store. Access denied.',
+            "User is not a member of store. Access denied.",
           ),
         );
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
@@ -355,11 +355,11 @@ describe('PaymentService', () => {
     });
   });
 
-  describe('Cross-Store Attack Prevention', () => {
-    it('should prevent user from Store A recording payment for Store B order', async () => {
-      const storeAUserId = 'user-store-a';
-      const storeBOrderId = 'order-store-b';
-      const storeBStoreId = 'store-b';
+  describe("Cross-Store Attack Prevention", () => {
+    it("should prevent user from Store A recording payment for Store B order", async () => {
+      const storeAUserId = "user-store-a";
+      const storeBOrderId = "order-store-b";
+      const storeBStoreId = "store-b";
 
       const storeBOrder = {
         ...mockOrder,
@@ -375,8 +375,8 @@ describe('PaymentService', () => {
       );
 
       const recordPaymentDto: RecordPaymentDto = {
-        amount: '50.00',
-        paymentMethod: 'CASH',
+        amount: "50.00",
+        paymentMethod: "CASH",
       };
 
       await expect(
@@ -391,10 +391,10 @@ describe('PaymentService', () => {
       expect(prismaService.$transaction).not.toHaveBeenCalled();
     });
 
-    it('should prevent user from Store A viewing payments for Store B order', async () => {
-      const storeAUserId = 'user-store-a';
-      const storeBOrderId = 'order-store-b';
-      const storeBStoreId = 'store-b';
+    it("should prevent user from Store A viewing payments for Store B order", async () => {
+      const storeAUserId = "user-store-a";
+      const storeBOrderId = "order-store-b";
+      const storeBStoreId = "store-b";
 
       const storeBOrder = {
         ...mockOrder,
@@ -417,12 +417,12 @@ describe('PaymentService', () => {
     });
   });
 
-  describe('Cash Change Calculation', () => {
+  describe("Cash Change Calculation", () => {
     const mockOrderWithNoPayments = {
       id: mockOrderId,
       storeId: mockStoreId,
-      tableName: 'Table 5',
-      grandTotal: new Decimal('47.50'),
+      tableName: "Table 5",
+      grandTotal: new Decimal("47.50"),
       paidAt: null,
       status: OrderStatus.SERVED,
       createdAt: new Date(),
@@ -435,25 +435,25 @@ describe('PaymentService', () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
     });
 
-    describe('exact payment scenarios', () => {
-      it('should calculate zero change for exact cash payment', async () => {
+    describe("exact payment scenarios", () => {
+      it("should calculate zero change for exact cash payment", async () => {
         prismaService.order.findUnique
           .mockResolvedValueOnce(mockOrder as any)
           .mockResolvedValueOnce(mockOrderWithNoPayments as any);
 
         const dto: RecordPaymentDto = {
-          amount: '47.50',
-          paymentMethod: 'CASH',
-          amountTendered: '47.50',
+          amount: "47.50",
+          paymentMethod: "CASH",
+          amountTendered: "47.50",
         };
 
         const mockPayment = {
-          id: 'payment-1',
+          id: "payment-1",
           orderId: mockOrderId,
-          amount: new Decimal('47.50'),
-          paymentMethod: 'CASH',
-          amountTendered: new Decimal('47.50'),
-          change: new Decimal('0'),
+          amount: new Decimal("47.50"),
+          paymentMethod: "CASH",
+          amountTendered: new Decimal("47.50"),
+          change: new Decimal("0"),
           createdAt: new Date(),
         };
 
@@ -471,29 +471,29 @@ describe('PaymentService', () => {
         );
 
         expect(result.change).toBeInstanceOf(Decimal);
-        expect(result.change!.toString()).toBe('0');
+        expect(result.change!.toString()).toBe("0");
       });
     });
 
-    describe('overpayment scenarios', () => {
-      it('should calculate correct change for $50 bill on $47.50 order', async () => {
+    describe("overpayment scenarios", () => {
+      it("should calculate correct change for $50 bill on $47.50 order", async () => {
         prismaService.order.findUnique
           .mockResolvedValueOnce(mockOrder as any)
           .mockResolvedValueOnce(mockOrderWithNoPayments as any);
 
         const dto: RecordPaymentDto = {
-          amount: '47.50',
-          paymentMethod: 'CASH',
-          amountTendered: '50.00',
+          amount: "47.50",
+          paymentMethod: "CASH",
+          amountTendered: "50.00",
         };
 
         const mockPayment = {
-          id: 'payment-1',
+          id: "payment-1",
           orderId: mockOrderId,
-          amount: new Decimal('47.50'),
-          paymentMethod: 'CASH',
-          amountTendered: new Decimal('50.00'),
-          change: new Decimal('2.50'),
+          amount: new Decimal("47.50"),
+          paymentMethod: "CASH",
+          amountTendered: new Decimal("50.00"),
+          change: new Decimal("2.50"),
           createdAt: new Date(),
         };
 
@@ -510,13 +510,13 @@ describe('PaymentService', () => {
           dto,
         );
 
-        expect(result.change!.toString()).toBe('2.5');
+        expect(result.change!.toString()).toBe("2.5");
       });
 
-      it('should calculate correct change for large bills', async () => {
+      it("should calculate correct change for large bills", async () => {
         const largeOrder = {
           ...mockOrderWithNoPayments,
-          grandTotal: new Decimal('87.25'),
+          grandTotal: new Decimal("87.25"),
         };
 
         prismaService.order.findUnique
@@ -524,18 +524,18 @@ describe('PaymentService', () => {
           .mockResolvedValueOnce(largeOrder as any);
 
         const dto: RecordPaymentDto = {
-          amount: '87.25',
-          paymentMethod: 'CASH',
-          amountTendered: '100.00',
+          amount: "87.25",
+          paymentMethod: "CASH",
+          amountTendered: "100.00",
         };
 
         const mockPayment = {
-          id: 'payment-1',
+          id: "payment-1",
           orderId: mockOrderId,
-          amount: new Decimal('87.25'),
-          paymentMethod: 'CASH',
-          amountTendered: new Decimal('100.00'),
-          change: new Decimal('12.75'),
+          amount: new Decimal("87.25"),
+          paymentMethod: "CASH",
+          amountTendered: new Decimal("100.00"),
+          change: new Decimal("12.75"),
           createdAt: new Date(),
         };
 
@@ -552,13 +552,13 @@ describe('PaymentService', () => {
           dto,
         );
 
-        expect(result.change!.toString()).toBe('12.75');
+        expect(result.change!.toString()).toBe("12.75");
       });
 
-      it('should handle small change amounts with Decimal precision', async () => {
+      it("should handle small change amounts with Decimal precision", async () => {
         const smallOrder = {
           ...mockOrderWithNoPayments,
-          grandTotal: new Decimal('9.99'),
+          grandTotal: new Decimal("9.99"),
         };
 
         prismaService.order.findUnique
@@ -566,18 +566,18 @@ describe('PaymentService', () => {
           .mockResolvedValueOnce(smallOrder as any);
 
         const dto: RecordPaymentDto = {
-          amount: '9.99',
-          paymentMethod: 'CASH',
-          amountTendered: '10.00',
+          amount: "9.99",
+          paymentMethod: "CASH",
+          amountTendered: "10.00",
         };
 
         const mockPayment = {
-          id: 'payment-1',
+          id: "payment-1",
           orderId: mockOrderId,
-          amount: new Decimal('9.99'),
-          paymentMethod: 'CASH',
-          amountTendered: new Decimal('10.00'),
-          change: new Decimal('0.01'),
+          amount: new Decimal("9.99"),
+          paymentMethod: "CASH",
+          amountTendered: new Decimal("10.00"),
+          change: new Decimal("0.01"),
           createdAt: new Date(),
         };
 
@@ -594,104 +594,104 @@ describe('PaymentService', () => {
           dto,
         );
 
-        expect(result.change!.toString()).toBe('0.01');
+        expect(result.change!.toString()).toBe("0.01");
       });
     });
 
-    describe('underpayment scenarios', () => {
-      it('should reject underpayment (tendered less than amount)', async () => {
+    describe("underpayment scenarios", () => {
+      it("should reject underpayment (tendered less than amount)", async () => {
         prismaService.order.findUnique
           .mockResolvedValueOnce(mockOrder as any)
           .mockResolvedValueOnce(mockOrderWithNoPayments as any);
 
         const dto: RecordPaymentDto = {
-          amount: '47.50',
-          paymentMethod: 'CASH',
-          amountTendered: '40.00',
+          amount: "47.50",
+          paymentMethod: "CASH",
+          amountTendered: "40.00",
         };
 
         await expect(
           service.recordPayment(mockUserId, mockOrderId, dto),
-        ).rejects.toThrow('Insufficient amount tendered');
+        ).rejects.toThrow("Insufficient amount tendered");
 
         expect(prismaService.$transaction).not.toHaveBeenCalled();
       });
 
-      it('should reject partial cash payment without sufficient tender', async () => {
+      it("should reject partial cash payment without sufficient tender", async () => {
         prismaService.order.findUnique
           .mockResolvedValueOnce(mockOrder as any)
           .mockResolvedValueOnce(mockOrderWithNoPayments as any);
 
         const dto: RecordPaymentDto = {
-          amount: '20.00',
-          paymentMethod: 'CASH',
-          amountTendered: '15.00',
+          amount: "20.00",
+          paymentMethod: "CASH",
+          amountTendered: "15.00",
         };
 
         await expect(
           service.recordPayment(mockUserId, mockOrderId, dto),
-        ).rejects.toThrow('Insufficient amount tendered');
+        ).rejects.toThrow("Insufficient amount tendered");
       });
     });
 
-    describe('non-cash payment validation', () => {
-      it('should reject amountTendered for credit card payments', async () => {
+    describe("non-cash payment validation", () => {
+      it("should reject amountTendered for credit card payments", async () => {
         prismaService.order.findUnique
           .mockResolvedValueOnce(mockOrder as any)
           .mockResolvedValueOnce(mockOrderWithNoPayments as any);
 
         const dto: RecordPaymentDto = {
-          amount: '47.50',
-          paymentMethod: 'CREDIT_CARD',
-          amountTendered: '50.00',
+          amount: "47.50",
+          paymentMethod: "CREDIT_CARD",
+          amountTendered: "50.00",
         };
 
         await expect(
           service.recordPayment(mockUserId, mockOrderId, dto),
         ).rejects.toThrow(
-          'amountTendered is only applicable for cash payments',
+          "amountTendered is only applicable for cash payments",
         );
 
         expect(prismaService.$transaction).not.toHaveBeenCalled();
       });
 
-      it('should reject amountTendered for mobile payments', async () => {
+      it("should reject amountTendered for mobile payments", async () => {
         prismaService.order.findUnique
           .mockResolvedValueOnce(mockOrder as any)
           .mockResolvedValueOnce(mockOrderWithNoPayments as any);
 
         const dto: RecordPaymentDto = {
-          amount: '47.50',
-          paymentMethod: 'MOBILE_PAYMENT',
-          amountTendered: '50.00',
+          amount: "47.50",
+          paymentMethod: "MOBILE_PAYMENT",
+          amountTendered: "50.00",
         };
 
         await expect(
           service.recordPayment(mockUserId, mockOrderId, dto),
         ).rejects.toThrow(
-          'amountTendered is only applicable for cash payments',
+          "amountTendered is only applicable for cash payments",
         );
       });
     });
   });
 
-  describe('Split Payment Prevention & Detection', () => {
+  describe("Split Payment Prevention & Detection", () => {
     beforeEach(() => {
       authService.checkStorePermission.mockResolvedValue(undefined);
     });
 
-    describe('overpayment prevention', () => {
-      it('should prevent overpayment on partially paid order', async () => {
+    describe("overpayment prevention", () => {
+      it("should prevent overpayment on partially paid order", async () => {
         const partiallyPaidOrder = {
           id: mockOrderId,
           storeId: mockStoreId,
-          tableName: 'Table 5',
-          grandTotal: new Decimal('100.00'),
+          tableName: "Table 5",
+          grandTotal: new Decimal("100.00"),
           paidAt: null,
           status: OrderStatus.SERVED,
           createdAt: new Date(),
           updatedAt: new Date(),
-          payments: [{ amount: new Decimal('60.00') }],
+          payments: [{ amount: new Decimal("60.00") }],
           refunds: [],
         };
 
@@ -700,28 +700,28 @@ describe('PaymentService', () => {
           .mockResolvedValueOnce(partiallyPaidOrder as any);
 
         const dto: RecordPaymentDto = {
-          amount: '50.00',
-          paymentMethod: 'CREDIT_CARD',
+          amount: "50.00",
+          paymentMethod: "CREDIT_CARD",
         };
 
         await expect(
           service.recordPayment(mockUserId, mockOrderId, dto),
-        ).rejects.toThrow('Payment amount exceeds order total');
+        ).rejects.toThrow("Payment amount exceeds order total");
 
         expect(prismaService.$transaction).not.toHaveBeenCalled();
       });
 
-      it('should show remaining balance in error message', async () => {
+      it("should show remaining balance in error message", async () => {
         const partiallyPaidOrder = {
           id: mockOrderId,
           storeId: mockStoreId,
-          tableName: 'Table 5',
-          grandTotal: new Decimal('100.00'),
+          tableName: "Table 5",
+          grandTotal: new Decimal("100.00"),
           paidAt: null,
           status: OrderStatus.SERVED,
           createdAt: new Date(),
           updatedAt: new Date(),
-          payments: [{ amount: new Decimal('70.00') }],
+          payments: [{ amount: new Decimal("70.00") }],
           refunds: [],
         };
 
@@ -730,23 +730,23 @@ describe('PaymentService', () => {
           .mockResolvedValueOnce(partiallyPaidOrder as any);
 
         const dto: RecordPaymentDto = {
-          amount: '40.00',
-          paymentMethod: 'CASH',
+          amount: "40.00",
+          paymentMethod: "CASH",
         };
 
         await expect(
           service.recordPayment(mockUserId, mockOrderId, dto),
-        ).rejects.toThrow('Remaining balance: 30');
+        ).rejects.toThrow("Remaining balance: 30");
       });
     });
 
-    describe('partial payment acceptance', () => {
-      it('should allow first partial payment', async () => {
+    describe("partial payment acceptance", () => {
+      it("should allow first partial payment", async () => {
         const unpaidOrder = {
           id: mockOrderId,
           storeId: mockStoreId,
-          tableName: 'Table 5',
-          grandTotal: new Decimal('100.00'),
+          tableName: "Table 5",
+          grandTotal: new Decimal("100.00"),
           paidAt: null,
           status: OrderStatus.SERVED,
           createdAt: new Date(),
@@ -760,15 +760,15 @@ describe('PaymentService', () => {
           .mockResolvedValueOnce(unpaidOrder as any);
 
         const dto: RecordPaymentDto = {
-          amount: '60.00',
-          paymentMethod: 'CASH',
+          amount: "60.00",
+          paymentMethod: "CASH",
         };
 
         const mockPayment = {
-          id: 'payment-1',
+          id: "payment-1",
           orderId: mockOrderId,
-          amount: new Decimal('60.00'),
-          paymentMethod: 'CASH',
+          amount: new Decimal("60.00"),
+          paymentMethod: "CASH",
           createdAt: new Date(),
         };
 
@@ -785,20 +785,20 @@ describe('PaymentService', () => {
           dto,
         );
 
-        expect(result.amount.toString()).toBe('60');
+        expect(result.amount.toString()).toBe("60");
       });
 
-      it('should allow second partial payment to complete order', async () => {
+      it("should allow second partial payment to complete order", async () => {
         const partiallyPaidOrder = {
           id: mockOrderId,
           storeId: mockStoreId,
-          tableName: 'Table 5',
-          grandTotal: new Decimal('100.00'),
+          tableName: "Table 5",
+          grandTotal: new Decimal("100.00"),
           paidAt: null,
           status: OrderStatus.SERVED,
           createdAt: new Date(),
           updatedAt: new Date(),
-          payments: [{ amount: new Decimal('60.00') }],
+          payments: [{ amount: new Decimal("60.00") }],
           refunds: [],
         };
 
@@ -807,15 +807,15 @@ describe('PaymentService', () => {
           .mockResolvedValueOnce(partiallyPaidOrder as any);
 
         const dto: RecordPaymentDto = {
-          amount: '40.00',
-          paymentMethod: 'CREDIT_CARD',
+          amount: "40.00",
+          paymentMethod: "CREDIT_CARD",
         };
 
         const mockPayment = {
-          id: 'payment-2',
+          id: "payment-2",
           orderId: mockOrderId,
-          amount: new Decimal('40.00'),
-          paymentMethod: 'CREDIT_CARD',
+          amount: new Decimal("40.00"),
+          paymentMethod: "CREDIT_CARD",
           createdAt: new Date(),
         };
 
@@ -840,19 +840,19 @@ describe('PaymentService', () => {
       });
     });
 
-    describe('refund impact on split payments', () => {
-      it('should account for refunds when calculating remaining balance', async () => {
+    describe("refund impact on split payments", () => {
+      it("should account for refunds when calculating remaining balance", async () => {
         const orderWithRefund = {
           id: mockOrderId,
           storeId: mockStoreId,
-          tableName: 'Table 5',
-          grandTotal: new Decimal('100.00'),
+          tableName: "Table 5",
+          grandTotal: new Decimal("100.00"),
           paidAt: null,
           status: OrderStatus.SERVED,
           createdAt: new Date(),
           updatedAt: new Date(),
-          payments: [{ amount: new Decimal('100.00') }],
-          refunds: [{ amount: new Decimal('20.00') }],
+          payments: [{ amount: new Decimal("100.00") }],
+          refunds: [{ amount: new Decimal("20.00") }],
         };
 
         prismaService.order.findUnique
@@ -860,15 +860,15 @@ describe('PaymentService', () => {
           .mockResolvedValueOnce(orderWithRefund as any);
 
         const dto: RecordPaymentDto = {
-          amount: '20.00',
-          paymentMethod: 'CASH',
+          amount: "20.00",
+          paymentMethod: "CASH",
         };
 
         const mockPayment = {
-          id: 'payment-2',
+          id: "payment-2",
           orderId: mockOrderId,
-          amount: new Decimal('20.00'),
-          paymentMethod: 'CASH',
+          amount: new Decimal("20.00"),
+          paymentMethod: "CASH",
           createdAt: new Date(),
         };
 
@@ -885,13 +885,13 @@ describe('PaymentService', () => {
       });
     });
 
-    describe('cancelled order protection', () => {
-      it('should reject payment for cancelled order', async () => {
+    describe("cancelled order protection", () => {
+      it("should reject payment for cancelled order", async () => {
         const cancelledOrder = {
           id: mockOrderId,
           storeId: mockStoreId,
-          tableName: 'Table 5',
-          grandTotal: new Decimal('100.00'),
+          tableName: "Table 5",
+          grandTotal: new Decimal("100.00"),
           paidAt: null,
           status: OrderStatus.CANCELLED,
           createdAt: new Date(),
@@ -905,31 +905,31 @@ describe('PaymentService', () => {
           .mockResolvedValueOnce(cancelledOrder as any);
 
         const dto: RecordPaymentDto = {
-          amount: '100.00',
-          paymentMethod: 'CASH',
+          amount: "100.00",
+          paymentMethod: "CASH",
         };
 
         await expect(
           service.recordPayment(mockUserId, mockOrderId, dto),
-        ).rejects.toThrow('Cannot accept payment for cancelled order');
+        ).rejects.toThrow("Cannot accept payment for cancelled order");
 
         expect(prismaService.$transaction).not.toHaveBeenCalled();
       });
     });
   });
 
-  describe('Payment Status Transitions', () => {
+  describe("Payment Status Transitions", () => {
     beforeEach(() => {
       authService.checkStorePermission.mockResolvedValue(undefined);
     });
 
-    describe('UNPAID to PAID transition', () => {
-      it('should mark order as COMPLETED when fully paid from SERVED status', async () => {
+    describe("UNPAID to PAID transition", () => {
+      it("should mark order as COMPLETED when fully paid from SERVED status", async () => {
         const unpaidOrder = {
           id: mockOrderId,
           storeId: mockStoreId,
-          tableName: 'Table 5',
-          grandTotal: new Decimal('100.00'),
+          tableName: "Table 5",
+          grandTotal: new Decimal("100.00"),
           paidAt: null,
           status: OrderStatus.SERVED,
           createdAt: new Date(),
@@ -943,15 +943,15 @@ describe('PaymentService', () => {
           .mockResolvedValueOnce(unpaidOrder as any);
 
         const dto: RecordPaymentDto = {
-          amount: '100.00',
-          paymentMethod: 'CASH',
+          amount: "100.00",
+          paymentMethod: "CASH",
         };
 
         const mockPayment = {
-          id: 'payment-1',
+          id: "payment-1",
           orderId: mockOrderId,
-          amount: new Decimal('100.00'),
-          paymentMethod: 'CASH',
+          amount: new Decimal("100.00"),
+          paymentMethod: "CASH",
           createdAt: new Date(),
         };
 
@@ -975,12 +975,12 @@ describe('PaymentService', () => {
         });
       });
 
-      it('should not change status for non-SERVED orders', async () => {
+      it("should not change status for non-SERVED orders", async () => {
         const preparingOrder = {
           id: mockOrderId,
           storeId: mockStoreId,
-          tableName: 'Table 5',
-          grandTotal: new Decimal('50.00'),
+          tableName: "Table 5",
+          grandTotal: new Decimal("50.00"),
           paidAt: null,
           status: OrderStatus.PREPARING,
           createdAt: new Date(),
@@ -994,15 +994,15 @@ describe('PaymentService', () => {
           .mockResolvedValueOnce(preparingOrder as any);
 
         const dto: RecordPaymentDto = {
-          amount: '50.00',
-          paymentMethod: 'CASH',
+          amount: "50.00",
+          paymentMethod: "CASH",
         };
 
         const mockPayment = {
-          id: 'payment-1',
+          id: "payment-1",
           orderId: mockOrderId,
-          amount: new Decimal('50.00'),
-          paymentMethod: 'CASH',
+          amount: new Decimal("50.00"),
+          paymentMethod: "CASH",
           createdAt: new Date(),
         };
 
@@ -1027,13 +1027,13 @@ describe('PaymentService', () => {
       });
     });
 
-    describe('transaction rollback scenarios', () => {
-      it('should rollback payment if order update fails', async () => {
+    describe("transaction rollback scenarios", () => {
+      it("should rollback payment if order update fails", async () => {
         const unpaidOrder = {
           id: mockOrderId,
           storeId: mockStoreId,
-          tableName: 'Table 5',
-          grandTotal: new Decimal('100.00'),
+          tableName: "Table 5",
+          grandTotal: new Decimal("100.00"),
           paidAt: null,
           status: OrderStatus.SERVED,
           createdAt: new Date(),
@@ -1047,27 +1047,27 @@ describe('PaymentService', () => {
           .mockResolvedValueOnce(unpaidOrder as any);
 
         const dto: RecordPaymentDto = {
-          amount: '100.00',
-          paymentMethod: 'CASH',
+          amount: "100.00",
+          paymentMethod: "CASH",
         };
 
         prismaService.$transaction.mockRejectedValue(
-          new Error('Database constraint violation'),
+          new Error("Database constraint violation"),
         );
 
         await expect(
           service.recordPayment(mockUserId, mockOrderId, dto),
-        ).rejects.toThrow('Failed to record payment');
+        ).rejects.toThrow("Failed to record payment");
       });
     });
   });
 
-  describe('Bill Splitting Functionality', () => {
+  describe("Bill Splitting Functionality", () => {
     const mockOrderWithItems = {
       id: mockOrderId,
       storeId: mockStoreId,
-      tableName: 'Table 5',
-      grandTotal: new Decimal('100.00'),
+      tableName: "Table 5",
+      grandTotal: new Decimal("100.00"),
       paidAt: null,
       status: OrderStatus.SERVED,
       createdAt: new Date(),
@@ -1075,21 +1075,21 @@ describe('PaymentService', () => {
       payments: [],
       orderItems: [
         {
-          id: 'item-1',
-          price: new Decimal('30.00'),
-          finalPrice: new Decimal('30.00'),
+          id: "item-1",
+          price: new Decimal("30.00"),
+          finalPrice: new Decimal("30.00"),
           quantity: 1,
         },
         {
-          id: 'item-2',
-          price: new Decimal('40.00'),
-          finalPrice: new Decimal('40.00'),
+          id: "item-2",
+          price: new Decimal("40.00"),
+          finalPrice: new Decimal("40.00"),
           quantity: 1,
         },
         {
-          id: 'item-3',
-          price: new Decimal('30.00'),
-          finalPrice: new Decimal('30.00'),
+          id: "item-3",
+          price: new Decimal("30.00"),
+          finalPrice: new Decimal("30.00"),
           quantity: 1,
         },
       ],
@@ -1099,88 +1099,88 @@ describe('PaymentService', () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
     });
 
-    describe('calculateSplitAmounts', () => {
-      describe('EVEN split', () => {
-        it('should split $100 order evenly among 2 guests → $50 each', async () => {
+    describe("calculateSplitAmounts", () => {
+      describe("EVEN split", () => {
+        it("should split $100 order evenly among 2 guests → $50 each", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'EVEN',
+            "EVEN",
             {
               guestCount: 2,
             },
           );
 
           expect(result.splits).toHaveLength(2);
-          expect(result.splits[0].amount.toString()).toBe('50');
-          expect(result.splits[1].amount.toString()).toBe('50');
-          expect(result.grandTotal.toString()).toBe('100');
-          expect(result.remaining.toString()).toBe('100');
+          expect(result.splits[0].amount.toString()).toBe("50");
+          expect(result.splits[1].amount.toString()).toBe("50");
+          expect(result.grandTotal.toString()).toBe("100");
+          expect(result.remaining.toString()).toBe("100");
         });
 
-        it('should split $99.99 order among 3 guests with Decimal precision', async () => {
+        it("should split $99.99 order among 3 guests with Decimal precision", async () => {
           const oddOrder = {
             ...mockOrderWithItems,
-            grandTotal: new Decimal('99.99'),
+            grandTotal: new Decimal("99.99"),
           };
 
           prismaService.order.findUnique.mockResolvedValue(oddOrder as any);
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'EVEN',
+            "EVEN",
             {
               guestCount: 3,
             },
           );
 
           expect(result.splits).toHaveLength(3);
-          const perGuest = new Decimal('99.99').dividedBy(3);
+          const perGuest = new Decimal("99.99").dividedBy(3);
           result.splits.forEach((split) => {
             expect(split.amount.toString()).toBe(perGuest.toString());
           });
         });
 
-        it('should handle odd amounts with Decimal precision (100 / 3)', async () => {
+        it("should handle odd amounts with Decimal precision (100 / 3)", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'EVEN',
+            "EVEN",
             {
               guestCount: 3,
             },
           );
 
           expect(result.splits).toHaveLength(3);
-          const perGuest = new Decimal('100').dividedBy(3);
+          const perGuest = new Decimal("100").dividedBy(3);
           result.splits.forEach((split) => {
             expect(split.amount).toBeInstanceOf(Decimal);
             expect(split.amount.toString()).toBe(perGuest.toString());
           });
         });
 
-        it('should reject guest count less than 2', async () => {
+        it("should reject guest count less than 2", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           await expect(
-            service.calculateSplitAmounts(mockOrderId, 'EVEN', {
+            service.calculateSplitAmounts(mockOrderId, "EVEN", {
               guestCount: 1,
             }),
-          ).rejects.toThrow('Guest count must be at least 2');
+          ).rejects.toThrow("Guest count must be at least 2");
         });
 
-        it('should split remaining balance after partial payment', async () => {
+        it("should split remaining balance after partial payment", async () => {
           const partiallyPaid = {
             ...mockOrderWithItems,
-            payments: [{ amount: new Decimal('40.00') }],
+            payments: [{ amount: new Decimal("40.00") }],
           };
 
           prismaService.order.findUnique.mockResolvedValue(
@@ -1189,46 +1189,46 @@ describe('PaymentService', () => {
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'EVEN',
+            "EVEN",
             {
               guestCount: 2,
             },
           );
 
-          expect(result.alreadyPaid.toString()).toBe('40');
-          expect(result.remaining.toString()).toBe('60');
-          expect(result.splits[0].amount.toString()).toBe('30');
-          expect(result.splits[1].amount.toString()).toBe('30');
+          expect(result.alreadyPaid.toString()).toBe("40");
+          expect(result.remaining.toString()).toBe("60");
+          expect(result.splits[0].amount.toString()).toBe("30");
+          expect(result.splits[1].amount.toString()).toBe("30");
         });
 
-        it('should handle large guest counts', async () => {
+        it("should handle large guest counts", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'EVEN',
+            "EVEN",
             {
               guestCount: 10,
             },
           );
 
           expect(result.splits).toHaveLength(10);
-          const perGuest = new Decimal('100').dividedBy(10);
+          const perGuest = new Decimal("100").dividedBy(10);
           result.splits.forEach((split) => {
             expect(split.amount.toString()).toBe(perGuest.toString());
           });
         });
 
-        it('should assign sequential guest numbers starting from 1', async () => {
+        it("should assign sequential guest numbers starting from 1", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'EVEN',
+            "EVEN",
             {
               guestCount: 4,
             },
@@ -1238,75 +1238,75 @@ describe('PaymentService', () => {
         });
       });
 
-      describe('BY_ITEM split', () => {
-        it('should assign items to guests and calculate proportional amounts', async () => {
+      describe("BY_ITEM split", () => {
+        it("should assign items to guests and calculate proportional amounts", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'BY_ITEM',
+            "BY_ITEM",
             {
               itemAssignments: {
-                guest1: ['item-1', 'item-2'], // $30 + $40 = $70
-                guest2: ['item-3'], // $30
+                guest1: ["item-1", "item-2"], // $30 + $40 = $70
+                guest2: ["item-3"], // $30
               },
             },
           );
 
           expect(result.splits).toHaveLength(2);
-          expect(result.splits[0].amount.toString()).toBe('70');
-          expect(result.splits[1].amount.toString()).toBe('30');
+          expect(result.splits[0].amount.toString()).toBe("70");
+          expect(result.splits[1].amount.toString()).toBe("30");
         });
 
-        it('should handle shared items (split cost)', async () => {
+        it("should handle shared items (split cost)", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'BY_ITEM',
+            "BY_ITEM",
             {
               itemAssignments: {
-                guest1: ['item-1'], // $30
-                guest2: ['item-2', 'item-3'], // $40 + $30 = $70
+                guest1: ["item-1"], // $30
+                guest2: ["item-2", "item-3"], // $40 + $30 = $70
               },
             },
           );
 
           const total = result.splits.reduce(
             (sum, s) => sum.add(s.amount),
-            new Decimal('0'),
+            new Decimal("0"),
           );
-          expect(total.toString()).toBe('100');
+          expect(total.toString()).toBe("100");
         });
 
-        it('should reject BY_ITEM split without item assignments', async () => {
+        it("should reject BY_ITEM split without item assignments", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           await expect(
-            service.calculateSplitAmounts(mockOrderId, 'BY_ITEM', {
+            service.calculateSplitAmounts(mockOrderId, "BY_ITEM", {
               itemAssignments: {},
             }),
-          ).rejects.toThrow('Item assignments required for BY_ITEM split');
+          ).rejects.toThrow("Item assignments required for BY_ITEM split");
         });
 
-        it('should handle quantity multipliers in item pricing', async () => {
+        it("should handle quantity multipliers in item pricing", async () => {
           const orderWithQuantity = {
             ...mockOrderWithItems,
             orderItems: [
               {
-                id: 'item-1',
-                price: new Decimal('10.00'),
-                finalPrice: new Decimal('10.00'),
+                id: "item-1",
+                price: new Decimal("10.00"),
+                finalPrice: new Decimal("10.00"),
                 quantity: 3, // 3 x $10 = $30
               },
             ],
-            grandTotal: new Decimal('30.00'),
+            grandTotal: new Decimal("30.00"),
           };
 
           prismaService.order.findUnique.mockResolvedValue(
@@ -1315,29 +1315,29 @@ describe('PaymentService', () => {
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'BY_ITEM',
+            "BY_ITEM",
             {
               itemAssignments: {
-                guest1: ['item-1'],
+                guest1: ["item-1"],
               },
             },
           );
 
-          expect(result.splits[0].amount.toString()).toBe('30');
+          expect(result.splits[0].amount.toString()).toBe("30");
         });
 
-        it('should use finalPrice over price when available', async () => {
+        it("should use finalPrice over price when available", async () => {
           const orderWithDiscount = {
             ...mockOrderWithItems,
             orderItems: [
               {
-                id: 'item-1',
-                price: new Decimal('50.00'),
-                finalPrice: new Decimal('40.00'), // Discounted
+                id: "item-1",
+                price: new Decimal("50.00"),
+                finalPrice: new Decimal("40.00"), // Discounted
                 quantity: 1,
               },
             ],
-            grandTotal: new Decimal('40.00'),
+            grandTotal: new Decimal("40.00"),
           };
 
           prismaService.order.findUnique.mockResolvedValue(
@@ -1346,49 +1346,49 @@ describe('PaymentService', () => {
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'BY_ITEM',
+            "BY_ITEM",
             {
               itemAssignments: {
-                guest1: ['item-1'],
+                guest1: ["item-1"],
               },
             },
           );
 
-          expect(result.splits[0].amount.toString()).toBe('40');
+          expect(result.splits[0].amount.toString()).toBe("40");
         });
 
-        it('should handle empty guest assignments (guest pays nothing)', async () => {
+        it("should handle empty guest assignments (guest pays nothing)", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'BY_ITEM',
+            "BY_ITEM",
             {
               itemAssignments: {
-                guest1: ['item-1', 'item-2', 'item-3'], // $100
+                guest1: ["item-1", "item-2", "item-3"], // $100
                 guest2: [], // $0
               },
             },
           );
 
-          expect(result.splits[0].amount.toString()).toBe('100');
-          expect(result.splits[1].amount.toString()).toBe('0');
+          expect(result.splits[0].amount.toString()).toBe("100");
+          expect(result.splits[1].amount.toString()).toBe("0");
         });
 
-        it('should calculate tax and service charge proportionally (if included in finalPrice)', async () => {
+        it("should calculate tax and service charge proportionally (if included in finalPrice)", async () => {
           const orderWithCharges = {
             ...mockOrderWithItems,
             orderItems: [
               {
-                id: 'item-1',
-                price: new Decimal('50.00'),
-                finalPrice: new Decimal('57.50'), // Includes 15% tax/service
+                id: "item-1",
+                price: new Decimal("50.00"),
+                finalPrice: new Decimal("57.50"), // Includes 15% tax/service
                 quantity: 1,
               },
             ],
-            grandTotal: new Decimal('57.50'),
+            grandTotal: new Decimal("57.50"),
           };
 
           prismaService.order.findUnique.mockResolvedValue(
@@ -1397,142 +1397,142 @@ describe('PaymentService', () => {
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'BY_ITEM',
+            "BY_ITEM",
             {
               itemAssignments: {
-                guest1: ['item-1'],
+                guest1: ["item-1"],
               },
             },
           );
 
-          expect(result.splits[0].amount.toString()).toBe('57.5');
+          expect(result.splits[0].amount.toString()).toBe("57.5");
         });
       });
 
-      describe('CUSTOM split', () => {
-        it('should accept custom amounts per guest', async () => {
+      describe("CUSTOM split", () => {
+        it("should accept custom amounts per guest", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'CUSTOM',
+            "CUSTOM",
             {
-              customAmounts: ['30.00', '45.00', '25.00'],
+              customAmounts: ["30.00", "45.00", "25.00"],
             },
           );
 
           expect(result.splits).toHaveLength(3);
-          expect(result.splits[0].amount.toString()).toBe('30');
-          expect(result.splits[1].amount.toString()).toBe('45');
-          expect(result.splits[2].amount.toString()).toBe('25');
+          expect(result.splits[0].amount.toString()).toBe("30");
+          expect(result.splits[1].amount.toString()).toBe("45");
+          expect(result.splits[2].amount.toString()).toBe("25");
         });
 
-        it('should validate custom amounts sum ≤ remaining', async () => {
+        it("should validate custom amounts sum ≤ remaining", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'CUSTOM',
+            "CUSTOM",
             {
-              customAmounts: ['50.00', '50.00'], // Exactly $100
+              customAmounts: ["50.00", "50.00"], // Exactly $100
             },
           );
 
           const total = result.splits.reduce(
             (sum, s) => sum.add(s.amount),
-            new Decimal('0'),
+            new Decimal("0"),
           );
-          expect(total.toString()).toBe('100');
+          expect(total.toString()).toBe("100");
         });
 
-        it('should reject overpayment scenarios (sum > grand total)', async () => {
+        it("should reject overpayment scenarios (sum > grand total)", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           await expect(
-            service.calculateSplitAmounts(mockOrderId, 'CUSTOM', {
-              customAmounts: ['60.00', '50.00'], // $110 > $100
+            service.calculateSplitAmounts(mockOrderId, "CUSTOM", {
+              customAmounts: ["60.00", "50.00"], // $110 > $100
             }),
-          ).rejects.toThrow('Split total');
+          ).rejects.toThrow("Split total");
         });
 
-        it('should allow underpayment (partial splits)', async () => {
+        it("should allow underpayment (partial splits)", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'CUSTOM',
+            "CUSTOM",
             {
-              customAmounts: ['30.00', '20.00'], // $50 < $100
+              customAmounts: ["30.00", "20.00"], // $50 < $100
             },
           );
 
           const total = result.splits.reduce(
             (sum, s) => sum.add(s.amount),
-            new Decimal('0'),
+            new Decimal("0"),
           );
-          expect(total.toString()).toBe('50');
-          expect(result.remaining.toString()).toBe('100');
+          expect(total.toString()).toBe("50");
+          expect(result.remaining.toString()).toBe("100");
         });
 
-        it('should reject CUSTOM split without custom amounts', async () => {
+        it("should reject CUSTOM split without custom amounts", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           await expect(
-            service.calculateSplitAmounts(mockOrderId, 'CUSTOM', {
+            service.calculateSplitAmounts(mockOrderId, "CUSTOM", {
               customAmounts: [],
             }),
-          ).rejects.toThrow('Custom amounts required for CUSTOM split');
+          ).rejects.toThrow("Custom amounts required for CUSTOM split");
         });
       });
 
-      describe('fraud prevention', () => {
-        it('should prevent overpayment (total > grandTotal)', async () => {
+      describe("fraud prevention", () => {
+        it("should prevent overpayment (total > grandTotal)", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           await expect(
-            service.calculateSplitAmounts(mockOrderId, 'CUSTOM', {
-              customAmounts: ['60.00', '50.00'], // $110 > $100
+            service.calculateSplitAmounts(mockOrderId, "CUSTOM", {
+              customAmounts: ["60.00", "50.00"], // $110 > $100
             }),
           ).rejects.toThrow(BadRequestException);
         });
 
-        it('should reject negative amounts', async () => {
+        it("should reject negative amounts", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'CUSTOM',
+            "CUSTOM",
             {
-              customAmounts: ['-10.00', '110.00'],
+              customAmounts: ["-10.00", "110.00"],
             },
           );
 
           // Decimal will handle negative values - we check the sum
           const total = result.splits.reduce(
             (sum, s) => sum.add(s.amount),
-            new Decimal('0'),
+            new Decimal("0"),
           );
-          expect(total.toString()).toBe('100');
+          expect(total.toString()).toBe("100");
         });
 
-        it('should validate Decimal precision (no float errors)', async () => {
+        it("should validate Decimal precision (no float errors)", async () => {
           const precisionOrder = {
             ...mockOrderWithItems,
-            grandTotal: new Decimal('99.99'),
+            grandTotal: new Decimal("99.99"),
           };
 
           prismaService.order.findUnique.mockResolvedValue(
@@ -1541,9 +1541,9 @@ describe('PaymentService', () => {
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'CUSTOM',
+            "CUSTOM",
             {
-              customAmounts: ['33.33', '33.33', '33.33'],
+              customAmounts: ["33.33", "33.33", "33.33"],
             },
           );
 
@@ -1553,48 +1553,48 @@ describe('PaymentService', () => {
 
           const total = result.splits.reduce(
             (sum, s) => sum.add(s.amount),
-            new Decimal('0'),
+            new Decimal("0"),
           );
-          expect(total.toString()).toBe('99.99');
+          expect(total.toString()).toBe("99.99");
         });
 
-        it('should handle already paid orders gracefully', async () => {
+        it("should handle already paid orders gracefully", async () => {
           const fullyPaid = {
             ...mockOrderWithItems,
-            payments: [{ amount: new Decimal('100.00') }],
+            payments: [{ amount: new Decimal("100.00") }],
           };
 
           prismaService.order.findUnique.mockResolvedValue(fullyPaid as any);
 
           const result = await service.calculateSplitAmounts(
             mockOrderId,
-            'EVEN',
+            "EVEN",
             {
               guestCount: 2,
             },
           );
 
-          expect(result.remaining.toString()).toBe('0');
-          expect(result.splits[0].amount.toString()).toBe('0');
+          expect(result.remaining.toString()).toBe("0");
+          expect(result.splits[0].amount.toString()).toBe("0");
         });
 
-        it('should reject invalid split types', async () => {
+        it("should reject invalid split types", async () => {
           prismaService.order.findUnique.mockResolvedValue(
             mockOrderWithItems as any,
           );
 
           await expect(
-            service.calculateSplitAmounts(mockOrderId, 'INVALID' as any, {}),
+            service.calculateSplitAmounts(mockOrderId, "INVALID" as any, {}),
           ).rejects.toThrow(BadRequestException);
         });
       });
 
-      describe('order not found', () => {
-        it('should throw NotFoundException for non-existent order', async () => {
+      describe("order not found", () => {
+        it("should throw NotFoundException for non-existent order", async () => {
           prismaService.order.findUnique.mockResolvedValue(null);
 
           await expect(
-            service.calculateSplitAmounts(mockOrderId, 'EVEN', {
+            service.calculateSplitAmounts(mockOrderId, "EVEN", {
               guestCount: 2,
             }),
           ).rejects.toThrow(NotFoundException);
@@ -1602,11 +1602,11 @@ describe('PaymentService', () => {
       });
     });
 
-    describe('recordSplitPayment', () => {
+    describe("recordSplitPayment", () => {
       const recordSplitDto: RecordSplitPaymentDto = {
-        paymentMethod: 'CASH',
-        amount: '50.00',
-        splitType: 'EVEN',
+        paymentMethod: "CASH",
+        amount: "50.00",
+        splitType: "EVEN",
         guestNumber: 1,
         splitMetadata: { guestCount: 2 },
       };
@@ -1622,13 +1622,13 @@ describe('PaymentService', () => {
         prismaService.payment.findMany.mockResolvedValue([]);
       });
 
-      it('should record split payment with RBAC validation', async () => {
+      it("should record split payment with RBAC validation", async () => {
         const mockPayment = {
-          id: 'payment-1',
+          id: "payment-1",
           orderId: mockOrderId,
-          amount: new Decimal('50.00'),
-          paymentMethod: 'CASH',
-          splitType: 'EVEN',
+          amount: new Decimal("50.00"),
+          paymentMethod: "CASH",
+          splitType: "EVEN",
           guestNumber: 1,
           splitMetadata: { guestCount: 2 },
           createdAt: new Date(),
@@ -1654,36 +1654,36 @@ describe('PaymentService', () => {
         );
       });
 
-      it('should prevent overpayment fraud', async () => {
+      it("should prevent overpayment fraud", async () => {
         prismaService.order.findUnique
           .mockReset()
           .mockResolvedValueOnce(mockOrder as any)
           .mockResolvedValueOnce({
             ...mockOrder,
-            payments: [{ amount: new Decimal('80.00') }],
+            payments: [{ amount: new Decimal("80.00") }],
           } as any);
 
         prismaService.payment.findMany.mockResolvedValue([
-          { amount: new Decimal('80.00'), deletedAt: null } as any,
+          { amount: new Decimal("80.00"), deletedAt: null } as any,
         ]);
 
         const overpaymentDto = {
           ...recordSplitDto,
-          amount: '30.00', // Would make total $110
+          amount: "30.00", // Would make total $110
         };
 
         await expect(
           service.recordSplitPayment(mockUserId, mockOrderId, overpaymentDto),
-        ).rejects.toThrow('Total paid');
+        ).rejects.toThrow("Total paid");
       });
 
-      it('should update order status to COMPLETED when fully paid', async () => {
+      it("should update order status to COMPLETED when fully paid", async () => {
         const mockPayment = {
-          id: 'payment-2',
+          id: "payment-2",
           orderId: mockOrderId,
-          amount: new Decimal('50.00'),
-          paymentMethod: 'CREDIT_CARD',
-          splitType: 'EVEN',
+          amount: new Decimal("50.00"),
+          paymentMethod: "CREDIT_CARD",
+          splitType: "EVEN",
           guestNumber: 2,
           createdAt: new Date(),
         };
@@ -1694,11 +1694,11 @@ describe('PaymentService', () => {
           .mockResolvedValueOnce({
             ...mockOrder,
             status: OrderStatus.SERVED,
-            payments: [{ amount: new Decimal('50.00') }],
+            payments: [{ amount: new Decimal("50.00") }],
           } as any);
 
         prismaService.payment.findMany.mockResolvedValue([
-          { amount: new Decimal('50.00'), deletedAt: null } as any,
+          { amount: new Decimal("50.00"), deletedAt: null } as any,
         ]);
 
         const mockOrderUpdate = jest.fn();
@@ -1712,7 +1712,7 @@ describe('PaymentService', () => {
 
         const finalPaymentDto = {
           ...recordSplitDto,
-          amount: '50.00',
+          amount: "50.00",
           guestNumber: 2,
         };
 
@@ -1731,7 +1731,7 @@ describe('PaymentService', () => {
         });
       });
 
-      it('should validate cash payment tendered amount', async () => {
+      it("should validate cash payment tendered amount", async () => {
         prismaService.order.findUnique
           .mockReset()
           .mockResolvedValueOnce(mockOrder as any)
@@ -1742,23 +1742,23 @@ describe('PaymentService', () => {
 
         const insufficientDto = {
           ...recordSplitDto,
-          amountTendered: '40.00', // Less than $50
+          amountTendered: "40.00", // Less than $50
         };
 
         await expect(
           service.recordSplitPayment(mockUserId, mockOrderId, insufficientDto),
-        ).rejects.toThrow('Insufficient amount tendered');
+        ).rejects.toThrow("Insufficient amount tendered");
       });
 
-      it('should calculate change for cash payments', async () => {
+      it("should calculate change for cash payments", async () => {
         const mockPayment = {
-          id: 'payment-1',
+          id: "payment-1",
           orderId: mockOrderId,
-          amount: new Decimal('50.00'),
-          paymentMethod: 'CASH',
-          amountTendered: new Decimal('60.00'),
-          change: new Decimal('10.00'),
-          splitType: 'EVEN',
+          amount: new Decimal("50.00"),
+          paymentMethod: "CASH",
+          amountTendered: new Decimal("60.00"),
+          change: new Decimal("10.00"),
+          splitType: "EVEN",
           guestNumber: 1,
           createdAt: new Date(),
         };
@@ -1772,7 +1772,7 @@ describe('PaymentService', () => {
 
         const cashDto = {
           ...recordSplitDto,
-          amountTendered: '60.00',
+          amountTendered: "60.00",
         };
 
         const result = await service.recordSplitPayment(
@@ -1782,32 +1782,32 @@ describe('PaymentService', () => {
         );
 
         expect(result.change).toBeDefined();
-        expect(result.change!.toString()).toBe('10');
+        expect(result.change!.toString()).toBe("10");
       });
 
-      it('should reject amountTendered for non-cash payments', async () => {
+      it("should reject amountTendered for non-cash payments", async () => {
         const cardDto = {
           ...recordSplitDto,
-          paymentMethod: 'CREDIT_CARD' as any,
-          amountTendered: '60.00',
+          paymentMethod: "CREDIT_CARD" as any,
+          amountTendered: "60.00",
         };
 
         await expect(
           service.recordSplitPayment(mockUserId, mockOrderId, cardDto),
         ).rejects.toThrow(
-          'amountTendered is only applicable for cash payments',
+          "amountTendered is only applicable for cash payments",
         );
       });
 
-      it('should store split metadata as JSON', async () => {
+      it("should store split metadata as JSON", async () => {
         const mockPayment = {
-          id: 'payment-1',
+          id: "payment-1",
           orderId: mockOrderId,
-          amount: new Decimal('33.33'),
-          paymentMethod: 'CASH',
-          splitType: 'CUSTOM',
+          amount: new Decimal("33.33"),
+          paymentMethod: "CASH",
+          splitType: "CUSTOM",
           guestNumber: 1,
-          splitMetadata: { customAmounts: ['33.33', '33.33', '33.33'] },
+          splitMetadata: { customAmounts: ["33.33", "33.33", "33.33"] },
           createdAt: new Date(),
         };
 
@@ -1821,25 +1821,25 @@ describe('PaymentService', () => {
         });
 
         const customDto = {
-          paymentMethod: 'CASH' as any,
-          amount: '33.33',
-          splitType: 'CUSTOM' as any,
+          paymentMethod: "CASH" as any,
+          amount: "33.33",
+          splitType: "CUSTOM" as any,
           guestNumber: 1,
-          splitMetadata: { customAmounts: ['33.33', '33.33', '33.33'] },
+          splitMetadata: { customAmounts: ["33.33", "33.33", "33.33"] },
         };
 
         await service.recordSplitPayment(mockUserId, mockOrderId, customDto);
 
         expect(mockCreate).toHaveBeenCalledWith({
           data: expect.objectContaining({
-            splitMetadata: { customAmounts: ['33.33', '33.33', '33.33'] },
+            splitMetadata: { customAmounts: ["33.33", "33.33", "33.33"] },
           }),
         });
       });
 
-      it('should enforce RBAC - reject non-CASHIER roles', async () => {
+      it("should enforce RBAC - reject non-CASHIER roles", async () => {
         authService.checkStorePermission.mockRejectedValue(
-          new ForbiddenException('Access denied'),
+          new ForbiddenException("Access denied"),
         );
 
         await expect(
@@ -1847,7 +1847,7 @@ describe('PaymentService', () => {
         ).rejects.toThrow(ForbiddenException);
       });
 
-      it('should reject payment for cancelled order', async () => {
+      it("should reject payment for cancelled order", async () => {
         prismaService.order.findUnique
           .mockReset()
           .mockResolvedValueOnce(mockOrder as any)
@@ -1859,17 +1859,17 @@ describe('PaymentService', () => {
 
         await expect(
           service.recordSplitPayment(mockUserId, mockOrderId, recordSplitDto),
-        ).rejects.toThrow('Cannot accept payment for cancelled order');
+        ).rejects.toThrow("Cannot accept payment for cancelled order");
       });
 
-      it('should use transaction for rollback safety', async () => {
+      it("should use transaction for rollback safety", async () => {
         prismaService.$transaction.mockRejectedValue(
-          new Error('Database constraint violation'),
+          new Error("Database constraint violation"),
         );
 
         await expect(
           service.recordSplitPayment(mockUserId, mockOrderId, recordSplitDto),
-        ).rejects.toThrow('Failed to record split payment');
+        ).rejects.toThrow("Failed to record split payment");
       });
     });
   });

@@ -8,7 +8,7 @@ import {
   Query,
   UseGuards,
   Req,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   ApiTags,
   ApiOperation,
@@ -16,41 +16,41 @@ import {
   ApiBearerAuth,
   ApiParam,
   ApiQuery,
-} from '@nestjs/swagger';
+} from "@nestjs/swagger";
 
-import { RequestWithUser } from 'src/auth/types';
-import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
+import { RequestWithUser } from "src/auth/types";
+import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
 
-import { ActiveTableSessionService } from './active-table-session.service';
-import { CreateManualSessionDto } from './dto/create-manual-session.dto';
-import { JoinSessionDto } from './dto/join-session.dto';
-import { SessionResponseDto } from './dto/session-response.dto';
-import { UpdateSessionDto } from './dto/update-session.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ActiveTableSessionService } from "./active-table-session.service";
+import { CreateManualSessionDto } from "./dto/create-manual-session.dto";
+import { JoinSessionDto } from "./dto/join-session.dto";
+import { SessionResponseDto } from "./dto/session-response.dto";
+import { UpdateSessionDto } from "./dto/update-session.dto";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 
-@ApiTags('Active Table Sessions')
-@Controller('active-table-sessions')
+@ApiTags("Active Table Sessions")
+@Controller("active-table-sessions")
 export class ActiveTableSessionController {
   constructor(private readonly sessionService: ActiveTableSessionService) {}
 
-  @Post('manual')
+  @Post("manual")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Create manual session (counter, phone, takeout)',
+    summary: "Create manual session (counter, phone, takeout)",
     description:
-      'Staff-initiated orders without table association. Requires OWNER, ADMIN, SERVER, or CASHIER role.',
+      "Staff-initiated orders without table association. Requires OWNER, ADMIN, SERVER, or CASHIER role.",
   })
-  @ApiQuery({ name: 'storeId', description: 'Store ID' })
+  @ApiQuery({ name: "storeId", description: "Store ID" })
   @ApiResponse({
     status: 201,
-    description: 'Manual session created successfully',
+    description: "Manual session created successfully",
     type: SessionResponseDto,
   })
-  @ApiResponse({ status: 403, description: 'Insufficient permissions' })
+  @ApiResponse({ status: 403, description: "Insufficient permissions" })
   async createManualSession(
     @Req() req: RequestWithUser,
-    @Query('storeId') storeId: string,
+    @Query("storeId") storeId: string,
     @Body() dto: CreateManualSessionDto,
   ): Promise<StandardApiResponse<SessionResponseDto>> {
     const userId = req.user.sub;
@@ -62,54 +62,54 @@ export class ActiveTableSessionController {
     return StandardApiResponse.success(session as SessionResponseDto);
   }
 
-  @Post('join-by-table/:tableId')
+  @Post("join-by-table/:tableId")
   @ApiOperation({
-    summary: 'Join or create a session for a table',
+    summary: "Join or create a session for a table",
     description:
-      'Customers scan QR code on table. Returns existing active session or creates new one.',
+      "Customers scan QR code on table. Returns existing active session or creates new one.",
   })
-  @ApiParam({ name: 'tableId', description: 'Table ID from QR code' })
+  @ApiParam({ name: "tableId", description: "Table ID from QR code" })
   @ApiResponse({
     status: 201,
-    description: 'Session joined/created successfully',
+    description: "Session joined/created successfully",
     type: SessionResponseDto,
   })
-  @ApiResponse({ status: 404, description: 'Table not found' })
+  @ApiResponse({ status: 404, description: "Table not found" })
   async joinByTable(
-    @Param('tableId') tableId: string,
+    @Param("tableId") tableId: string,
     @Body() dto: JoinSessionDto,
   ): Promise<StandardApiResponse<SessionResponseDto>> {
     const session = await this.sessionService.joinByTable(tableId, dto);
     return StandardApiResponse.success(session as SessionResponseDto);
   }
 
-  @Get(':sessionId')
-  @ApiOperation({ summary: 'Get session by ID' })
-  @ApiParam({ name: 'sessionId', description: 'Session ID' })
+  @Get(":sessionId")
+  @ApiOperation({ summary: "Get session by ID" })
+  @ApiParam({ name: "sessionId", description: "Session ID" })
   @ApiResponse({
     status: 200,
-    description: 'Session found',
+    description: "Session found",
     type: SessionResponseDto,
   })
-  @ApiResponse({ status: 404, description: 'Session not found' })
+  @ApiResponse({ status: 404, description: "Session not found" })
   async findOne(
-    @Param('sessionId') sessionId: string,
+    @Param("sessionId") sessionId: string,
   ): Promise<StandardApiResponse<SessionResponseDto>> {
     const session = await this.sessionService.findOne(sessionId);
     return StandardApiResponse.success(session as SessionResponseDto);
   }
 
-  @Get('token/:token')
-  @ApiOperation({ summary: 'Get session by token' })
-  @ApiParam({ name: 'token', description: 'Session token' })
+  @Get("token/:token")
+  @ApiOperation({ summary: "Get session by token" })
+  @ApiParam({ name: "token", description: "Session token" })
   @ApiResponse({
     status: 200,
-    description: 'Session found',
+    description: "Session found",
     type: SessionResponseDto,
   })
-  @ApiResponse({ status: 404, description: 'Invalid session token' })
+  @ApiResponse({ status: 404, description: "Invalid session token" })
   async findByToken(
-    @Param('token') token: string,
+    @Param("token") token: string,
   ): Promise<StandardApiResponse<SessionResponseDto>> {
     const session = await this.sessionService.findByToken(token);
     return StandardApiResponse.success(session as SessionResponseDto);
@@ -118,57 +118,57 @@ export class ActiveTableSessionController {
   @Get()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all active sessions for a store (POS)' })
-  @ApiQuery({ name: 'storeId', description: 'Store ID' })
+  @ApiOperation({ summary: "Get all active sessions for a store (POS)" })
+  @ApiQuery({ name: "storeId", description: "Store ID" })
   @ApiResponse({
     status: 200,
-    description: 'Active sessions retrieved',
+    description: "Active sessions retrieved",
     type: [SessionResponseDto],
   })
   async findActiveByStore(
-    @Query('storeId') storeId: string,
+    @Query("storeId") storeId: string,
   ): Promise<StandardApiResponse<SessionResponseDto[]>> {
     const sessions = await this.sessionService.findActiveByStore(storeId);
     return StandardApiResponse.success(sessions as SessionResponseDto[]);
   }
 
-  @Put(':sessionId')
+  @Put(":sessionId")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Update session (Restaurant Management System only)',
+    summary: "Update session (Restaurant Management System only)",
   })
-  @ApiParam({ name: 'sessionId', description: 'Session ID' })
+  @ApiParam({ name: "sessionId", description: "Session ID" })
   @ApiResponse({
     status: 200,
-    description: 'Session updated',
+    description: "Session updated",
     type: SessionResponseDto,
   })
-  @ApiResponse({ status: 404, description: 'Session not found' })
+  @ApiResponse({ status: 404, description: "Session not found" })
   async update(
-    @Param('sessionId') sessionId: string,
+    @Param("sessionId") sessionId: string,
     @Body() dto: UpdateSessionDto,
   ): Promise<StandardApiResponse<SessionResponseDto>> {
     const session = await this.sessionService.update(sessionId, dto);
     return StandardApiResponse.success(session as SessionResponseDto);
   }
 
-  @Post(':sessionId/close')
+  @Post(":sessionId/close")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Close session (Restaurant Management System only)',
+    summary: "Close session (Restaurant Management System only)",
   })
-  @ApiParam({ name: 'sessionId', description: 'Session ID' })
+  @ApiParam({ name: "sessionId", description: "Session ID" })
   @ApiResponse({
     status: 200,
-    description: 'Session closed',
+    description: "Session closed",
     type: SessionResponseDto,
   })
-  @ApiResponse({ status: 404, description: 'Session not found' })
-  @ApiResponse({ status: 400, description: 'Session already closed' })
+  @ApiResponse({ status: 404, description: "Session not found" })
+  @ApiResponse({ status: 400, description: "Session already closed" })
   async close(
-    @Param('sessionId') sessionId: string,
+    @Param("sessionId") sessionId: string,
   ): Promise<StandardApiResponse<SessionResponseDto>> {
     const session = await this.sessionService.close(sessionId);
     return StandardApiResponse.success(session as SessionResponseDto);

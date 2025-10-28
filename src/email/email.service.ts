@@ -2,9 +2,9 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as nodemailer from "nodemailer";
 
 @Injectable()
 export class EmailService {
@@ -15,13 +15,13 @@ export class EmailService {
   private readonly frontendUrl: string;
 
   constructor(private configService: ConfigService) {
-    const user = this.configService.get<string>('MAIL_USER');
-    const pass = this.configService.get<string>('MAIL_PASS');
-    const service = this.configService.get<string>('MAIL_SERVICE', 'gmail'); // Default to gmail
+    const user = this.configService.get<string>("MAIL_USER");
+    const pass = this.configService.get<string>("MAIL_PASS");
+    const service = this.configService.get<string>("MAIL_SERVICE", "gmail"); // Default to gmail
 
     if (!user || !pass) {
       this.logger.error(
-        'MAIL_USER or MAIL_PASS configuration missing. Email service will not work.',
+        "MAIL_USER or MAIL_PASS configuration missing. Email service will not work.",
       );
       // Optionally throw an error or handle appropriately if email is critical
       // For now, let transporter creation potentially fail or be unusable
@@ -36,11 +36,11 @@ export class EmailService {
     });
 
     // Configuration for email content
-    this.appName = this.configService.get<string>('APP_NAME', 'My App'); // Default App Name
+    this.appName = this.configService.get<string>("APP_NAME", "My App"); // Default App Name
     this.mailFrom = `"${this.appName}" <${user}>`;
     this.frontendUrl = this.configService.get<string>(
-      'FRONTEND_URL',
-      'http://localhost:3000',
+      "FRONTEND_URL",
+      "http://localhost:3000",
     ); // Default Frontend URL
 
     this.logger.log(`Email Service configured for user ${user} via ${service}`);

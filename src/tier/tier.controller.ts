@@ -1,11 +1,11 @@
-import { Controller, Get, Param, UseGuards, Logger } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Param, UseGuards, Logger } from "@nestjs/common";
+import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 
-import { TierService } from './tier.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TierService } from "./tier.service";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 
-@ApiTags('Tier')
-@Controller('tier')
+@ApiTags("Tier")
+@Controller("tier")
 export class TierController {
   private readonly logger = new Logger(TierController.name);
 
@@ -16,15 +16,15 @@ export class TierController {
    * @param storeId Store ID
    * @returns StoreTier object
    */
-  @Get(':storeId')
+  @Get(":storeId")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  async getStoreTier(@Param('storeId') storeId: string) {
+  async getStoreTier(@Param("storeId") storeId: string) {
     const tier = await this.tierService.getStoreTier(storeId);
     return {
-      status: 'success' as const,
+      status: "success" as const,
       data: tier,
-      message: 'Tier information retrieved successfully',
+      message: "Tier information retrieved successfully",
       errors: null,
     };
   }
@@ -34,15 +34,15 @@ export class TierController {
    * @param storeId Store ID
    * @returns Usage statistics
    */
-  @Get(':storeId/usage')
+  @Get(":storeId/usage")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  async getStoreUsage(@Param('storeId') storeId: string) {
+  async getStoreUsage(@Param("storeId") storeId: string) {
     const usage = await this.tierService.getStoreUsage(storeId);
     return {
-      status: 'success' as const,
+      status: "success" as const,
       data: usage,
-      message: 'Usage statistics retrieved successfully',
+      message: "Usage statistics retrieved successfully",
       errors: null,
     };
   }

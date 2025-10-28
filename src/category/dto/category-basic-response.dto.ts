@@ -1,9 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty } from "@nestjs/swagger";
 
 export class CategoryBasicResponseDto {
   @ApiProperty({ example: 6 })
   id: string;
-  @ApiProperty({ example: 'Appetizers' })
+  @ApiProperty({ example: "Appetizers" })
   name: string;
   @ApiProperty({ example: 1 })
   storeId: string;

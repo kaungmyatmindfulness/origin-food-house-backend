@@ -2,62 +2,62 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
-} from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Role, Prisma, Currency } from '@prisma/client';
+} from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import { Role, Prisma, Currency } from "@prisma/client";
 
-import { StoreService } from './store.service';
-import { AuditLogService } from '../audit-log/audit-log.service';
-import { AuthService } from '../auth/auth.service';
-import { S3Service } from '../common/infra/s3.service';
+import { StoreService } from "./store.service";
+import { AuditLogService } from "../audit-log/audit-log.service";
+import { AuthService } from "../auth/auth.service";
+import { S3Service } from "../common/infra/s3.service";
 import {
   createPrismaMock,
   PrismaMock,
-} from '../common/testing/prisma-mock.helper';
-import { PrismaService } from '../prisma/prisma.service';
+} from "../common/testing/prisma-mock.helper";
+import { PrismaService } from "../prisma/prisma.service";
 
 // Mock nanoid module
-jest.mock('nanoid', () => ({
-  nanoid: jest.fn(() => 'abc123'),
+jest.mock("nanoid", () => ({
+  nanoid: jest.fn(() => "abc123"),
 }));
 
-describe('StoreService', () => {
+describe("StoreService", () => {
   let service: StoreService;
   let prismaService: PrismaMock;
   let authService: jest.Mocked<AuthService>;
   let auditLogService: jest.Mocked<AuditLogService>;
   let s3Service: jest.Mocked<S3Service>;
 
-  const mockUserId = 'user-123';
-  const mockStoreId = 'store-123';
+  const mockUserId = "user-123";
+  const mockStoreId = "store-123";
 
   const mockStore = {
     id: mockStoreId,
-    slug: 'test-store-abc123',
+    slug: "test-store-abc123",
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
   const mockStoreInformation = {
-    id: 'info-123',
+    id: "info-123",
     storeId: mockStoreId,
-    name: 'Test Store',
+    name: "Test Store",
     logoUrl: null,
     coverPhotoUrl: null,
-    address: '123 Main St',
-    phone: '+1234567890',
-    email: 'store@example.com',
-    website: 'https://example.com',
+    address: "123 Main St",
+    phone: "+1234567890",
+    email: "store@example.com",
+    website: "https://example.com",
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
   const mockStoreSetting = {
-    id: 'setting-123',
+    id: "setting-123",
     storeId: mockStoreId,
     currency: Currency.USD,
-    vatRate: new Prisma.Decimal('0.07'),
-    serviceChargeRate: new Prisma.Decimal('0.0'),
+    vatRate: new Prisma.Decimal("0.07"),
+    serviceChargeRate: new Prisma.Decimal("0.0"),
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -130,12 +130,12 @@ describe('StoreService', () => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('getStoreDetails', () => {
-    it('should return store details with information and settings', async () => {
+  describe("getStoreDetails", () => {
+    it("should return store details with information and settings", async () => {
       prismaService.store.findUniqueOrThrow.mockResolvedValue(
         mockStoreWithDetails as any,
       );
@@ -149,12 +149,12 @@ describe('StoreService', () => {
       });
     });
 
-    it('should throw NotFoundException if store not found', async () => {
+    it("should throw NotFoundException if store not found", async () => {
       const prismaError = new Prisma.PrismaClientKnownRequestError(
-        'Not found',
+        "Not found",
         {
-          code: 'P2025',
-          clientVersion: '5.0.0',
+          code: "P2025",
+          clientVersion: "5.0.0",
         },
       );
       prismaService.store.findUniqueOrThrow.mockRejectedValue(prismaError);
@@ -165,9 +165,9 @@ describe('StoreService', () => {
     });
   });
 
-  describe('createStore', () => {
+  describe("createStore", () => {
     const createStoreDto = {
-      name: 'My New Restaurant',
+      name: "My New Restaurant",
     };
 
     beforeEach(() => {
@@ -176,7 +176,7 @@ describe('StoreService', () => {
       );
     });
 
-    it('should create store with information, settings, and owner assignment', async () => {
+    it("should create store with information, settings, and owner assignment", async () => {
       mockTransaction.store.findUnique.mockResolvedValue(null);
       mockTransaction.store.create.mockResolvedValue(mockStore as any);
       mockTransaction.userStore.create.mockResolvedValue({} as any);
@@ -186,7 +186,7 @@ describe('StoreService', () => {
       expect(result).toEqual(mockStore);
       expect(mockTransaction.store.create).toHaveBeenCalledWith({
         data: {
-          slug: expect.stringContaining('my-new-restaurant-'),
+          slug: expect.stringContaining("my-new-restaurant-"),
           information: {
             create: {
               name: createStoreDto.name,
@@ -206,7 +206,7 @@ describe('StoreService', () => {
       });
     });
 
-    it('should throw BadRequestException if slug already exists', async () => {
+    it("should throw BadRequestException if slug already exists", async () => {
       mockTransaction.store.findUnique.mockResolvedValue(mockStore as any);
 
       await expect(
@@ -215,14 +215,14 @@ describe('StoreService', () => {
     });
   });
 
-  describe('updateStoreInformation', () => {
+  describe("updateStoreInformation", () => {
     const updateDto = {
-      name: 'Updated Store Name',
-      address: '456 New St',
-      phone: '+9876543210',
+      name: "Updated Store Name",
+      address: "456 New St",
+      phone: "+9876543210",
     };
 
-    it('should update store information successfully', async () => {
+    it("should update store information successfully", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.storeInformation.update.mockResolvedValue({
         ...mockStoreInformation,
@@ -243,13 +243,13 @@ describe('StoreService', () => {
       );
     });
 
-    it('should throw NotFoundException if store information not found', async () => {
+    it("should throw NotFoundException if store information not found", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       const prismaError = new Prisma.PrismaClientKnownRequestError(
-        'Not found',
+        "Not found",
         {
-          code: 'P2025',
-          clientVersion: '5.0.0',
+          code: "P2025",
+          clientVersion: "5.0.0",
         },
       );
       prismaService.storeInformation.update.mockRejectedValue(prismaError);
@@ -259,9 +259,9 @@ describe('StoreService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should check permissions before updating', async () => {
+    it("should check permissions before updating", async () => {
       authService.checkStorePermission.mockRejectedValue(
-        new ForbiddenException('Insufficient permissions'),
+        new ForbiddenException("Insufficient permissions"),
       );
 
       await expect(
@@ -270,20 +270,20 @@ describe('StoreService', () => {
     });
   });
 
-  describe('updateStoreSettings', () => {
+  describe("updateStoreSettings", () => {
     const updateDto = {
       currency: Currency.THB,
-      vatRate: '0.10',
-      serviceChargeRate: '0.05',
+      vatRate: "0.10",
+      serviceChargeRate: "0.05",
     };
 
-    it('should update store settings successfully', async () => {
+    it("should update store settings successfully", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       const updatedSetting = {
         ...mockStoreSetting,
         currency: Currency.THB,
-        vatRate: new Prisma.Decimal('0.10'),
-        serviceChargeRate: new Prisma.Decimal('0.05'),
+        vatRate: new Prisma.Decimal("0.10"),
+        serviceChargeRate: new Prisma.Decimal("0.05"),
       };
       prismaService.storeSetting.update.mockResolvedValue(
         updatedSetting as any,
@@ -303,13 +303,13 @@ describe('StoreService', () => {
       );
     });
 
-    it('should throw NotFoundException if settings not found', async () => {
+    it("should throw NotFoundException if settings not found", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       const prismaError = new Prisma.PrismaClientKnownRequestError(
-        'Not found',
+        "Not found",
         {
-          code: 'P2025',
-          clientVersion: '5.0.0',
+          code: "P2025",
+          clientVersion: "5.0.0",
         },
       );
       prismaService.storeSetting.update.mockRejectedValue(prismaError);
@@ -320,19 +320,19 @@ describe('StoreService', () => {
     });
   });
 
-  describe('inviteOrAssignRoleByEmail', () => {
+  describe("inviteOrAssignRoleByEmail", () => {
     const inviteDto = {
-      email: 'newuser@example.com',
+      email: "newuser@example.com",
       role: Role.ADMIN,
     };
 
     const mockTargetUser = {
-      id: 'target-user-123',
+      id: "target-user-123",
       email: inviteDto.email,
     };
 
     const mockUserStore = {
-      id: 'userstore-123',
+      id: "userstore-123",
       userId: mockTargetUser.id,
       storeId: mockStoreId,
       role: Role.ADMIN,
@@ -344,7 +344,7 @@ describe('StoreService', () => {
       );
     });
 
-    it('should assign role to existing user as OWNER', async () => {
+    it("should assign role to existing user as OWNER", async () => {
       authService.getUserStoreRole.mockResolvedValue(Role.OWNER);
       mockTransaction.user.findUnique.mockResolvedValue(mockTargetUser as any);
       mockTransaction.userStore.upsert.mockResolvedValue(mockUserStore as any);
@@ -359,7 +359,7 @@ describe('StoreService', () => {
       expect(mockTransaction.userStore.upsert).toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException if trying to assign OWNER role', async () => {
+    it("should throw BadRequestException if trying to assign OWNER role", async () => {
       const ownerDto = { ...inviteDto, role: Role.OWNER };
 
       await expect(
@@ -367,10 +367,10 @@ describe('StoreService', () => {
       ).rejects.toThrow(BadRequestException);
       await expect(
         service.inviteOrAssignRoleByEmail(mockUserId, mockStoreId, ownerDto),
-      ).rejects.toThrow('Cannot assign OWNER role');
+      ).rejects.toThrow("Cannot assign OWNER role");
     });
 
-    it('should throw ForbiddenException if acting user is not OWNER', async () => {
+    it("should throw ForbiddenException if acting user is not OWNER", async () => {
       authService.getUserStoreRole.mockResolvedValue(Role.ADMIN);
 
       await expect(
@@ -378,7 +378,7 @@ describe('StoreService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should throw NotFoundException if target user email not found', async () => {
+    it("should throw NotFoundException if target user email not found", async () => {
       authService.getUserStoreRole.mockResolvedValue(Role.OWNER);
       mockTransaction.user.findUnique.mockResolvedValue(null);
 
@@ -387,10 +387,10 @@ describe('StoreService', () => {
       ).rejects.toThrow(NotFoundException);
       await expect(
         service.inviteOrAssignRoleByEmail(mockUserId, mockStoreId, inviteDto),
-      ).rejects.toThrow('must register first');
+      ).rejects.toThrow("must register first");
     });
 
-    it('should update existing membership role', async () => {
+    it("should update existing membership role", async () => {
       authService.getUserStoreRole.mockResolvedValue(Role.OWNER);
       mockTransaction.user.findUnique.mockResolvedValue(mockTargetUser as any);
       const updatedUserStore = { ...mockUserStore, role: Role.CHEF };
@@ -411,15 +411,15 @@ describe('StoreService', () => {
     });
   });
 
-  describe('updateTaxAndServiceCharge', () => {
-    const vatRate = '0.07';
-    const serviceChargeRate = '0.10';
+  describe("updateTaxAndServiceCharge", () => {
+    const vatRate = "0.07";
+    const serviceChargeRate = "0.10";
 
-    it('should update tax and service charge rates successfully', async () => {
+    it("should update tax and service charge rates successfully", async () => {
       const oldSetting = {
         ...mockStoreSetting,
-        vatRate: new Prisma.Decimal('0.05'),
-        serviceChargeRate: new Prisma.Decimal('0.05'),
+        vatRate: new Prisma.Decimal("0.05"),
+        serviceChargeRate: new Prisma.Decimal("0.05"),
       };
       const updatedSetting = {
         ...mockStoreSetting,
@@ -455,20 +455,20 @@ describe('StoreService', () => {
       expect(result.vatRate?.toString()).toBe(vatRate);
     });
 
-    it('should reject VAT rate > 30%', async () => {
+    it("should reject VAT rate > 30%", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
 
       await expect(
         service.updateTaxAndServiceCharge(
           mockUserId,
           mockStoreId,
-          '0.35',
+          "0.35",
           serviceChargeRate,
         ),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should reject service charge rate > 30%', async () => {
+    it("should reject service charge rate > 30%", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
 
       await expect(
@@ -476,25 +476,25 @@ describe('StoreService', () => {
           mockUserId,
           mockStoreId,
           vatRate,
-          '0.40',
+          "0.40",
         ),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should reject negative rates', async () => {
+    it("should reject negative rates", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
 
       await expect(
         service.updateTaxAndServiceCharge(
           mockUserId,
           mockStoreId,
-          '-0.05',
+          "-0.05",
           serviceChargeRate,
         ),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should require Owner/Admin permission', async () => {
+    it("should require Owner/Admin permission", async () => {
       authService.checkStorePermission.mockRejectedValue(
         new ForbiddenException(),
       );
@@ -509,7 +509,7 @@ describe('StoreService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should throw NotFoundException if setting not found', async () => {
+    it("should throw NotFoundException if setting not found", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.storeSetting.findUnique.mockResolvedValue(null);
 
@@ -523,7 +523,7 @@ describe('StoreService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should use Decimal precision for rates', async () => {
+    it("should use Decimal precision for rates", async () => {
       const oldSetting = mockStoreSetting;
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.storeSetting.findUnique.mockResolvedValue(oldSetting);
@@ -533,8 +533,8 @@ describe('StoreService', () => {
       await service.updateTaxAndServiceCharge(
         mockUserId,
         mockStoreId,
-        '0.07',
-        '0.10',
+        "0.07",
+        "0.10",
       );
 
       const updateCall = prismaService.storeSetting.update.mock.calls[0][0];
@@ -543,18 +543,18 @@ describe('StoreService', () => {
     });
   });
 
-  describe('updateBusinessHours', () => {
+  describe("updateBusinessHours", () => {
     const validBusinessHours = {
-      monday: { closed: false, open: '09:00', close: '22:00' },
-      tuesday: { closed: false, open: '09:00', close: '22:00' },
-      wednesday: { closed: false, open: '09:00', close: '22:00' },
-      thursday: { closed: false, open: '09:00', close: '22:00' },
-      friday: { closed: false, open: '09:00', close: '23:00' },
-      saturday: { closed: false, open: '10:00', close: '23:00' },
+      monday: { closed: false, open: "09:00", close: "22:00" },
+      tuesday: { closed: false, open: "09:00", close: "22:00" },
+      wednesday: { closed: false, open: "09:00", close: "22:00" },
+      thursday: { closed: false, open: "09:00", close: "22:00" },
+      friday: { closed: false, open: "09:00", close: "23:00" },
+      saturday: { closed: false, open: "10:00", close: "23:00" },
       sunday: { closed: true, open: null, close: null },
     };
 
-    it('should update business hours successfully', async () => {
+    it("should update business hours successfully", async () => {
       const updatedSetting = {
         ...mockStoreSetting,
         businessHours: validBusinessHours as any,
@@ -583,12 +583,12 @@ describe('StoreService', () => {
       expect(result).toEqual(updatedSetting);
     });
 
-    it('should reject invalid time format', async () => {
+    it("should reject invalid time format", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
 
       const invalidHours = {
         ...validBusinessHours,
-        monday: { closed: false, open: '25:00', close: '22:00' },
+        monday: { closed: false, open: "25:00", close: "22:00" },
       };
 
       await expect(
@@ -600,7 +600,7 @@ describe('StoreService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should reject missing open/close when not closed', async () => {
+    it("should reject missing open/close when not closed", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
 
       const invalidHours = {
@@ -617,7 +617,7 @@ describe('StoreService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should allow closed days without times', async () => {
+    it("should allow closed days without times", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.storeSetting.update.mockResolvedValue(mockStoreSetting);
       auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
@@ -636,7 +636,7 @@ describe('StoreService', () => {
       ).resolves.toBeDefined();
     });
 
-    it('should require Owner/Admin permission', async () => {
+    it("should require Owner/Admin permission", async () => {
       authService.checkStorePermission.mockRejectedValue(
         new ForbiddenException(),
       );
@@ -651,29 +651,29 @@ describe('StoreService', () => {
     });
   });
 
-  describe('uploadBranding', () => {
+  describe("uploadBranding", () => {
     const mockLogoFile: Express.Multer.File = {
-      buffer: Buffer.from('logo'),
-      originalname: 'logo.png',
-      mimetype: 'image/png',
+      buffer: Buffer.from("logo"),
+      originalname: "logo.png",
+      mimetype: "image/png",
       size: 1024,
     } as any;
 
     const mockCoverFile: Express.Multer.File = {
-      buffer: Buffer.from('cover'),
-      originalname: 'cover.jpg',
-      mimetype: 'image/jpeg',
+      buffer: Buffer.from("cover"),
+      originalname: "cover.jpg",
+      mimetype: "image/jpeg",
       size: 2048,
     } as any;
 
-    it('should upload logo successfully', async () => {
+    it("should upload logo successfully", async () => {
       const updatedInfo = {
         ...mockStoreInformation,
-        logoUrl: 'https://s3.example.com/logo.png',
+        logoUrl: "https://s3.example.com/logo.png",
       };
 
       authService.checkStorePermission.mockResolvedValue(undefined);
-      s3Service.uploadFile.mockResolvedValue('https://s3.example.com/logo.png');
+      s3Service.uploadFile.mockResolvedValue("https://s3.example.com/logo.png");
       prismaService.storeInformation.update.mockResolvedValue(updatedInfo);
       auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
 
@@ -685,26 +685,26 @@ describe('StoreService', () => {
       );
 
       expect(s3Service.uploadFile).toHaveBeenCalledWith(
-        expect.stringContaining('store-logos'),
+        expect.stringContaining("store-logos"),
         mockLogoFile.buffer,
         mockLogoFile.mimetype,
       );
       expect(prismaService.storeInformation.update).toHaveBeenCalledWith({
         where: { storeId: mockStoreId },
-        data: { logoUrl: 'https://s3.example.com/logo.png' },
+        data: { logoUrl: "https://s3.example.com/logo.png" },
       });
-      expect(result.logoUrl).toBe('https://s3.example.com/logo.png');
+      expect(result.logoUrl).toBe("https://s3.example.com/logo.png");
     });
 
-    it('should upload cover photo successfully', async () => {
+    it("should upload cover photo successfully", async () => {
       const updatedInfo = {
         ...mockStoreInformation,
-        coverPhotoUrl: 'https://s3.example.com/cover.jpg',
+        coverPhotoUrl: "https://s3.example.com/cover.jpg",
       };
 
       authService.checkStorePermission.mockResolvedValue(undefined);
       s3Service.uploadFile.mockResolvedValue(
-        'https://s3.example.com/cover.jpg',
+        "https://s3.example.com/cover.jpg",
       );
       prismaService.storeInformation.update.mockResolvedValue(updatedInfo);
       auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
@@ -717,24 +717,24 @@ describe('StoreService', () => {
       );
 
       expect(s3Service.uploadFile).toHaveBeenCalledWith(
-        expect.stringContaining('store-covers'),
+        expect.stringContaining("store-covers"),
         mockCoverFile.buffer,
         mockCoverFile.mimetype,
       );
-      expect(result.coverPhotoUrl).toBe('https://s3.example.com/cover.jpg');
+      expect(result.coverPhotoUrl).toBe("https://s3.example.com/cover.jpg");
     });
 
-    it('should upload both logo and cover', async () => {
+    it("should upload both logo and cover", async () => {
       const updatedInfo = {
         ...mockStoreInformation,
-        logoUrl: 'https://s3.example.com/logo.png',
-        coverPhotoUrl: 'https://s3.example.com/cover.jpg',
+        logoUrl: "https://s3.example.com/logo.png",
+        coverPhotoUrl: "https://s3.example.com/cover.jpg",
       };
 
       authService.checkStorePermission.mockResolvedValue(undefined);
       s3Service.uploadFile
-        .mockResolvedValueOnce('https://s3.example.com/logo.png')
-        .mockResolvedValueOnce('https://s3.example.com/cover.jpg');
+        .mockResolvedValueOnce("https://s3.example.com/logo.png")
+        .mockResolvedValueOnce("https://s3.example.com/cover.jpg");
       prismaService.storeInformation.update.mockResolvedValue(updatedInfo);
       auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
 
@@ -746,11 +746,11 @@ describe('StoreService', () => {
       );
 
       expect(s3Service.uploadFile).toHaveBeenCalledTimes(2);
-      expect(result.logoUrl).toBe('https://s3.example.com/logo.png');
-      expect(result.coverPhotoUrl).toBe('https://s3.example.com/cover.jpg');
+      expect(result.logoUrl).toBe("https://s3.example.com/logo.png");
+      expect(result.coverPhotoUrl).toBe("https://s3.example.com/cover.jpg");
     });
 
-    it('should require Owner/Admin permission', async () => {
+    it("should require Owner/Admin permission", async () => {
       authService.checkStorePermission.mockRejectedValue(
         new ForbiddenException(),
       );
@@ -765,9 +765,9 @@ describe('StoreService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should log audit trail', async () => {
+    it("should log audit trail", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
-      s3Service.uploadFile.mockResolvedValue('https://s3.example.com/logo.png');
+      s3Service.uploadFile.mockResolvedValue("https://s3.example.com/logo.png");
       prismaService.storeInformation.update.mockResolvedValue(
         mockStoreInformation,
       );
@@ -783,19 +783,19 @@ describe('StoreService', () => {
       expect(auditLogService.logStoreSettingChange).toHaveBeenCalledWith(
         mockStoreId,
         mockUserId,
-        expect.objectContaining({ field: 'branding' }),
+        expect.objectContaining({ field: "branding" }),
         undefined,
         undefined,
       );
     });
   });
 
-  describe('updateLoyaltyRules', () => {
-    const pointRate = '0.1';
-    const redemptionRate = '0.1';
+  describe("updateLoyaltyRules", () => {
+    const pointRate = "0.1";
+    const redemptionRate = "0.1";
     const expiryDays = 365;
 
-    it('should update loyalty rules successfully', async () => {
+    it("should update loyalty rules successfully", async () => {
       const updatedSetting = {
         ...mockStoreSetting,
         loyaltyPointRate: new Prisma.Decimal(pointRate),
@@ -832,7 +832,7 @@ describe('StoreService', () => {
       expect(result).toEqual(updatedSetting);
     });
 
-    it('should require Owner permission only', async () => {
+    it("should require Owner permission only", async () => {
       authService.checkStorePermission.mockRejectedValue(
         new ForbiddenException(),
       );
@@ -854,14 +854,14 @@ describe('StoreService', () => {
       );
     });
 
-    it('should reject zero or negative point rate', async () => {
+    it("should reject zero or negative point rate", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
 
       await expect(
         service.updateLoyaltyRules(
           mockUserId,
           mockStoreId,
-          '0',
+          "0",
           redemptionRate,
           expiryDays,
         ),
@@ -871,14 +871,14 @@ describe('StoreService', () => {
         service.updateLoyaltyRules(
           mockUserId,
           mockStoreId,
-          '-0.1',
+          "-0.1",
           redemptionRate,
           expiryDays,
         ),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should reject zero or negative redemption rate', async () => {
+    it("should reject zero or negative redemption rate", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
 
       await expect(
@@ -886,13 +886,13 @@ describe('StoreService', () => {
           mockUserId,
           mockStoreId,
           pointRate,
-          '0',
+          "0",
           expiryDays,
         ),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should reject invalid expiry days', async () => {
+    it("should reject invalid expiry days", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
 
       await expect(
@@ -916,7 +916,7 @@ describe('StoreService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should use Decimal precision for rates', async () => {
+    it("should use Decimal precision for rates", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.storeSetting.update.mockResolvedValue(mockStoreSetting);
       auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
@@ -936,7 +936,7 @@ describe('StoreService', () => {
       );
     });
 
-    it('should allow zero expiry days (no expiration)', async () => {
+    it("should allow zero expiry days (no expiration)", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.storeSetting.update.mockResolvedValue(mockStoreSetting);
       auditLogService.logStoreSettingChange.mockResolvedValue(undefined);

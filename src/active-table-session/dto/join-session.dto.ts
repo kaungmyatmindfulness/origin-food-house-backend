@@ -1,9 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsOptional, Min } from 'class-validator';
+import { ApiProperty } from "@nestjs/swagger";
+import { IsInt, IsOptional, Min } from "class-validator";
 
 export class JoinSessionDto {
   @ApiProperty({
-    description: 'Number of guests in the session',
+    description: "Number of guests in the session",
     example: 4,
     required: false,
   })

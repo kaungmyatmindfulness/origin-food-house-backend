@@ -1,25 +1,25 @@
-import { ForbiddenException, BadRequestException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Role, SessionStatus, SessionType } from '@prisma/client';
+import { ForbiddenException, BadRequestException } from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import { Role, SessionStatus, SessionType } from "@prisma/client";
 
-import { ActiveTableSessionService } from './active-table-session.service';
-import { AuthService } from '../auth/auth.service';
+import { ActiveTableSessionService } from "./active-table-session.service";
+import { AuthService } from "../auth/auth.service";
 import {
   createPrismaMock,
   PrismaMock,
-} from '../common/testing/prisma-mock.helper';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateManualSessionDto } from './dto/create-manual-session.dto';
+} from "../common/testing/prisma-mock.helper";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateManualSessionDto } from "./dto/create-manual-session.dto";
 
-describe('ActiveTableSessionService', () => {
+describe("ActiveTableSessionService", () => {
   let service: ActiveTableSessionService;
   let prismaService: PrismaMock;
   let authService: jest.Mocked<AuthService>;
 
-  const mockUserId = 'user-123';
-  const mockStoreId = 'store-123';
-  const mockSessionId = 'session-456';
-  const mockSessionToken = 'mock-session-token-abc123';
+  const mockUserId = "user-123";
+  const mockStoreId = "store-123";
+  const mockSessionId = "session-456";
+  const mockSessionToken = "mock-session-token-abc123";
 
   beforeEach(async () => {
     const prismaMock = createPrismaMock();
@@ -49,12 +49,12 @@ describe('ActiveTableSessionService', () => {
     jest.clearAllMocks();
   });
 
-  describe('createManualSession', () => {
+  describe("createManualSession", () => {
     const mockCart = {
-      id: 'cart-123',
+      id: "cart-123",
       sessionId: mockSessionId,
       storeId: mockStoreId,
-      subTotal: '0',
+      subTotal: "0",
       items: [],
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -79,8 +79,8 @@ describe('ActiveTableSessionService', () => {
       cart: mockCart,
     };
 
-    describe('Counter Orders', () => {
-      it('should create a counter session successfully', async () => {
+    describe("Counter Orders", () => {
+      it("should create a counter session successfully", async () => {
         const dto: CreateManualSessionDto = {
           sessionType: SessionType.COUNTER,
           guestCount: 2,
@@ -135,16 +135,16 @@ describe('ActiveTableSessionService', () => {
           },
         });
 
-        expect(result).toHaveProperty('id', mockSessionId);
+        expect(result).toHaveProperty("id", mockSessionId);
         expect(result.sessionType).toBe(SessionType.COUNTER);
         expect(result.tableId).toBeNull();
       });
 
-      it('should create counter session with customer details', async () => {
+      it("should create counter session with customer details", async () => {
         const dto: CreateManualSessionDto = {
           sessionType: SessionType.COUNTER,
-          customerName: 'John Doe',
-          customerPhone: '+1234567890',
+          customerName: "John Doe",
+          customerPhone: "+1234567890",
           guestCount: 1,
         };
 
@@ -152,8 +152,8 @@ describe('ActiveTableSessionService', () => {
 
         const sessionWithDetails = {
           ...mockCreatedSession,
-          customerName: 'John Doe',
-          customerPhone: '+1234567890',
+          customerName: "John Doe",
+          customerPhone: "+1234567890",
         };
 
         const mockTx = {
@@ -181,22 +181,22 @@ describe('ActiveTableSessionService', () => {
 
         expect(mockTx.activeTableSession.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
-            customerName: 'John Doe',
-            customerPhone: '+1234567890',
+            customerName: "John Doe",
+            customerPhone: "+1234567890",
           }),
         });
 
-        expect(result.customerName).toBe('John Doe');
-        expect(result.customerPhone).toBe('+1234567890');
+        expect(result.customerName).toBe("John Doe");
+        expect(result.customerPhone).toBe("+1234567890");
       });
     });
 
-    describe('Phone Orders', () => {
-      it('should create a phone order session successfully', async () => {
+    describe("Phone Orders", () => {
+      it("should create a phone order session successfully", async () => {
         const dto: CreateManualSessionDto = {
           sessionType: SessionType.PHONE,
-          customerName: 'Jane Smith',
-          customerPhone: '+9876543210',
+          customerName: "Jane Smith",
+          customerPhone: "+9876543210",
           guestCount: 3,
         };
 
@@ -205,8 +205,8 @@ describe('ActiveTableSessionService', () => {
         const phoneSession = {
           ...mockCreatedSession,
           sessionType: SessionType.PHONE,
-          customerName: 'Jane Smith',
-          customerPhone: '+9876543210',
+          customerName: "Jane Smith",
+          customerPhone: "+9876543210",
           guestCount: 3,
         };
 
@@ -234,17 +234,17 @@ describe('ActiveTableSessionService', () => {
         );
 
         expect(result.sessionType).toBe(SessionType.PHONE);
-        expect(result.customerName).toBe('Jane Smith');
-        expect(result.customerPhone).toBe('+9876543210');
+        expect(result.customerName).toBe("Jane Smith");
+        expect(result.customerPhone).toBe("+9876543210");
         expect(result.guestCount).toBe(3);
       });
     });
 
-    describe('Takeout Orders', () => {
-      it('should create a takeout session successfully', async () => {
+    describe("Takeout Orders", () => {
+      it("should create a takeout session successfully", async () => {
         const dto: CreateManualSessionDto = {
           sessionType: SessionType.TAKEOUT,
-          customerName: 'Bob Wilson',
+          customerName: "Bob Wilson",
           guestCount: 1,
         };
 
@@ -253,7 +253,7 @@ describe('ActiveTableSessionService', () => {
         const takeoutSession = {
           ...mockCreatedSession,
           sessionType: SessionType.TAKEOUT,
-          customerName: 'Bob Wilson',
+          customerName: "Bob Wilson",
         };
 
         const mockTx = {
@@ -280,12 +280,12 @@ describe('ActiveTableSessionService', () => {
         );
 
         expect(result.sessionType).toBe(SessionType.TAKEOUT);
-        expect(result.customerName).toBe('Bob Wilson');
+        expect(result.customerName).toBe("Bob Wilson");
       });
     });
 
-    describe('Validation', () => {
-      it('should reject TABLE sessionType', async () => {
+    describe("Validation", () => {
+      it("should reject TABLE sessionType", async () => {
         const dto: CreateManualSessionDto = {
           sessionType: SessionType.TABLE,
           guestCount: 2,
@@ -300,11 +300,11 @@ describe('ActiveTableSessionService', () => {
         await expect(
           service.createManualSession(mockUserId, mockStoreId, dto),
         ).rejects.toThrow(
-          'Cannot create manual session with type TABLE. Use join-by-table endpoint instead.',
+          "Cannot create manual session with type TABLE. Use join-by-table endpoint instead.",
         );
       });
 
-      it('should default guestCount to 1 if not provided', async () => {
+      it("should default guestCount to 1 if not provided", async () => {
         const dto: CreateManualSessionDto = {
           sessionType: SessionType.COUNTER,
         };
@@ -337,8 +337,8 @@ describe('ActiveTableSessionService', () => {
       });
     });
 
-    describe('RBAC Enforcement', () => {
-      it('should allow OWNER to create manual session', async () => {
+    describe("RBAC Enforcement", () => {
+      it("should allow OWNER to create manual session", async () => {
         const dto: CreateManualSessionDto = {
           sessionType: SessionType.COUNTER,
         };
@@ -370,7 +370,7 @@ describe('ActiveTableSessionService', () => {
         );
       });
 
-      it('should allow ADMIN to create manual session', async () => {
+      it("should allow ADMIN to create manual session", async () => {
         const dto: CreateManualSessionDto = {
           sessionType: SessionType.COUNTER,
         };
@@ -402,7 +402,7 @@ describe('ActiveTableSessionService', () => {
         );
       });
 
-      it('should allow SERVER to create manual session', async () => {
+      it("should allow SERVER to create manual session", async () => {
         const dto: CreateManualSessionDto = {
           sessionType: SessionType.COUNTER,
         };
@@ -434,7 +434,7 @@ describe('ActiveTableSessionService', () => {
         );
       });
 
-      it('should allow CASHIER to create manual session', async () => {
+      it("should allow CASHIER to create manual session", async () => {
         const dto: CreateManualSessionDto = {
           sessionType: SessionType.COUNTER,
         };
@@ -466,13 +466,13 @@ describe('ActiveTableSessionService', () => {
         );
       });
 
-      it('should reject users without proper role', async () => {
+      it("should reject users without proper role", async () => {
         const dto: CreateManualSessionDto = {
           sessionType: SessionType.COUNTER,
         };
 
         authService.checkStorePermission.mockRejectedValue(
-          new ForbiddenException('Insufficient permissions'),
+          new ForbiddenException("Insufficient permissions"),
         );
 
         await expect(
@@ -480,13 +480,13 @@ describe('ActiveTableSessionService', () => {
         ).rejects.toThrow(ForbiddenException);
       });
 
-      it('should reject users not in the store', async () => {
+      it("should reject users not in the store", async () => {
         const dto: CreateManualSessionDto = {
           sessionType: SessionType.COUNTER,
         };
 
         authService.checkStorePermission.mockRejectedValue(
-          new ForbiddenException('Not a member of store'),
+          new ForbiddenException("Not a member of store"),
         );
 
         await expect(
@@ -495,8 +495,8 @@ describe('ActiveTableSessionService', () => {
       });
     });
 
-    describe('Cart Initialization', () => {
-      it('should initialize cart with zero subtotal', async () => {
+    describe("Cart Initialization", () => {
+      it("should initialize cart with zero subtotal", async () => {
         const dto: CreateManualSessionDto = {
           sessionType: SessionType.COUNTER,
         };
@@ -530,7 +530,7 @@ describe('ActiveTableSessionService', () => {
         });
       });
 
-      it('should return session with cart included', async () => {
+      it("should return session with cart included", async () => {
         const dto: CreateManualSessionDto = {
           sessionType: SessionType.COUNTER,
         };
@@ -559,7 +559,7 @@ describe('ActiveTableSessionService', () => {
           dto,
         );
 
-        expect(result).toHaveProperty('cart');
+        expect(result).toHaveProperty("cart");
         expect((result as any).cart).toBeDefined();
         expect(
           prismaService.activeTableSession.findUnique,

@@ -2,22 +2,22 @@ import {
   Injectable,
   Logger,
   InternalServerErrorException,
-} from '@nestjs/common';
-import { OrderStatus, Prisma } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+} from "@nestjs/common";
+import { OrderStatus, Prisma } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 
-import { CacheService } from '../common/cache/cache.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from "../common/cache/cache.service";
+import { PrismaService } from "../prisma/prisma.service";
 import {
   OrderStatusReportDto,
   OrderStatusCountDto,
-} from './dto/order-status-report.dto';
+} from "./dto/order-status-report.dto";
 import {
   PaymentBreakdownDto,
   PaymentMethodBreakdownDto,
-} from './dto/payment-breakdown.dto';
-import { PopularItemDto, PopularItemsDto } from './dto/popular-items.dto';
-import { SalesSummaryDto } from './dto/sales-summary.dto';
+} from "./dto/payment-breakdown.dto";
+import { PopularItemDto, PopularItemsDto } from "./dto/popular-items.dto";
+import { SalesSummaryDto } from "./dto/sales-summary.dto";
 
 /**
  * Service for analytics and reporting with Redis caching
@@ -84,15 +84,15 @@ export class ReportService {
         _count: true,
       });
 
-      const totalSales = aggregations._sum.grandTotal ?? new Decimal('0');
+      const totalSales = aggregations._sum.grandTotal ?? new Decimal("0");
       const orderCount = aggregations._count;
-      const totalVat = aggregations._sum.vatAmount ?? new Decimal('0');
+      const totalVat = aggregations._sum.vatAmount ?? new Decimal("0");
       const totalServiceCharge =
-        aggregations._sum.serviceChargeAmount ?? new Decimal('0');
+        aggregations._sum.serviceChargeAmount ?? new Decimal("0");
 
       // Calculate average order value
       const averageOrderValue =
-        orderCount > 0 ? totalSales.div(orderCount) : new Decimal('0');
+        orderCount > 0 ? totalSales.div(orderCount) : new Decimal("0");
 
       const result: SalesSummaryDto = {
         totalSales,
@@ -118,7 +118,7 @@ export class ReportService {
         error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException(
-        'Failed to generate sales summary',
+        "Failed to generate sales summary",
       );
     }
   }
@@ -157,7 +157,7 @@ export class ReportService {
 
       // Get payments in date range
       const payments = await this.prisma.payment.groupBy({
-        by: ['paymentMethod'],
+        by: ["paymentMethod"],
         where: {
           order: {
             storeId,
@@ -176,13 +176,13 @@ export class ReportService {
 
       // Calculate total for percentages
       const total = payments.reduce(
-        (sum, p) => sum.add(p._sum.amount ?? new Decimal('0')),
-        new Decimal('0'),
+        (sum, p) => sum.add(p._sum.amount ?? new Decimal("0")),
+        new Decimal("0"),
       );
 
       // Build breakdown with percentages
       const breakdown: PaymentMethodBreakdownDto[] = payments.map((p) => {
-        const totalAmount = p._sum.amount ?? new Decimal('0');
+        const totalAmount = p._sum.amount ?? new Decimal("0");
         const percentage = total.gt(0)
           ? totalAmount.div(total).mul(100).toNumber()
           : 0;
@@ -220,7 +220,7 @@ export class ReportService {
         error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException(
-        'Failed to generate payment breakdown',
+        "Failed to generate payment breakdown",
       );
     }
   }
@@ -259,7 +259,7 @@ export class ReportService {
 
       // Get order items grouped by menu item
       const itemStats = await this.prisma.orderItem.groupBy({
-        by: ['menuItemId'],
+        by: ["menuItemId"],
         where: {
           order: {
             storeId,
@@ -279,7 +279,7 @@ export class ReportService {
         },
         orderBy: {
           _sum: {
-            quantity: 'desc',
+            quantity: "desc",
           },
         },
         take: limit,
@@ -310,9 +310,9 @@ export class ReportService {
         )
         .map((s) => ({
           menuItemId: s.menuItemId,
-          menuItemName: menuItemMap.get(s.menuItemId) ?? 'Unknown Item',
+          menuItemName: menuItemMap.get(s.menuItemId) ?? "Unknown Item",
           quantitySold: s._sum.quantity ?? 0,
-          totalRevenue: s._sum.finalPrice ?? new Decimal('0'),
+          totalRevenue: s._sum.finalPrice ?? new Decimal("0"),
           orderCount: s._count.orderId,
         }));
 
@@ -336,7 +336,7 @@ export class ReportService {
         error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException(
-        'Failed to generate popular items report',
+        "Failed to generate popular items report",
       );
     }
   }
@@ -376,7 +376,7 @@ export class ReportService {
 
       // Get orders grouped by status
       const statusGroups = await this.prisma.order.groupBy({
-        by: ['status'],
+        by: ["status"],
         where: {
           storeId,
           createdAt: {
@@ -433,7 +433,7 @@ export class ReportService {
         error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException(
-        'Failed to generate order status report',
+        "Failed to generate order status report",
       );
     }
   }

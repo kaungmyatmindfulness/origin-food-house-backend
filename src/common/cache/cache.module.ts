@@ -1,6 +1,6 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, Module } from "@nestjs/common";
 
-import { CacheService } from './cache.service';
+import { CacheService } from "./cache.service";
 
 /**
  * CacheModule provides Redis-based caching globally

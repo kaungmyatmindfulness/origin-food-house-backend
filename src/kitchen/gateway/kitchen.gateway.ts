@@ -1,5 +1,5 @@
-import { Logger, UseGuards } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Logger, UseGuards } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -8,12 +8,12 @@ import {
   ConnectedSocket,
   OnGatewayConnection,
   OnGatewayDisconnect,
-} from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+} from "@nestjs/websockets";
+import { Server, Socket } from "socket.io";
 
-import { WsJwtGuard } from '../../auth/guards/ws-jwt.guard';
-import { UpdateKitchenStatusDto } from '../dto/update-kitchen-status.dto';
-import { KitchenService } from '../kitchen.service';
+import { WsJwtGuard } from "../../auth/guards/ws-jwt.guard";
+import { UpdateKitchenStatusDto } from "../dto/update-kitchen-status.dto";
+import { KitchenService } from "../kitchen.service";
 
 interface AuthenticatedSocket extends Socket {
   data: {
@@ -37,7 +37,7 @@ interface AuthenticatedSocket extends Socket {
     },
     credentials: true,
   },
-  namespace: '/kitchen',
+  namespace: "/kitchen",
 })
 @UseGuards(WsJwtGuard)
 export class KitchenGateway
@@ -54,12 +54,12 @@ export class KitchenGateway
     private readonly configService: ConfigService,
   ) {
     const corsOrigin = this.configService.get<string>(
-      'CORS_ORIGIN',
-      'http://localhost:3002',
+      "CORS_ORIGIN",
+      "http://localhost:3002",
     );
-    this.allowedOrigins = corsOrigin.split(',').map((origin) => origin.trim());
+    this.allowedOrigins = corsOrigin.split(",").map((origin) => origin.trim());
     this.logger.log(
-      `[constructor] CORS origins configured: ${this.allowedOrigins.join(', ')}`,
+      `[constructor] CORS origins configured: ${this.allowedOrigins.join(", ")}`,
     );
   }
 
@@ -81,19 +81,19 @@ export class KitchenGateway
    * Kitchen screen joins store room for real-time updates
    * Validates that user has access to the requested store
    */
-  @SubscribeMessage('kitchen:join')
+  @SubscribeMessage("kitchen:join")
   async handleJoinStore(
     @MessageBody() data: { storeId: string },
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
-    const method = 'handleJoinStore';
+    const method = "handleJoinStore";
 
     try {
       const { storeId } = data;
       const { user } = client.data;
 
       if (!storeId) {
-        client.emit('kitchen:error', { message: 'Store ID is required' });
+        client.emit("kitchen:error", { message: "Store ID is required" });
         return;
       }
 
@@ -102,8 +102,8 @@ export class KitchenGateway
         this.logger.warn(
           `[${method}] User ${user?.sub} attempted to join unauthorized store ${storeId}`,
         );
-        client.emit('kitchen:error', {
-          message: 'Unauthorized: You do not have access to this store',
+        client.emit("kitchen:error", {
+          message: "Unauthorized: You do not have access to this store",
         });
         return;
       }
@@ -115,15 +115,15 @@ export class KitchenGateway
         `[${method}] Client ${client.id} (User: ${user.sub}) joined store ${storeId}`,
       );
 
-      client.emit('kitchen:joined', { storeId });
+      client.emit("kitchen:joined", { storeId });
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to join store';
+        error instanceof Error ? error.message : "Failed to join store";
       this.logger.error(
         `[${method}] Failed to join store`,
         error instanceof Error ? error.stack : String(error),
       );
-      client.emit('kitchen:error', {
+      client.emit("kitchen:error", {
         message: errorMessage,
       });
     }
@@ -132,7 +132,7 @@ export class KitchenGateway
   /**
    * Update order status and broadcast to all kitchen screens
    */
-  @SubscribeMessage('kitchen:update-status')
+  @SubscribeMessage("kitchen:update-status")
   async handleUpdateStatus(
     @MessageBody()
     data: {
@@ -142,13 +142,13 @@ export class KitchenGateway
     },
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
-    const method = 'handleUpdateStatus';
+    const method = "handleUpdateStatus";
 
     try {
       const { orderId, storeId, status } = data;
 
       if (!orderId || !storeId || !status) {
-        client.emit('kitchen:error', { message: 'Invalid request data' });
+        client.emit("kitchen:error", { message: "Invalid request data" });
         return;
       }
 
@@ -162,19 +162,19 @@ export class KitchenGateway
       // Broadcast to all kitchen screens in the store
       this.server
         .to(`store-${storeId}`)
-        .emit('kitchen:status-updated', updatedOrder);
+        .emit("kitchen:status-updated", updatedOrder);
 
       this.logger.log(
         `[${method}] Order ${orderId} status updated to ${status.status}`,
       );
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to update status';
+        error instanceof Error ? error.message : "Failed to update status";
       this.logger.error(
         `[${method}] Failed to update order status`,
         error instanceof Error ? error.stack : String(error),
       );
-      client.emit('kitchen:error', {
+      client.emit("kitchen:error", {
         message: errorMessage,
       });
     }
@@ -185,12 +185,12 @@ export class KitchenGateway
    * Called by OrderModule when new order is created
    */
   async broadcastNewOrder(storeId: string, orderId: string) {
-    const method = 'broadcastNewOrder';
+    const method = "broadcastNewOrder";
 
     try {
       const order = await this.kitchenService.getOrderDetails(orderId);
 
-      this.server.to(`store-${storeId}`).emit('kitchen:order-received', order);
+      this.server.to(`store-${storeId}`).emit("kitchen:order-received", order);
 
       this.logger.log(
         `[${method}] New order ${orderId} broadcasted to store ${storeId}`,
@@ -208,12 +208,12 @@ export class KitchenGateway
    * Called when kitchen marks order as READY
    */
   async broadcastOrderReady(storeId: string, orderId: string) {
-    const method = 'broadcastOrderReady';
+    const method = "broadcastOrderReady";
 
     try {
       const order = await this.kitchenService.getOrderDetails(orderId);
 
-      this.server.to(`store-${storeId}`).emit('kitchen:order-ready', order);
+      this.server.to(`store-${storeId}`).emit("kitchen:order-ready", order);
 
       this.logger.log(
         `[${method}] Order ${orderId} ready notification sent to store ${storeId}`,

@@ -1,8 +1,8 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional } from 'class-validator';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { IsString, IsOptional } from "class-validator";
 
 export class UpdateCategoryDto {
-  @ApiPropertyOptional({ example: 'Desserts' })
+  @ApiPropertyOptional({ example: "Desserts" })
   @IsOptional()
   @IsString()
   name?: string;

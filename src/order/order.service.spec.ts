@@ -3,41 +3,41 @@ import {
   ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
-} from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+} from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
 import {
   OrderStatus,
   OrderType,
   SessionStatus,
   DiscountType,
   Role,
-} from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+} from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 
-import { ApplyDiscountDto } from './dto/apply-discount.dto';
-import { CheckoutCartDto } from './dto/checkout-cart.dto';
-import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
-import { OrderService } from './order.service';
-import { AuthService } from '../auth/auth.service';
+import { ApplyDiscountDto } from "./dto/apply-discount.dto";
+import { CheckoutCartDto } from "./dto/checkout-cart.dto";
+import { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
+import { OrderService } from "./order.service";
+import { AuthService } from "../auth/auth.service";
 import {
   createPrismaMock,
   PrismaMock,
-} from '../common/testing/prisma-mock.helper';
-import { KitchenGateway } from '../kitchen/gateway/kitchen.gateway';
-import { PrismaService } from '../prisma/prisma.service';
+} from "../common/testing/prisma-mock.helper";
+import { KitchenGateway } from "../kitchen/gateway/kitchen.gateway";
+import { PrismaService } from "../prisma/prisma.service";
 
-describe('OrderService', () => {
+describe("OrderService", () => {
   let service: OrderService;
   let prismaService: PrismaMock;
   let kitchenGateway: jest.Mocked<KitchenGateway>;
   let authService: jest.Mocked<AuthService>;
 
   // Common IDs
-  const mockSessionId = 'session-123';
-  const mockStoreId = 'store-123';
-  const mockTableId = 'table-123';
-  const mockCartId = 'cart-123';
-  const mockOrderId = 'order-123';
+  const mockSessionId = "session-123";
+  const mockStoreId = "store-123";
+  const mockTableId = "table-123";
+  const mockCartId = "cart-123";
+  const mockOrderId = "order-123";
 
   // Mock session with store settings
   const mockActiveSession = {
@@ -45,31 +45,31 @@ describe('OrderService', () => {
     storeId: mockStoreId,
     tableId: mockTableId,
     status: SessionStatus.ACTIVE,
-    sessionToken: 'token-123',
+    sessionToken: "token-123",
     guestCount: 2,
-    createdAt: new Date('2025-10-22T10:00:00Z'),
+    createdAt: new Date("2025-10-22T10:00:00Z"),
     closedAt: null,
     table: {
       id: mockTableId,
       storeId: mockStoreId,
-      name: 'Table 5',
-      qrCode: 'qr-code-123',
+      name: "Table 5",
+      qrCode: "qr-code-123",
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
     },
     store: {
       id: mockStoreId,
-      slug: 'test-store',
-      name: 'Test Store',
+      slug: "test-store",
+      name: "Test Store",
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
       setting: {
-        id: 'setting-123',
+        id: "setting-123",
         storeId: mockStoreId,
-        vatRate: new Decimal('0.07'), // 7%
-        serviceChargeRate: new Decimal('0.10'), // 10%
+        vatRate: new Decimal("0.07"), // 7%
+        serviceChargeRate: new Decimal("0.10"), // 10%
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -84,41 +84,41 @@ describe('OrderService', () => {
 
   // Mock cart with items
   const mockCartItem1 = {
-    id: 'cart-item-1',
+    id: "cart-item-1",
     cartId: mockCartId,
-    menuItemId: 'menu-item-1',
-    basePrice: new Decimal('12.00'),
+    menuItemId: "menu-item-1",
+    basePrice: new Decimal("12.00"),
     quantity: 2,
     notes: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     customizations: [
       {
-        id: 'customization-1',
-        cartItemId: 'cart-item-1',
-        customizationOptionId: 'option-1',
-        optionName: 'Large',
-        additionalPrice: new Decimal('3.00'),
+        id: "customization-1",
+        cartItemId: "cart-item-1",
+        customizationOptionId: "option-1",
+        optionName: "Large",
+        additionalPrice: new Decimal("3.00"),
         createdAt: new Date(),
         updatedAt: new Date(),
       },
       {
-        id: 'customization-2',
-        cartItemId: 'cart-item-1',
-        customizationOptionId: 'option-2',
-        optionName: 'Extra Cheese',
-        additionalPrice: new Decimal('1.50'),
+        id: "customization-2",
+        cartItemId: "cart-item-1",
+        customizationOptionId: "option-2",
+        optionName: "Extra Cheese",
+        additionalPrice: new Decimal("1.50"),
         createdAt: new Date(),
         updatedAt: new Date(),
       },
     ],
     menuItem: {
-      id: 'menu-item-1',
-      name: 'Burger',
+      id: "menu-item-1",
+      name: "Burger",
       storeId: mockStoreId,
-      categoryId: 'cat-1',
-      basePrice: new Decimal('12.00'),
-      description: 'Delicious burger',
+      categoryId: "cat-1",
+      basePrice: new Decimal("12.00"),
+      description: "Delicious burger",
       imageUrl: null,
       sortOrder: 0,
       isOutOfStock: false,
@@ -130,22 +130,22 @@ describe('OrderService', () => {
   };
 
   const mockCartItem2 = {
-    id: 'cart-item-2',
+    id: "cart-item-2",
     cartId: mockCartId,
-    menuItemId: 'menu-item-2',
-    basePrice: new Decimal('8.00'),
+    menuItemId: "menu-item-2",
+    basePrice: new Decimal("8.00"),
     quantity: 1,
-    notes: 'No salt',
+    notes: "No salt",
     createdAt: new Date(),
     updatedAt: new Date(),
     customizations: [],
     menuItem: {
-      id: 'menu-item-2',
-      name: 'Fries',
+      id: "menu-item-2",
+      name: "Fries",
       storeId: mockStoreId,
-      categoryId: 'cat-1',
-      basePrice: new Decimal('8.00'),
-      description: 'Crispy fries',
+      categoryId: "cat-1",
+      basePrice: new Decimal("8.00"),
+      description: "Crispy fries",
       imageUrl: null,
       sortOrder: 1,
       isOutOfStock: false,
@@ -159,7 +159,7 @@ describe('OrderService', () => {
   const mockCart = {
     id: mockCartId,
     sessionId: mockSessionId,
-    subTotal: new Decimal('41.00'), // (12+3+1.5)*2 + 8 = 41
+    subTotal: new Decimal("41.00"), // (12+3+1.5)*2 + 8 = 41
     createdAt: new Date(),
     updatedAt: new Date(),
     items: [mockCartItem1, mockCartItem2],
@@ -173,42 +173,42 @@ describe('OrderService', () => {
   // Mock order
   const mockOrder = {
     id: mockOrderId,
-    orderNumber: '20251022-001',
+    orderNumber: "20251022-001",
     storeId: mockStoreId,
     sessionId: mockSessionId,
-    tableName: 'Table 5',
+    tableName: "Table 5",
     status: OrderStatus.PENDING,
     orderType: OrderType.DINE_IN,
-    subTotal: new Decimal('41.00'),
-    vatRateSnapshot: new Decimal('0.07'),
-    serviceChargeRateSnapshot: new Decimal('0.10'),
-    vatAmount: new Decimal('3.16'),
-    serviceChargeAmount: new Decimal('4.10'),
-    grandTotal: new Decimal('48.26'),
+    subTotal: new Decimal("41.00"),
+    vatRateSnapshot: new Decimal("0.07"),
+    serviceChargeRateSnapshot: new Decimal("0.10"),
+    vatAmount: new Decimal("3.16"),
+    serviceChargeAmount: new Decimal("4.10"),
+    grandTotal: new Decimal("48.26"),
     paidAt: null,
-    createdAt: new Date('2025-10-22T10:30:00Z'),
-    updatedAt: new Date('2025-10-22T10:30:00Z'),
+    createdAt: new Date("2025-10-22T10:30:00Z"),
+    updatedAt: new Date("2025-10-22T10:30:00Z"),
     orderItems: [
       {
-        id: 'order-item-1',
+        id: "order-item-1",
         orderId: mockOrderId,
-        menuItemId: 'menu-item-1',
-        price: new Decimal('16.50'), // 12 + 3 + 1.5
+        menuItemId: "menu-item-1",
+        price: new Decimal("16.50"), // 12 + 3 + 1.5
         quantity: 2,
-        finalPrice: new Decimal('33.00'),
+        finalPrice: new Decimal("33.00"),
         notes: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         customizations: [],
       },
       {
-        id: 'order-item-2',
+        id: "order-item-2",
         orderId: mockOrderId,
-        menuItemId: 'menu-item-2',
-        price: new Decimal('8.00'),
+        menuItemId: "menu-item-2",
+        price: new Decimal("8.00"),
         quantity: 1,
-        finalPrice: new Decimal('8.00'),
-        notes: 'No salt',
+        finalPrice: new Decimal("8.00"),
+        notes: "No salt",
         createdAt: new Date(),
         updatedAt: new Date(),
         customizations: [],
@@ -295,13 +295,13 @@ describe('OrderService', () => {
     jest.clearAllMocks();
   });
 
-  describe('checkoutCart', () => {
+  describe("checkoutCart", () => {
     const checkoutDto: CheckoutCartDto = {
       orderType: OrderType.DINE_IN,
     };
 
-    describe('Happy Path - Order Creation', () => {
-      it('should create order from cart with correct financial calculations', async () => {
+    describe("Happy Path - Order Creation", () => {
+      it("should create order from cart with correct financial calculations", async () => {
         // Arrange
         prismaService.activeTableSession.findUnique.mockResolvedValue(
           mockActiveSession as any,
@@ -311,7 +311,7 @@ describe('OrderService', () => {
         mockTransaction.order.count.mockResolvedValue(0); // First order today
         mockTransaction.order.create.mockResolvedValue(mockOrder as any);
         mockTransaction.orderItem.create.mockResolvedValue({
-          id: 'order-item-1',
+          id: "order-item-1",
         } as any);
 
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
@@ -321,11 +321,11 @@ describe('OrderService', () => {
 
         // Assert
         expect(result).toBeDefined();
-        expect(result.orderNumber).toBe('20251022-001');
-        expect(result.subTotal).toEqual(new Decimal('41.00'));
-        expect(result.serviceChargeAmount).toEqual(new Decimal('4.10'));
-        expect(result.vatAmount).toEqual(new Decimal('3.16'));
-        expect(result.grandTotal).toEqual(new Decimal('48.26'));
+        expect(result.orderNumber).toBe("20251022-001");
+        expect(result.subTotal).toEqual(new Decimal("41.00"));
+        expect(result.serviceChargeAmount).toEqual(new Decimal("4.10"));
+        expect(result.vatAmount).toEqual(new Decimal("3.16"));
+        expect(result.grandTotal).toEqual(new Decimal("48.26"));
 
         // Verify order creation data
         expect(mockTransaction.order.create).toHaveBeenCalledWith({
@@ -334,9 +334,9 @@ describe('OrderService', () => {
             sessionId: mockSessionId,
             status: OrderStatus.PENDING,
             orderType: OrderType.DINE_IN,
-            subTotal: new Decimal('41.00'),
-            vatRateSnapshot: new Decimal('0.07'),
-            serviceChargeRateSnapshot: new Decimal('0.10'),
+            subTotal: new Decimal("41.00"),
+            vatRateSnapshot: new Decimal("0.07"),
+            serviceChargeRateSnapshot: new Decimal("0.10"),
             vatAmount: expect.any(Decimal),
             serviceChargeAmount: expect.any(Decimal),
             grandTotal: expect.any(Decimal),
@@ -344,7 +344,7 @@ describe('OrderService', () => {
         });
       });
 
-      it('should generate unique order number in YYYYMMDD-XXX format', async () => {
+      it("should generate unique order number in YYYYMMDD-XXX format", async () => {
         // Arrange
         prismaService.activeTableSession.findUnique.mockResolvedValue(
           mockActiveSession as any,
@@ -354,22 +354,22 @@ describe('OrderService', () => {
         mockTransaction.order.count.mockResolvedValue(5); // 6th order today
         mockTransaction.order.create.mockResolvedValue({
           ...mockOrder,
-          orderNumber: '20251022-006',
+          orderNumber: "20251022-006",
         } as any);
         mockTransaction.orderItem.create.mockResolvedValue({
-          id: 'order-item-1',
+          id: "order-item-1",
         } as any);
 
         prismaService.order.findUnique.mockResolvedValue({
           ...mockOrder,
-          orderNumber: '20251022-006',
+          orderNumber: "20251022-006",
         } as any);
 
         // Act
         const result = await service.checkoutCart(mockSessionId, checkoutDto);
 
         // Assert
-        expect(result.orderNumber).toBe('20251022-006');
+        expect(result.orderNumber).toBe("20251022-006");
         expect(mockTransaction.order.count).toHaveBeenCalledWith({
           where: {
             storeId: mockStoreId,
@@ -381,7 +381,7 @@ describe('OrderService', () => {
         });
       });
 
-      it('should create order items from cart items with customizations', async () => {
+      it("should create order items from cart items with customizations", async () => {
         // Arrange
         prismaService.activeTableSession.findUnique.mockResolvedValue(
           mockActiveSession as any,
@@ -391,7 +391,7 @@ describe('OrderService', () => {
         mockTransaction.order.count.mockResolvedValue(0);
         mockTransaction.order.create.mockResolvedValue(mockOrder as any);
         mockTransaction.orderItem.create.mockResolvedValue({
-          id: 'order-item-1',
+          id: "order-item-1",
         } as any);
 
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
@@ -406,10 +406,10 @@ describe('OrderService', () => {
         expect(mockTransaction.orderItem.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
             orderId: mockOrder.id,
-            menuItemId: 'menu-item-1',
-            price: new Decimal('16.50'), // 12 + 3 + 1.5
+            menuItemId: "menu-item-1",
+            price: new Decimal("16.50"), // 12 + 3 + 1.5
             quantity: 2,
-            finalPrice: new Decimal('33.00'), // 16.50 * 2
+            finalPrice: new Decimal("33.00"), // 16.50 * 2
             notes: null,
           }),
         });
@@ -418,11 +418,11 @@ describe('OrderService', () => {
         expect(mockTransaction.orderItem.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
             orderId: mockOrder.id,
-            menuItemId: 'menu-item-2',
-            price: new Decimal('8.00'),
+            menuItemId: "menu-item-2",
+            price: new Decimal("8.00"),
             quantity: 1,
-            finalPrice: new Decimal('8.00'),
-            notes: 'No salt',
+            finalPrice: new Decimal("8.00"),
+            notes: "No salt",
           }),
         });
 
@@ -432,18 +432,18 @@ describe('OrderService', () => {
         ).toHaveBeenCalledWith({
           data: expect.arrayContaining([
             expect.objectContaining({
-              customizationOptionId: 'option-1',
-              finalPrice: new Decimal('6.00'), // 3 * 2
+              customizationOptionId: "option-1",
+              finalPrice: new Decimal("6.00"), // 3 * 2
             }),
             expect.objectContaining({
-              customizationOptionId: 'option-2',
-              finalPrice: new Decimal('3.00'), // 1.5 * 2
+              customizationOptionId: "option-2",
+              finalPrice: new Decimal("3.00"), // 1.5 * 2
             }),
           ]),
         });
       });
 
-      it('should clear cart after successful checkout', async () => {
+      it("should clear cart after successful checkout", async () => {
         // Arrange
         prismaService.activeTableSession.findUnique.mockResolvedValue(
           mockActiveSession as any,
@@ -453,7 +453,7 @@ describe('OrderService', () => {
         mockTransaction.order.count.mockResolvedValue(0);
         mockTransaction.order.create.mockResolvedValue(mockOrder as any);
         mockTransaction.orderItem.create.mockResolvedValue({
-          id: 'order-item-1',
+          id: "order-item-1",
         } as any);
 
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
@@ -468,11 +468,11 @@ describe('OrderService', () => {
 
         expect(mockTransaction.cart.update).toHaveBeenCalledWith({
           where: { id: mockCartId },
-          data: { subTotal: new Decimal('0') },
+          data: { subTotal: new Decimal("0") },
         });
       });
 
-      it('should broadcast new order to kitchen WebSocket', async () => {
+      it("should broadcast new order to kitchen WebSocket", async () => {
         // Arrange
         prismaService.activeTableSession.findUnique.mockResolvedValue(
           mockActiveSession as any,
@@ -482,7 +482,7 @@ describe('OrderService', () => {
         mockTransaction.order.count.mockResolvedValue(0);
         mockTransaction.order.create.mockResolvedValue(mockOrder as any);
         mockTransaction.orderItem.create.mockResolvedValue({
-          id: 'order-item-1',
+          id: "order-item-1",
         } as any);
 
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
@@ -497,11 +497,11 @@ describe('OrderService', () => {
         );
       });
 
-      it('should use custom table name if provided', async () => {
+      it("should use custom table name if provided", async () => {
         // Arrange
         const customCheckoutDto: CheckoutCartDto = {
           orderType: OrderType.DINE_IN,
-          tableName: 'VIP Table 1',
+          tableName: "VIP Table 1",
         };
 
         prismaService.activeTableSession.findUnique.mockResolvedValue(
@@ -512,12 +512,12 @@ describe('OrderService', () => {
         mockTransaction.order.count.mockResolvedValue(0);
         mockTransaction.order.create.mockResolvedValue({
           ...mockOrder,
-          tableName: 'VIP Table 1',
+          tableName: "VIP Table 1",
         } as any);
 
         prismaService.order.findUnique.mockResolvedValue({
           ...mockOrder,
-          tableName: 'VIP Table 1',
+          tableName: "VIP Table 1",
         } as any);
 
         // Act
@@ -527,21 +527,21 @@ describe('OrderService', () => {
         );
 
         // Assert
-        expect(result.tableName).toBe('VIP Table 1');
+        expect(result.tableName).toBe("VIP Table 1");
         expect(mockTransaction.order.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
-            tableName: 'VIP Table 1',
+            tableName: "VIP Table 1",
           }),
         });
       });
     });
 
-    describe('Financial Calculations - Decimal Precision', () => {
-      it('should calculate VAT correctly (7% of subtotal)', async () => {
+    describe("Financial Calculations - Decimal Precision", () => {
+      it("should calculate VAT correctly (7% of subtotal)", async () => {
         // Arrange
         const cartWith100Subtotal = {
           ...mockCart,
-          subTotal: new Decimal('100.00'),
+          subTotal: new Decimal("100.00"),
         };
 
         prismaService.activeTableSession.findUnique.mockResolvedValue(
@@ -564,22 +564,22 @@ describe('OrderService', () => {
 
         prismaService.order.findUnique.mockResolvedValue({
           ...mockOrder,
-          subTotal: new Decimal('100.00'),
-          vatAmount: new Decimal('7.00'),
+          subTotal: new Decimal("100.00"),
+          vatAmount: new Decimal("7.00"),
         } as any);
 
         // Act
         const result = await service.checkoutCart(mockSessionId, checkoutDto);
 
         // Assert
-        expect(result.vatAmount).toEqual(new Decimal('7.00'));
+        expect(result.vatAmount).toEqual(new Decimal("7.00"));
       });
 
-      it('should calculate service charge correctly (10% of subtotal)', async () => {
+      it("should calculate service charge correctly (10% of subtotal)", async () => {
         // Arrange
         const cartWith100Subtotal = {
           ...mockCart,
-          subTotal: new Decimal('100.00'),
+          subTotal: new Decimal("100.00"),
         };
 
         prismaService.activeTableSession.findUnique.mockResolvedValue(
@@ -602,22 +602,22 @@ describe('OrderService', () => {
 
         prismaService.order.findUnique.mockResolvedValue({
           ...mockOrder,
-          subTotal: new Decimal('100.00'),
-          serviceChargeAmount: new Decimal('10.00'),
+          subTotal: new Decimal("100.00"),
+          serviceChargeAmount: new Decimal("10.00"),
         } as any);
 
         // Act
         const result = await service.checkoutCart(mockSessionId, checkoutDto);
 
         // Assert
-        expect(result.serviceChargeAmount).toEqual(new Decimal('10.00'));
+        expect(result.serviceChargeAmount).toEqual(new Decimal("10.00"));
       });
 
-      it('should calculate grand total: subtotal + VAT + service charge', async () => {
+      it("should calculate grand total: subtotal + VAT + service charge", async () => {
         // Arrange
         const cartWith100Subtotal = {
           ...mockCart,
-          subTotal: new Decimal('100.00'),
+          subTotal: new Decimal("100.00"),
         };
 
         prismaService.activeTableSession.findUnique.mockResolvedValue(
@@ -645,20 +645,20 @@ describe('OrderService', () => {
 
         prismaService.order.findUnique.mockResolvedValue({
           ...mockOrder,
-          subTotal: new Decimal('100.00'),
-          vatAmount: new Decimal('7.00'),
-          serviceChargeAmount: new Decimal('10.00'),
-          grandTotal: new Decimal('117.00'),
+          subTotal: new Decimal("100.00"),
+          vatAmount: new Decimal("7.00"),
+          serviceChargeAmount: new Decimal("10.00"),
+          grandTotal: new Decimal("117.00"),
         } as any);
 
         // Act
         const result = await service.checkoutCart(mockSessionId, checkoutDto);
 
         // Assert
-        expect(result.grandTotal).toEqual(new Decimal('117.00'));
+        expect(result.grandTotal).toEqual(new Decimal("117.00"));
       });
 
-      it('should handle zero VAT and service charge', async () => {
+      it("should handle zero VAT and service charge", async () => {
         // Arrange
         const sessionWithNoCharges = {
           ...mockActiveSession,
@@ -666,8 +666,8 @@ describe('OrderService', () => {
             ...mockActiveSession.store,
             setting: {
               ...mockActiveSession.store.setting,
-              vatRate: new Decimal('0'),
-              serviceChargeRate: new Decimal('0'),
+              vatRate: new Decimal("0"),
+              serviceChargeRate: new Decimal("0"),
             },
           },
         };
@@ -683,38 +683,38 @@ describe('OrderService', () => {
           return Promise.resolve({
             ...mockOrder,
             subTotal,
-            vatAmount: new Decimal('0'),
-            serviceChargeAmount: new Decimal('0'),
+            vatAmount: new Decimal("0"),
+            serviceChargeAmount: new Decimal("0"),
             grandTotal: subTotal,
           } as any);
         });
 
         prismaService.order.findUnique.mockResolvedValue({
           ...mockOrder,
-          subTotal: new Decimal('41.00'),
-          vatAmount: new Decimal('0'),
-          serviceChargeAmount: new Decimal('0'),
-          grandTotal: new Decimal('41.00'),
+          subTotal: new Decimal("41.00"),
+          vatAmount: new Decimal("0"),
+          serviceChargeAmount: new Decimal("0"),
+          grandTotal: new Decimal("41.00"),
         } as any);
 
         // Act
         const result = await service.checkoutCart(mockSessionId, checkoutDto);
 
         // Assert
-        expect(result.vatAmount).toEqual(new Decimal('0'));
-        expect(result.serviceChargeAmount).toEqual(new Decimal('0'));
-        expect(result.grandTotal).toEqual(new Decimal('41.00'));
+        expect(result.vatAmount).toEqual(new Decimal("0"));
+        expect(result.serviceChargeAmount).toEqual(new Decimal("0"));
+        expect(result.grandTotal).toEqual(new Decimal("41.00"));
       });
 
-      it('should handle decimal precision for complex calculations', async () => {
+      it("should handle decimal precision for complex calculations", async () => {
         // Test case: $9.99 × 7 items = $69.93
         const complexCart = {
           ...mockCart,
-          subTotal: new Decimal('69.93'),
+          subTotal: new Decimal("69.93"),
           items: [
             {
               ...mockCartItem1,
-              basePrice: new Decimal('9.99'),
+              basePrice: new Decimal("9.99"),
               quantity: 7,
               customizations: [],
             },
@@ -743,24 +743,24 @@ describe('OrderService', () => {
         });
 
         mockTransaction.orderItem.create.mockResolvedValue({
-          id: 'order-item-1',
+          id: "order-item-1",
         } as any);
 
         prismaService.order.findUnique.mockResolvedValue({
           ...mockOrder,
-          subTotal: new Decimal('69.93'),
+          subTotal: new Decimal("69.93"),
         } as any);
 
         // Act
         const result = await service.checkoutCart(mockSessionId, checkoutDto);
 
         // Assert
-        expect(result.subTotal).toEqual(new Decimal('69.93'));
+        expect(result.subTotal).toEqual(new Decimal("69.93"));
       });
     });
 
-    describe('Rate Snapshots - Historical Accuracy', () => {
-      it('should snapshot current VAT rate at order time', async () => {
+    describe("Rate Snapshots - Historical Accuracy", () => {
+      it("should snapshot current VAT rate at order time", async () => {
         // Arrange
         prismaService.activeTableSession.findUnique.mockResolvedValue(
           mockActiveSession as any,
@@ -778,12 +778,12 @@ describe('OrderService', () => {
         // Assert
         expect(mockTransaction.order.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
-            vatRateSnapshot: new Decimal('0.07'),
+            vatRateSnapshot: new Decimal("0.07"),
           }),
         });
       });
 
-      it('should snapshot current service charge rate at order time', async () => {
+      it("should snapshot current service charge rate at order time", async () => {
         // Arrange
         prismaService.activeTableSession.findUnique.mockResolvedValue(
           mockActiveSession as any,
@@ -801,12 +801,12 @@ describe('OrderService', () => {
         // Assert
         expect(mockTransaction.order.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
-            serviceChargeRateSnapshot: new Decimal('0.10'),
+            serviceChargeRateSnapshot: new Decimal("0.10"),
           }),
         });
       });
 
-      it('should use zero rates when store settings are null', async () => {
+      it("should use zero rates when store settings are null", async () => {
         // Arrange
         const sessionWithNullSettings = {
           ...mockActiveSession,
@@ -838,15 +838,15 @@ describe('OrderService', () => {
         // Assert
         expect(mockTransaction.order.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
-            vatRateSnapshot: new Decimal('0'),
-            serviceChargeRateSnapshot: new Decimal('0'),
+            vatRateSnapshot: new Decimal("0"),
+            serviceChargeRateSnapshot: new Decimal("0"),
           }),
         });
       });
     });
 
-    describe('Validation - Checkout Requirements', () => {
-      it('should reject checkout when session not found', async () => {
+    describe("Validation - Checkout Requirements", () => {
+      it("should reject checkout when session not found", async () => {
         // Arrange
         prismaService.activeTableSession.findUnique.mockResolvedValue(null);
 
@@ -856,10 +856,10 @@ describe('OrderService', () => {
         ).rejects.toThrow(NotFoundException);
         await expect(
           service.checkoutCart(mockSessionId, checkoutDto),
-        ).rejects.toThrow('Session not found');
+        ).rejects.toThrow("Session not found");
       });
 
-      it('should reject checkout when session is closed', async () => {
+      it("should reject checkout when session is closed", async () => {
         // Arrange
         prismaService.activeTableSession.findUnique.mockResolvedValue(
           mockClosedSession as any,
@@ -871,10 +871,10 @@ describe('OrderService', () => {
         ).rejects.toThrow(BadRequestException);
         await expect(
           service.checkoutCart(mockSessionId, checkoutDto),
-        ).rejects.toThrow('Session is already closed');
+        ).rejects.toThrow("Session is already closed");
       });
 
-      it('should reject checkout when cart not found', async () => {
+      it("should reject checkout when cart not found", async () => {
         // Arrange
         prismaService.activeTableSession.findUnique.mockResolvedValue(
           mockActiveSession as any,
@@ -887,10 +887,10 @@ describe('OrderService', () => {
         ).rejects.toThrow(NotFoundException);
         await expect(
           service.checkoutCart(mockSessionId, checkoutDto),
-        ).rejects.toThrow('Cart not found');
+        ).rejects.toThrow("Cart not found");
       });
 
-      it('should reject checkout when cart is empty', async () => {
+      it("should reject checkout when cart is empty", async () => {
         // Arrange
         prismaService.activeTableSession.findUnique.mockResolvedValue(
           mockActiveSession as any,
@@ -903,12 +903,12 @@ describe('OrderService', () => {
         ).rejects.toThrow(BadRequestException);
         await expect(
           service.checkoutCart(mockSessionId, checkoutDto),
-        ).rejects.toThrow('Cart is empty');
+        ).rejects.toThrow("Cart is empty");
       });
     });
 
-    describe('Transaction Integrity', () => {
-      it('should rollback transaction if order creation fails', async () => {
+    describe("Transaction Integrity", () => {
+      it("should rollback transaction if order creation fails", async () => {
         // Arrange
         prismaService.activeTableSession.findUnique.mockResolvedValue(
           mockActiveSession as any,
@@ -917,7 +917,7 @@ describe('OrderService', () => {
 
         mockTransaction.order.count.mockResolvedValue(0);
         mockTransaction.order.create.mockRejectedValue(
-          new Error('Database error'),
+          new Error("Database error"),
         );
 
         // Act & Assert
@@ -930,7 +930,7 @@ describe('OrderService', () => {
         expect(mockTransaction.cart.update).not.toHaveBeenCalled();
       });
 
-      it('should rollback transaction if order item creation fails', async () => {
+      it("should rollback transaction if order item creation fails", async () => {
         // Arrange
         prismaService.activeTableSession.findUnique.mockResolvedValue(
           mockActiveSession as any,
@@ -940,7 +940,7 @@ describe('OrderService', () => {
         mockTransaction.order.count.mockResolvedValue(0);
         mockTransaction.order.create.mockResolvedValue(mockOrder as any);
         mockTransaction.orderItem.create.mockRejectedValue(
-          new Error('Database error'),
+          new Error("Database error"),
         );
 
         // Act & Assert
@@ -949,7 +949,7 @@ describe('OrderService', () => {
         ).rejects.toThrow(InternalServerErrorException);
       });
 
-      it('should not clear cart if checkout fails', async () => {
+      it("should not clear cart if checkout fails", async () => {
         // Arrange
         prismaService.activeTableSession.findUnique.mockResolvedValue(
           mockActiveSession as any,
@@ -958,7 +958,7 @@ describe('OrderService', () => {
 
         mockTransaction.order.count.mockResolvedValue(0);
         mockTransaction.order.create.mockRejectedValue(
-          new Error('Database error'),
+          new Error("Database error"),
         );
 
         // Act
@@ -974,8 +974,8 @@ describe('OrderService', () => {
     });
   });
 
-  describe('findOne', () => {
-    it('should return order by ID with items and customizations', async () => {
+  describe("findOne", () => {
+    it("should return order by ID with items and customizations", async () => {
       // Arrange
       const orderWithPayments = {
         ...mockOrder,
@@ -1009,23 +1009,23 @@ describe('OrderService', () => {
       });
     });
 
-    it('should throw NotFoundException when order not found', async () => {
+    it("should throw NotFoundException when order not found", async () => {
       // Arrange
       prismaService.order.findUnique.mockResolvedValue(null);
 
       // Act & Assert
-      await expect(service.findOne('non-existent-id')).rejects.toThrow(
+      await expect(service.findOne("non-existent-id")).rejects.toThrow(
         NotFoundException,
       );
-      await expect(service.findOne('non-existent-id')).rejects.toThrow(
-        'Order not found',
+      await expect(service.findOne("non-existent-id")).rejects.toThrow(
+        "Order not found",
       );
     });
 
-    it('should throw InternalServerErrorException on database error', async () => {
+    it("should throw InternalServerErrorException on database error", async () => {
       // Arrange
       prismaService.order.findUnique.mockRejectedValue(
-        new Error('Database error'),
+        new Error("Database error"),
       );
 
       // Act & Assert
@@ -1035,7 +1035,7 @@ describe('OrderService', () => {
     });
   });
 
-  describe('findByStore', () => {
+  describe("findByStore", () => {
     const paginationDto = {
       page: 1,
       limit: 20,
@@ -1043,11 +1043,11 @@ describe('OrderService', () => {
       take: 20,
     };
 
-    it('should return paginated orders for store', async () => {
+    it("should return paginated orders for store", async () => {
       // Arrange
       const orders = [
         { ...mockOrder, payments: [], refunds: [] },
-        { ...mockOrder, id: 'order-456', payments: [], refunds: [] },
+        { ...mockOrder, id: "order-456", payments: [], refunds: [] },
       ];
 
       prismaService.order.findMany.mockResolvedValue(orders as any);
@@ -1073,13 +1073,13 @@ describe('OrderService', () => {
           payments: true,
           refunds: true,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip: 0,
         take: 20,
       });
     });
 
-    it('should enforce store isolation', async () => {
+    it("should enforce store isolation", async () => {
       // Arrange
       prismaService.order.findMany.mockResolvedValue([]);
       prismaService.order.count.mockResolvedValue(0);
@@ -1095,7 +1095,7 @@ describe('OrderService', () => {
       );
     });
 
-    it('should handle pagination correctly', async () => {
+    it("should handle pagination correctly", async () => {
       // Arrange
       const page2Dto = {
         page: 2,
@@ -1123,10 +1123,10 @@ describe('OrderService', () => {
       );
     });
 
-    it('should throw InternalServerErrorException on database error', async () => {
+    it("should throw InternalServerErrorException on database error", async () => {
       // Arrange
       prismaService.order.findMany.mockRejectedValue(
-        new Error('Database error'),
+        new Error("Database error"),
       );
 
       // Act & Assert
@@ -1136,7 +1136,7 @@ describe('OrderService', () => {
     });
   });
 
-  describe('findForKds', () => {
+  describe("findForKds", () => {
     const kdsQueryDto = {
       storeId: mockStoreId,
       page: 1,
@@ -1145,13 +1145,13 @@ describe('OrderService', () => {
       take: 20,
     };
 
-    it('should return orders filtered by status for KDS', async () => {
+    it("should return orders filtered by status for KDS", async () => {
       // Arrange
       const kdsOrders = [
         { ...mockOrder, payments: [], refunds: [] },
         {
           ...mockOrder,
-          id: 'order-456',
+          id: "order-456",
           status: OrderStatus.PREPARING,
           payments: [],
           refunds: [],
@@ -1186,18 +1186,18 @@ describe('OrderService', () => {
                 },
               },
             },
-            orderBy: { createdAt: 'asc' },
+            orderBy: { createdAt: "asc" },
           },
           payments: true,
           refunds: true,
         },
-        orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+        orderBy: [{ status: "asc" }, { createdAt: "desc" }],
         skip: 0,
         take: 20,
       });
     });
 
-    it('should filter active kitchen orders by default (PENDING, PREPARING, READY)', async () => {
+    it("should filter active kitchen orders by default (PENDING, PREPARING, READY)", async () => {
       // Arrange
       prismaService.order.findMany.mockResolvedValue([mockOrder] as any);
       prismaService.order.count.mockResolvedValue(1);
@@ -1222,7 +1222,7 @@ describe('OrderService', () => {
       );
     });
 
-    it('should enforce store isolation for KDS queries', async () => {
+    it("should enforce store isolation for KDS queries", async () => {
       // Arrange
       prismaService.order.findMany.mockResolvedValue([]);
       prismaService.order.count.mockResolvedValue(0);
@@ -1240,7 +1240,7 @@ describe('OrderService', () => {
       );
     });
 
-    it('should include menu item details for KDS display', async () => {
+    it("should include menu item details for KDS display", async () => {
       // Arrange
       prismaService.order.findMany.mockResolvedValue([mockOrder] as any);
       prismaService.order.count.mockResolvedValue(1);
@@ -1269,15 +1269,15 @@ describe('OrderService', () => {
     });
   });
 
-  describe('findBySession', () => {
-    it('should return all orders for a session', async () => {
+  describe("findBySession", () => {
+    it("should return all orders for a session", async () => {
       // Arrange
       const sessionOrders = [
         { ...mockOrder, payments: [], refunds: [] },
         {
           ...mockOrder,
-          id: 'order-456',
-          orderNumber: '20251022-002',
+          id: "order-456",
+          orderNumber: "20251022-002",
           payments: [],
           refunds: [],
         },
@@ -1303,11 +1303,11 @@ describe('OrderService', () => {
           payments: true,
           refunds: true,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       });
     });
 
-    it('should return empty array when no orders found', async () => {
+    it("should return empty array when no orders found", async () => {
       // Arrange
       prismaService.order.findMany.mockResolvedValue([]);
 
@@ -1318,10 +1318,10 @@ describe('OrderService', () => {
       expect(result).toEqual([]);
     });
 
-    it('should throw InternalServerErrorException on database error', async () => {
+    it("should throw InternalServerErrorException on database error", async () => {
       // Arrange
       prismaService.order.findMany.mockRejectedValue(
-        new Error('Database error'),
+        new Error("Database error"),
       );
 
       // Act & Assert
@@ -1331,13 +1331,13 @@ describe('OrderService', () => {
     });
   });
 
-  describe('updateStatus', () => {
+  describe("updateStatus", () => {
     const updateStatusDto: UpdateOrderStatusDto = {
       status: OrderStatus.PREPARING,
     };
 
-    describe('Valid Status Transitions', () => {
-      it('should allow PENDING → PREPARING', async () => {
+    describe("Valid Status Transitions", () => {
+      it("should allow PENDING → PREPARING", async () => {
         // Arrange
         const updatedOrder = {
           ...mockOrder,
@@ -1365,7 +1365,7 @@ describe('OrderService', () => {
         });
       });
 
-      it('should allow PREPARING → READY', async () => {
+      it("should allow PREPARING → READY", async () => {
         // Arrange
         const preparingOrder = { ...mockOrder, status: OrderStatus.PREPARING };
         const readyOrder = { ...mockOrder, status: OrderStatus.READY };
@@ -1385,7 +1385,7 @@ describe('OrderService', () => {
         expect(result.status).toBe(OrderStatus.READY);
       });
 
-      it('should allow READY → SERVED', async () => {
+      it("should allow READY → SERVED", async () => {
         // Arrange
         const readyOrder = { ...mockOrder, status: OrderStatus.READY };
         const servedOrder = { ...mockOrder, status: OrderStatus.SERVED };
@@ -1405,7 +1405,7 @@ describe('OrderService', () => {
         expect(result.status).toBe(OrderStatus.SERVED);
       });
 
-      it('should allow SERVED → COMPLETED', async () => {
+      it("should allow SERVED → COMPLETED", async () => {
         // Arrange
         const servedOrder = { ...mockOrder, status: OrderStatus.SERVED };
         const completedOrder = {
@@ -1429,7 +1429,7 @@ describe('OrderService', () => {
         expect(result.status).toBe(OrderStatus.COMPLETED);
       });
 
-      it('should allow any status → CANCELLED', async () => {
+      it("should allow any status → CANCELLED", async () => {
         // Arrange
         const cancelledOrder = {
           ...mockOrder,
@@ -1452,8 +1452,8 @@ describe('OrderService', () => {
       });
     });
 
-    describe('Invalid Status Transitions', () => {
-      it('should reject COMPLETED → PENDING', async () => {
+    describe("Invalid Status Transitions", () => {
+      it("should reject COMPLETED → PENDING", async () => {
         // Arrange
         const completedOrder = {
           ...mockOrder,
@@ -1468,10 +1468,10 @@ describe('OrderService', () => {
         ).rejects.toThrow(BadRequestException);
         await expect(
           service.updateStatus(mockOrderId, { status: OrderStatus.PENDING }),
-        ).rejects.toThrow('Cannot update completed order');
+        ).rejects.toThrow("Cannot update completed order");
       });
 
-      it('should reject COMPLETED → PREPARING', async () => {
+      it("should reject COMPLETED → PREPARING", async () => {
         // Arrange
         const completedOrder = {
           ...mockOrder,
@@ -1486,7 +1486,7 @@ describe('OrderService', () => {
         ).rejects.toThrow(BadRequestException);
       });
 
-      it('should reject any transition from CANCELLED status', async () => {
+      it("should reject any transition from CANCELLED status", async () => {
         // Arrange
         const cancelledOrder = { ...mockOrder, status: OrderStatus.CANCELLED };
         prismaService.order.findUnique.mockResolvedValue(cancelledOrder as any);
@@ -1497,10 +1497,10 @@ describe('OrderService', () => {
         ).rejects.toThrow(BadRequestException);
         await expect(
           service.updateStatus(mockOrderId, { status: OrderStatus.PENDING }),
-        ).rejects.toThrow('Cannot update cancelled order');
+        ).rejects.toThrow("Cannot update cancelled order");
       });
 
-      it('should reject invalid transition PENDING → SERVED', async () => {
+      it("should reject invalid transition PENDING → SERVED", async () => {
         // Arrange
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
 
@@ -1514,8 +1514,8 @@ describe('OrderService', () => {
       });
     });
 
-    describe('Order Completion and Payment', () => {
-      it('should set paidAt timestamp when status is COMPLETED', async () => {
+    describe("Order Completion and Payment", () => {
+      it("should set paidAt timestamp when status is COMPLETED", async () => {
         // Arrange
         const servedOrder = {
           ...mockOrder,
@@ -1527,7 +1527,7 @@ describe('OrderService', () => {
         const completedOrder = {
           ...servedOrder,
           status: OrderStatus.COMPLETED,
-          paidAt: new Date('2025-10-22T11:00:00Z'),
+          paidAt: new Date("2025-10-22T11:00:00Z"),
         };
         prismaService.order.update.mockResolvedValue(completedOrder as any);
 
@@ -1546,9 +1546,9 @@ describe('OrderService', () => {
         });
       });
 
-      it('should not overwrite existing paidAt when updating to COMPLETED', async () => {
+      it("should not overwrite existing paidAt when updating to COMPLETED", async () => {
         // Arrange
-        const existingPaidAt = new Date('2025-10-22T10:45:00Z');
+        const existingPaidAt = new Date("2025-10-22T10:45:00Z");
         const servedOrder = {
           ...mockOrder,
           status: OrderStatus.SERVED,
@@ -1578,8 +1578,8 @@ describe('OrderService', () => {
       });
     });
 
-    describe('WebSocket Broadcasting', () => {
-      it('should broadcast status update to kitchen', async () => {
+    describe("WebSocket Broadcasting", () => {
+      it("should broadcast status update to kitchen", async () => {
         // Arrange
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
         prismaService.order.update.mockResolvedValue({
@@ -1595,7 +1595,7 @@ describe('OrderService', () => {
           `store-${mockStoreId}`,
         );
         expect(kitchenGateway.server.emit).toHaveBeenCalledWith(
-          'kitchen:status-updated',
+          "kitchen:status-updated",
           expect.objectContaining({
             orderId: mockOrderId,
             status: OrderStatus.PREPARING,
@@ -1603,7 +1603,7 @@ describe('OrderService', () => {
         );
       });
 
-      it('should broadcast special event when order status is READY', async () => {
+      it("should broadcast special event when order status is READY", async () => {
         // Arrange
         const preparingOrder = { ...mockOrder, status: OrderStatus.PREPARING };
         prismaService.order.findUnique.mockResolvedValue(preparingOrder as any);
@@ -1622,10 +1622,10 @@ describe('OrderService', () => {
         );
       });
 
-      it('should include paidAt in broadcast for COMPLETED orders', async () => {
+      it("should include paidAt in broadcast for COMPLETED orders", async () => {
         // Arrange
         const servedOrder = { ...mockOrder, status: OrderStatus.SERVED };
-        const paidAt = new Date('2025-10-22T11:00:00Z');
+        const paidAt = new Date("2025-10-22T11:00:00Z");
 
         prismaService.order.findUnique.mockResolvedValue(servedOrder as any);
         prismaService.order.update.mockResolvedValue({
@@ -1641,7 +1641,7 @@ describe('OrderService', () => {
 
         // Assert
         expect(kitchenGateway.server.emit).toHaveBeenCalledWith(
-          'kitchen:status-updated',
+          "kitchen:status-updated",
           expect.objectContaining({
             paidAt,
           }),
@@ -1649,24 +1649,24 @@ describe('OrderService', () => {
       });
     });
 
-    describe('Error Handling', () => {
-      it('should throw NotFoundException when order does not exist', async () => {
+    describe("Error Handling", () => {
+      it("should throw NotFoundException when order does not exist", async () => {
         // Arrange
         prismaService.order.findUnique.mockResolvedValue(null);
 
         // Act & Assert
         await expect(
-          service.updateStatus('non-existent-id', updateStatusDto),
+          service.updateStatus("non-existent-id", updateStatusDto),
         ).rejects.toThrow(NotFoundException);
         await expect(
-          service.updateStatus('non-existent-id', updateStatusDto),
-        ).rejects.toThrow('Order not found');
+          service.updateStatus("non-existent-id", updateStatusDto),
+        ).rejects.toThrow("Order not found");
       });
 
-      it('should throw InternalServerErrorException on database error', async () => {
+      it("should throw InternalServerErrorException on database error", async () => {
         // Arrange
         prismaService.order.findUnique.mockRejectedValue(
-          new Error('Database error'),
+          new Error("Database error"),
         );
 
         // Act & Assert
@@ -1677,8 +1677,8 @@ describe('OrderService', () => {
     });
   });
 
-  describe('generateOrderNumber (private method)', () => {
-    it('should generate order number in YYYYMMDD-XXX format', async () => {
+  describe("generateOrderNumber (private method)", () => {
+    it("should generate order number in YYYYMMDD-XXX format", async () => {
       // Arrange
       const checkoutDto: CheckoutCartDto = {
         orderType: OrderType.DINE_IN,
@@ -1692,15 +1692,15 @@ describe('OrderService', () => {
       mockTransaction.order.count.mockResolvedValue(0);
       mockTransaction.order.create.mockResolvedValue({
         ...mockOrder,
-        orderNumber: '20251022-001',
+        orderNumber: "20251022-001",
       } as any);
       mockTransaction.orderItem.create.mockResolvedValue({
-        id: 'order-item-1',
+        id: "order-item-1",
       } as any);
 
       prismaService.order.findUnique.mockResolvedValue({
         ...mockOrder,
-        orderNumber: '20251022-001',
+        orderNumber: "20251022-001",
       } as any);
 
       // Act
@@ -1708,10 +1708,10 @@ describe('OrderService', () => {
 
       // Assert
       expect(result.orderNumber).toMatch(/^\d{8}-\d{3}$/);
-      expect(result.orderNumber).toBe('20251022-001');
+      expect(result.orderNumber).toBe("20251022-001");
     });
 
-    it('should increment sequence number for same day orders', async () => {
+    it("should increment sequence number for same day orders", async () => {
       // Arrange
       const checkoutDto: CheckoutCartDto = {
         orderType: OrderType.DINE_IN,
@@ -1726,25 +1726,25 @@ describe('OrderService', () => {
       mockTransaction.order.count.mockResolvedValue(10);
       mockTransaction.order.create.mockResolvedValue({
         ...mockOrder,
-        orderNumber: '20251022-011',
+        orderNumber: "20251022-011",
       } as any);
       mockTransaction.orderItem.create.mockResolvedValue({
-        id: 'order-item-1',
+        id: "order-item-1",
       } as any);
 
       prismaService.order.findUnique.mockResolvedValue({
         ...mockOrder,
-        orderNumber: '20251022-011',
+        orderNumber: "20251022-011",
       } as any);
 
       // Act
       const result = await service.checkoutCart(mockSessionId, checkoutDto);
 
       // Assert
-      expect(result.orderNumber).toBe('20251022-011');
+      expect(result.orderNumber).toBe("20251022-011");
     });
 
-    it('should pad sequence number with zeros', async () => {
+    it("should pad sequence number with zeros", async () => {
       // Arrange
       const checkoutDto: CheckoutCartDto = {
         orderType: OrderType.DINE_IN,
@@ -1757,9 +1757,9 @@ describe('OrderService', () => {
 
       // Test sequence 1, 10, 100
       const testCases = [
-        { count: 0, expected: '001' },
-        { count: 9, expected: '010' },
-        { count: 99, expected: '100' },
+        { count: 0, expected: "001" },
+        { count: 9, expected: "010" },
+        { count: 99, expected: "100" },
       ];
 
       for (const testCase of testCases) {
@@ -1769,7 +1769,7 @@ describe('OrderService', () => {
           orderNumber: `20251022-${testCase.expected}`,
         } as any);
         mockTransaction.orderItem.create.mockResolvedValue({
-          id: 'order-item-1',
+          id: "order-item-1",
         } as any);
 
         prismaService.order.findUnique.mockResolvedValue({
@@ -1785,7 +1785,7 @@ describe('OrderService', () => {
       }
     });
 
-    it('should query orders for the correct date range', async () => {
+    it("should query orders for the correct date range", async () => {
       // Arrange
       const checkoutDto: CheckoutCartDto = {
         orderType: OrderType.DINE_IN,
@@ -1799,7 +1799,7 @@ describe('OrderService', () => {
       mockTransaction.order.count.mockResolvedValue(0);
       mockTransaction.order.create.mockResolvedValue(mockOrder as any);
       mockTransaction.orderItem.create.mockResolvedValue({
-        id: 'order-item-1',
+        id: "order-item-1",
       } as any);
 
       prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
@@ -1827,53 +1827,53 @@ describe('OrderService', () => {
     });
   });
 
-  describe('validateStatusTransition (private method)', () => {
-    describe('Valid Transitions', () => {
+  describe("validateStatusTransition (private method)", () => {
+    describe("Valid Transitions", () => {
       const validTransitions = [
         {
           from: OrderStatus.PENDING,
           to: OrderStatus.PREPARING,
-          description: 'PENDING → PREPARING',
+          description: "PENDING → PREPARING",
         },
         {
           from: OrderStatus.PENDING,
           to: OrderStatus.CANCELLED,
-          description: 'PENDING → CANCELLED',
+          description: "PENDING → CANCELLED",
         },
         {
           from: OrderStatus.PREPARING,
           to: OrderStatus.READY,
-          description: 'PREPARING → READY',
+          description: "PREPARING → READY",
         },
         {
           from: OrderStatus.PREPARING,
           to: OrderStatus.CANCELLED,
-          description: 'PREPARING → CANCELLED',
+          description: "PREPARING → CANCELLED",
         },
         {
           from: OrderStatus.READY,
           to: OrderStatus.SERVED,
-          description: 'READY → SERVED',
+          description: "READY → SERVED",
         },
         {
           from: OrderStatus.READY,
           to: OrderStatus.CANCELLED,
-          description: 'READY → CANCELLED',
+          description: "READY → CANCELLED",
         },
         {
           from: OrderStatus.SERVED,
           to: OrderStatus.COMPLETED,
-          description: 'SERVED → COMPLETED',
+          description: "SERVED → COMPLETED",
         },
         {
           from: OrderStatus.SERVED,
           to: OrderStatus.CANCELLED,
-          description: 'SERVED → CANCELLED',
+          description: "SERVED → CANCELLED",
         },
         {
           from: OrderStatus.COMPLETED,
           to: OrderStatus.CANCELLED,
-          description: 'COMPLETED → CANCELLED (refund)',
+          description: "COMPLETED → CANCELLED (refund)",
         },
       ];
 
@@ -1897,72 +1897,72 @@ describe('OrderService', () => {
       });
     });
 
-    describe('Invalid Transitions', () => {
+    describe("Invalid Transitions", () => {
       const invalidTransitions = [
         {
           from: OrderStatus.PENDING,
           to: OrderStatus.READY,
-          description: 'PENDING → READY',
+          description: "PENDING → READY",
         },
         {
           from: OrderStatus.PENDING,
           to: OrderStatus.SERVED,
-          description: 'PENDING → SERVED',
+          description: "PENDING → SERVED",
         },
         {
           from: OrderStatus.PENDING,
           to: OrderStatus.COMPLETED,
-          description: 'PENDING → COMPLETED',
+          description: "PENDING → COMPLETED",
         },
         {
           from: OrderStatus.PREPARING,
           to: OrderStatus.PENDING,
-          description: 'PREPARING → PENDING',
+          description: "PREPARING → PENDING",
         },
         {
           from: OrderStatus.PREPARING,
           to: OrderStatus.SERVED,
-          description: 'PREPARING → SERVED',
+          description: "PREPARING → SERVED",
         },
         {
           from: OrderStatus.READY,
           to: OrderStatus.PENDING,
-          description: 'READY → PENDING',
+          description: "READY → PENDING",
         },
         {
           from: OrderStatus.READY,
           to: OrderStatus.PREPARING,
-          description: 'READY → PREPARING',
+          description: "READY → PREPARING",
         },
         {
           from: OrderStatus.SERVED,
           to: OrderStatus.PENDING,
-          description: 'SERVED → PENDING',
+          description: "SERVED → PENDING",
         },
         {
           from: OrderStatus.SERVED,
           to: OrderStatus.PREPARING,
-          description: 'SERVED → PREPARING',
+          description: "SERVED → PREPARING",
         },
         {
           from: OrderStatus.COMPLETED,
           to: OrderStatus.PENDING,
-          description: 'COMPLETED → PENDING',
+          description: "COMPLETED → PENDING",
         },
         {
           from: OrderStatus.COMPLETED,
           to: OrderStatus.PREPARING,
-          description: 'COMPLETED → PREPARING',
+          description: "COMPLETED → PREPARING",
         },
         {
           from: OrderStatus.COMPLETED,
           to: OrderStatus.READY,
-          description: 'COMPLETED → READY',
+          description: "COMPLETED → READY",
         },
         {
           from: OrderStatus.COMPLETED,
           to: OrderStatus.SERVED,
-          description: 'COMPLETED → SERVED',
+          description: "COMPLETED → SERVED",
         },
       ];
 
@@ -1982,8 +1982,8 @@ describe('OrderService', () => {
       });
     });
 
-    describe('Cancelled Order Transitions', () => {
-      it('should reject all transitions from CANCELLED status', async () => {
+    describe("Cancelled Order Transitions", () => {
+      it("should reject all transitions from CANCELLED status", async () => {
         // Arrange
         const cancelledOrder = { ...mockOrder, status: OrderStatus.CANCELLED };
         prismaService.order.findUnique.mockResolvedValue(cancelledOrder as any);
@@ -2004,24 +2004,24 @@ describe('OrderService', () => {
           ).rejects.toThrow(BadRequestException);
           await expect(
             service.updateStatus(mockOrderId, { status }),
-          ).rejects.toThrow('Cannot update cancelled order');
+          ).rejects.toThrow("Cannot update cancelled order");
         }
       });
     });
   });
 
-  describe('getPaymentStatus', () => {
-    describe('Single Payment Scenarios', () => {
-      it('should calculate payment status for fully paid order with single payment', async () => {
+  describe("getPaymentStatus", () => {
+    describe("Single Payment Scenarios", () => {
+      it("should calculate payment status for fully paid order with single payment", async () => {
         // Arrange
         const orderWithPayment = {
           ...mockOrder,
-          grandTotal: new Decimal('100.00'),
+          grandTotal: new Decimal("100.00"),
           payments: [
             {
-              id: 'payment-1',
-              amount: new Decimal('100.00'),
-              paymentMethod: 'CASH',
+              id: "payment-1",
+              amount: new Decimal("100.00"),
+              paymentMethod: "CASH",
             },
           ],
           refunds: [],
@@ -2035,24 +2035,24 @@ describe('OrderService', () => {
         const result = await service.getPaymentStatus(mockOrderId);
 
         // Assert
-        expect(result.totalPaid).toEqual(new Decimal('100.00'));
-        expect(result.totalRefunded).toEqual(new Decimal('0'));
-        expect(result.netPaid).toEqual(new Decimal('100.00'));
-        expect(result.grandTotal).toEqual(new Decimal('100.00'));
-        expect(result.remainingBalance).toEqual(new Decimal('0'));
+        expect(result.totalPaid).toEqual(new Decimal("100.00"));
+        expect(result.totalRefunded).toEqual(new Decimal("0"));
+        expect(result.netPaid).toEqual(new Decimal("100.00"));
+        expect(result.grandTotal).toEqual(new Decimal("100.00"));
+        expect(result.remainingBalance).toEqual(new Decimal("0"));
         expect(result.isPaidInFull).toBe(true);
       });
 
-      it('should calculate payment status for partially paid order', async () => {
+      it("should calculate payment status for partially paid order", async () => {
         // Arrange
         const orderWithPayment = {
           ...mockOrder,
-          grandTotal: new Decimal('100.00'),
+          grandTotal: new Decimal("100.00"),
           payments: [
             {
-              id: 'payment-1',
-              amount: new Decimal('60.00'),
-              paymentMethod: 'CASH',
+              id: "payment-1",
+              amount: new Decimal("60.00"),
+              paymentMethod: "CASH",
             },
           ],
           refunds: [],
@@ -2066,17 +2066,17 @@ describe('OrderService', () => {
         const result = await service.getPaymentStatus(mockOrderId);
 
         // Assert
-        expect(result.totalPaid).toEqual(new Decimal('60.00'));
-        expect(result.netPaid).toEqual(new Decimal('60.00'));
-        expect(result.remainingBalance).toEqual(new Decimal('40.00'));
+        expect(result.totalPaid).toEqual(new Decimal("60.00"));
+        expect(result.netPaid).toEqual(new Decimal("60.00"));
+        expect(result.remainingBalance).toEqual(new Decimal("40.00"));
         expect(result.isPaidInFull).toBe(false);
       });
 
-      it('should calculate payment status for unpaid order', async () => {
+      it("should calculate payment status for unpaid order", async () => {
         // Arrange
         const unpaidOrder = {
           ...mockOrder,
-          grandTotal: new Decimal('100.00'),
+          grandTotal: new Decimal("100.00"),
           payments: [],
           refunds: [],
         };
@@ -2087,29 +2087,29 @@ describe('OrderService', () => {
         const result = await service.getPaymentStatus(mockOrderId);
 
         // Assert
-        expect(result.totalPaid).toEqual(new Decimal('0'));
-        expect(result.netPaid).toEqual(new Decimal('0'));
-        expect(result.remainingBalance).toEqual(new Decimal('100.00'));
+        expect(result.totalPaid).toEqual(new Decimal("0"));
+        expect(result.netPaid).toEqual(new Decimal("0"));
+        expect(result.remainingBalance).toEqual(new Decimal("100.00"));
         expect(result.isPaidInFull).toBe(false);
       });
     });
 
-    describe('Split Payment Scenarios (Bill Splitting)', () => {
-      it('should calculate payment status for 2-way bill split (50/50)', async () => {
+    describe("Split Payment Scenarios (Bill Splitting)", () => {
+      it("should calculate payment status for 2-way bill split (50/50)", async () => {
         // Arrange
         const orderWithSplitPayments = {
           ...mockOrder,
-          grandTotal: new Decimal('100.00'),
+          grandTotal: new Decimal("100.00"),
           payments: [
             {
-              id: 'payment-1',
-              amount: new Decimal('50.00'),
-              paymentMethod: 'CASH',
+              id: "payment-1",
+              amount: new Decimal("50.00"),
+              paymentMethod: "CASH",
             },
             {
-              id: 'payment-2',
-              amount: new Decimal('50.00'),
-              paymentMethod: 'CREDIT_CARD',
+              id: "payment-2",
+              amount: new Decimal("50.00"),
+              paymentMethod: "CREDIT_CARD",
             },
           ],
           refunds: [],
@@ -2123,32 +2123,32 @@ describe('OrderService', () => {
         const result = await service.getPaymentStatus(mockOrderId);
 
         // Assert
-        expect(result.totalPaid).toEqual(new Decimal('100.00'));
-        expect(result.netPaid).toEqual(new Decimal('100.00'));
-        expect(result.remainingBalance).toEqual(new Decimal('0'));
+        expect(result.totalPaid).toEqual(new Decimal("100.00"));
+        expect(result.netPaid).toEqual(new Decimal("100.00"));
+        expect(result.remainingBalance).toEqual(new Decimal("0"));
         expect(result.isPaidInFull).toBe(true);
       });
 
-      it('should calculate payment status for 3-way bill split', async () => {
+      it("should calculate payment status for 3-way bill split", async () => {
         // Arrange
         const orderWith3WaySplit = {
           ...mockOrder,
-          grandTotal: new Decimal('150.00'),
+          grandTotal: new Decimal("150.00"),
           payments: [
             {
-              id: 'payment-1',
-              amount: new Decimal('50.00'),
-              paymentMethod: 'CASH',
+              id: "payment-1",
+              amount: new Decimal("50.00"),
+              paymentMethod: "CASH",
             },
             {
-              id: 'payment-2',
-              amount: new Decimal('50.00'),
-              paymentMethod: 'CREDIT_CARD',
+              id: "payment-2",
+              amount: new Decimal("50.00"),
+              paymentMethod: "CREDIT_CARD",
             },
             {
-              id: 'payment-3',
-              amount: new Decimal('50.00'),
-              paymentMethod: 'EWALLET',
+              id: "payment-3",
+              amount: new Decimal("50.00"),
+              paymentMethod: "EWALLET",
             },
           ],
           refunds: [],
@@ -2162,27 +2162,27 @@ describe('OrderService', () => {
         const result = await service.getPaymentStatus(mockOrderId);
 
         // Assert
-        expect(result.totalPaid).toEqual(new Decimal('150.00'));
-        expect(result.netPaid).toEqual(new Decimal('150.00'));
-        expect(result.remainingBalance).toEqual(new Decimal('0'));
+        expect(result.totalPaid).toEqual(new Decimal("150.00"));
+        expect(result.netPaid).toEqual(new Decimal("150.00"));
+        expect(result.remainingBalance).toEqual(new Decimal("0"));
         expect(result.isPaidInFull).toBe(true);
       });
 
-      it('should calculate payment status for partial split payment (2 of 3 paid)', async () => {
+      it("should calculate payment status for partial split payment (2 of 3 paid)", async () => {
         // Arrange
         const orderWithPartialSplit = {
           ...mockOrder,
-          grandTotal: new Decimal('150.00'),
+          grandTotal: new Decimal("150.00"),
           payments: [
             {
-              id: 'payment-1',
-              amount: new Decimal('50.00'),
-              paymentMethod: 'CASH',
+              id: "payment-1",
+              amount: new Decimal("50.00"),
+              paymentMethod: "CASH",
             },
             {
-              id: 'payment-2',
-              amount: new Decimal('50.00'),
-              paymentMethod: 'CREDIT_CARD',
+              id: "payment-2",
+              amount: new Decimal("50.00"),
+              paymentMethod: "CREDIT_CARD",
             },
           ],
           refunds: [],
@@ -2196,32 +2196,32 @@ describe('OrderService', () => {
         const result = await service.getPaymentStatus(mockOrderId);
 
         // Assert
-        expect(result.totalPaid).toEqual(new Decimal('100.00'));
-        expect(result.netPaid).toEqual(new Decimal('100.00'));
-        expect(result.remainingBalance).toEqual(new Decimal('50.00'));
+        expect(result.totalPaid).toEqual(new Decimal("100.00"));
+        expect(result.netPaid).toEqual(new Decimal("100.00"));
+        expect(result.remainingBalance).toEqual(new Decimal("50.00"));
         expect(result.isPaidInFull).toBe(false);
       });
 
-      it('should calculate payment status for unequal split payments', async () => {
+      it("should calculate payment status for unequal split payments", async () => {
         // Arrange
         const orderWithUnequalSplit = {
           ...mockOrder,
-          grandTotal: new Decimal('117.00'),
+          grandTotal: new Decimal("117.00"),
           payments: [
             {
-              id: 'payment-1',
-              amount: new Decimal('70.00'),
-              paymentMethod: 'CASH',
+              id: "payment-1",
+              amount: new Decimal("70.00"),
+              paymentMethod: "CASH",
             },
             {
-              id: 'payment-2',
-              amount: new Decimal('30.00'),
-              paymentMethod: 'CREDIT_CARD',
+              id: "payment-2",
+              amount: new Decimal("30.00"),
+              paymentMethod: "CREDIT_CARD",
             },
             {
-              id: 'payment-3',
-              amount: new Decimal('17.00'),
-              paymentMethod: 'EWALLET',
+              id: "payment-3",
+              amount: new Decimal("17.00"),
+              paymentMethod: "EWALLET",
             },
           ],
           refunds: [],
@@ -2235,31 +2235,31 @@ describe('OrderService', () => {
         const result = await service.getPaymentStatus(mockOrderId);
 
         // Assert
-        expect(result.totalPaid).toEqual(new Decimal('117.00'));
-        expect(result.netPaid).toEqual(new Decimal('117.00'));
-        expect(result.remainingBalance).toEqual(new Decimal('0'));
+        expect(result.totalPaid).toEqual(new Decimal("117.00"));
+        expect(result.netPaid).toEqual(new Decimal("117.00"));
+        expect(result.remainingBalance).toEqual(new Decimal("0"));
         expect(result.isPaidInFull).toBe(true);
       });
     });
 
-    describe('Refund Scenarios', () => {
-      it('should calculate net paid correctly with refunds', async () => {
+    describe("Refund Scenarios", () => {
+      it("should calculate net paid correctly with refunds", async () => {
         // Arrange
         const orderWithRefund = {
           ...mockOrder,
-          grandTotal: new Decimal('100.00'),
+          grandTotal: new Decimal("100.00"),
           payments: [
             {
-              id: 'payment-1',
-              amount: new Decimal('100.00'),
-              paymentMethod: 'CASH',
+              id: "payment-1",
+              amount: new Decimal("100.00"),
+              paymentMethod: "CASH",
             },
           ],
           refunds: [
             {
-              id: 'refund-1',
-              amount: new Decimal('20.00'),
-              reason: 'Wrong item',
+              id: "refund-1",
+              amount: new Decimal("20.00"),
+              reason: "Wrong item",
             },
           ],
         };
@@ -2272,35 +2272,35 @@ describe('OrderService', () => {
         const result = await service.getPaymentStatus(mockOrderId);
 
         // Assert
-        expect(result.totalPaid).toEqual(new Decimal('100.00'));
-        expect(result.totalRefunded).toEqual(new Decimal('20.00'));
-        expect(result.netPaid).toEqual(new Decimal('80.00'));
-        expect(result.remainingBalance).toEqual(new Decimal('20.00'));
+        expect(result.totalPaid).toEqual(new Decimal("100.00"));
+        expect(result.totalRefunded).toEqual(new Decimal("20.00"));
+        expect(result.netPaid).toEqual(new Decimal("80.00"));
+        expect(result.remainingBalance).toEqual(new Decimal("20.00"));
         expect(result.isPaidInFull).toBe(false);
       });
 
-      it('should calculate payment status for split payments with refund', async () => {
+      it("should calculate payment status for split payments with refund", async () => {
         // Arrange
         const orderWithSplitAndRefund = {
           ...mockOrder,
-          grandTotal: new Decimal('150.00'),
+          grandTotal: new Decimal("150.00"),
           payments: [
             {
-              id: 'payment-1',
-              amount: new Decimal('75.00'),
-              paymentMethod: 'CASH',
+              id: "payment-1",
+              amount: new Decimal("75.00"),
+              paymentMethod: "CASH",
             },
             {
-              id: 'payment-2',
-              amount: new Decimal('75.00'),
-              paymentMethod: 'CREDIT_CARD',
+              id: "payment-2",
+              amount: new Decimal("75.00"),
+              paymentMethod: "CREDIT_CARD",
             },
           ],
           refunds: [
             {
-              id: 'refund-1',
-              amount: new Decimal('30.00'),
-              reason: 'Partial refund',
+              id: "refund-1",
+              amount: new Decimal("30.00"),
+              reason: "Partial refund",
             },
           ],
         };
@@ -2313,35 +2313,35 @@ describe('OrderService', () => {
         const result = await service.getPaymentStatus(mockOrderId);
 
         // Assert
-        expect(result.totalPaid).toEqual(new Decimal('150.00'));
-        expect(result.totalRefunded).toEqual(new Decimal('30.00'));
-        expect(result.netPaid).toEqual(new Decimal('120.00'));
-        expect(result.remainingBalance).toEqual(new Decimal('30.00'));
+        expect(result.totalPaid).toEqual(new Decimal("150.00"));
+        expect(result.totalRefunded).toEqual(new Decimal("30.00"));
+        expect(result.netPaid).toEqual(new Decimal("120.00"));
+        expect(result.remainingBalance).toEqual(new Decimal("30.00"));
         expect(result.isPaidInFull).toBe(false);
       });
     });
 
-    describe('Decimal Precision', () => {
-      it('should maintain decimal precision for complex split calculations', async () => {
+    describe("Decimal Precision", () => {
+      it("should maintain decimal precision for complex split calculations", async () => {
         // Arrange
         const orderWithComplexSplit = {
           ...mockOrder,
-          grandTotal: new Decimal('99.99'),
+          grandTotal: new Decimal("99.99"),
           payments: [
             {
-              id: 'payment-1',
-              amount: new Decimal('33.33'),
-              paymentMethod: 'CASH',
+              id: "payment-1",
+              amount: new Decimal("33.33"),
+              paymentMethod: "CASH",
             },
             {
-              id: 'payment-2',
-              amount: new Decimal('33.33'),
-              paymentMethod: 'CREDIT_CARD',
+              id: "payment-2",
+              amount: new Decimal("33.33"),
+              paymentMethod: "CREDIT_CARD",
             },
             {
-              id: 'payment-3',
-              amount: new Decimal('33.33'),
-              paymentMethod: 'EWALLET',
+              id: "payment-3",
+              amount: new Decimal("33.33"),
+              paymentMethod: "EWALLET",
             },
           ],
           refunds: [],
@@ -2355,21 +2355,21 @@ describe('OrderService', () => {
         const result = await service.getPaymentStatus(mockOrderId);
 
         // Assert
-        expect(result.totalPaid.toFixed(2)).toBe('99.99');
-        expect(result.remainingBalance.toFixed(2)).toBe('0.00');
+        expect(result.totalPaid.toFixed(2)).toBe("99.99");
+        expect(result.remainingBalance.toFixed(2)).toBe("0.00");
         expect(result.isPaidInFull).toBe(true);
       });
 
-      it('should handle very small remaining balances correctly', async () => {
+      it("should handle very small remaining balances correctly", async () => {
         // Arrange
         const orderWithSmallRemaining = {
           ...mockOrder,
-          grandTotal: new Decimal('100.01'),
+          grandTotal: new Decimal("100.01"),
           payments: [
             {
-              id: 'payment-1',
-              amount: new Decimal('100.00'),
-              paymentMethod: 'CASH',
+              id: "payment-1",
+              amount: new Decimal("100.00"),
+              paymentMethod: "CASH",
             },
           ],
           refunds: [],
@@ -2383,30 +2383,30 @@ describe('OrderService', () => {
         const result = await service.getPaymentStatus(mockOrderId);
 
         // Assert
-        expect(result.totalPaid.toFixed(2)).toBe('100.00');
-        expect(result.remainingBalance.toFixed(2)).toBe('0.01');
+        expect(result.totalPaid.toFixed(2)).toBe("100.00");
+        expect(result.remainingBalance.toFixed(2)).toBe("0.01");
         expect(result.isPaidInFull).toBe(false);
       });
     });
 
-    describe('Error Handling', () => {
-      it('should throw NotFoundException when order not found', async () => {
+    describe("Error Handling", () => {
+      it("should throw NotFoundException when order not found", async () => {
         // Arrange
         prismaService.order.findUnique.mockResolvedValue(null);
 
         // Act & Assert
         await expect(
-          service.getPaymentStatus('non-existent-id'),
+          service.getPaymentStatus("non-existent-id"),
         ).rejects.toThrow(NotFoundException);
         await expect(
-          service.getPaymentStatus('non-existent-id'),
-        ).rejects.toThrow('Order not found');
+          service.getPaymentStatus("non-existent-id"),
+        ).rejects.toThrow("Order not found");
       });
 
-      it('should throw InternalServerErrorException on database error', async () => {
+      it("should throw InternalServerErrorException on database error", async () => {
         // Arrange
         prismaService.order.findUnique.mockRejectedValue(
-          new Error('Database error'),
+          new Error("Database error"),
         );
 
         // Act & Assert
@@ -2417,17 +2417,17 @@ describe('OrderService', () => {
     });
   });
 
-  describe('findOne with payment status', () => {
-    it('should include payment status fields in response', async () => {
+  describe("findOne with payment status", () => {
+    it("should include payment status fields in response", async () => {
       // Arrange
       const orderWithPayments = {
         ...mockOrder,
-        grandTotal: new Decimal('100.00'),
+        grandTotal: new Decimal("100.00"),
         payments: [
           {
-            id: 'payment-1',
-            amount: new Decimal('60.00'),
-            paymentMethod: 'CASH',
+            id: "payment-1",
+            amount: new Decimal("60.00"),
+            paymentMethod: "CASH",
           },
         ],
         refunds: [],
@@ -2441,26 +2441,26 @@ describe('OrderService', () => {
       const result = await service.findOne(mockOrderId);
 
       // Assert
-      expect(result.totalPaid).toBe('60.00');
-      expect(result.remainingBalance).toBe('40.00');
+      expect(result.totalPaid).toBe("60.00");
+      expect(result.remainingBalance).toBe("40.00");
       expect(result.isPaidInFull).toBe(false);
     });
 
-    it('should show isPaidInFull as true for split payments that complete payment', async () => {
+    it("should show isPaidInFull as true for split payments that complete payment", async () => {
       // Arrange
       const orderWithSplitPayments = {
         ...mockOrder,
-        grandTotal: new Decimal('100.00'),
+        grandTotal: new Decimal("100.00"),
         payments: [
           {
-            id: 'payment-1',
-            amount: new Decimal('50.00'),
-            paymentMethod: 'CASH',
+            id: "payment-1",
+            amount: new Decimal("50.00"),
+            paymentMethod: "CASH",
           },
           {
-            id: 'payment-2',
-            amount: new Decimal('50.00'),
-            paymentMethod: 'CREDIT_CARD',
+            id: "payment-2",
+            amount: new Decimal("50.00"),
+            paymentMethod: "CREDIT_CARD",
           },
         ],
         refunds: [],
@@ -2474,14 +2474,14 @@ describe('OrderService', () => {
       const result = await service.findOne(mockOrderId);
 
       // Assert
-      expect(result.totalPaid).toBe('100.00');
-      expect(result.remainingBalance).toBe('0.00');
+      expect(result.totalPaid).toBe("100.00");
+      expect(result.remainingBalance).toBe("0.00");
       expect(result.isPaidInFull).toBe(true);
     });
   });
 
-  describe('findByStore with payment status', () => {
-    it('should include payment status for all orders in paginated response', async () => {
+  describe("findByStore with payment status", () => {
+    it("should include payment status for all orders in paginated response", async () => {
       // Arrange
       const paginationDto = {
         page: 1,
@@ -2493,31 +2493,31 @@ describe('OrderService', () => {
       const orders = [
         {
           ...mockOrder,
-          id: 'order-1',
-          grandTotal: new Decimal('100.00'),
+          id: "order-1",
+          grandTotal: new Decimal("100.00"),
           payments: [
             {
-              id: 'payment-1',
-              amount: new Decimal('100.00'),
-              paymentMethod: 'CASH',
+              id: "payment-1",
+              amount: new Decimal("100.00"),
+              paymentMethod: "CASH",
             },
           ],
           refunds: [],
         },
         {
           ...mockOrder,
-          id: 'order-2',
-          grandTotal: new Decimal('150.00'),
+          id: "order-2",
+          grandTotal: new Decimal("150.00"),
           payments: [
             {
-              id: 'payment-2',
-              amount: new Decimal('75.00'),
-              paymentMethod: 'CASH',
+              id: "payment-2",
+              amount: new Decimal("75.00"),
+              paymentMethod: "CASH",
             },
             {
-              id: 'payment-3',
-              amount: new Decimal('75.00'),
-              paymentMethod: 'CREDIT_CARD',
+              id: "payment-3",
+              amount: new Decimal("75.00"),
+              paymentMethod: "CREDIT_CARD",
             },
           ],
           refunds: [],
@@ -2532,13 +2532,13 @@ describe('OrderService', () => {
 
       // Assert
       expect(result.items).toHaveLength(2);
-      expect(result.items[0].totalPaid).toBe('100.00');
+      expect(result.items[0].totalPaid).toBe("100.00");
       expect(result.items[0].isPaidInFull).toBe(true);
-      expect(result.items[1].totalPaid).toBe('150.00');
+      expect(result.items[1].totalPaid).toBe("150.00");
       expect(result.items[1].isPaidInFull).toBe(true);
     });
 
-    it('should correctly calculate payment status for partially paid split orders', async () => {
+    it("should correctly calculate payment status for partially paid split orders", async () => {
       // Arrange
       const paginationDto = {
         page: 1,
@@ -2550,17 +2550,17 @@ describe('OrderService', () => {
       const orders = [
         {
           ...mockOrder,
-          grandTotal: new Decimal('150.00'),
+          grandTotal: new Decimal("150.00"),
           payments: [
             {
-              id: 'payment-1',
-              amount: new Decimal('50.00'),
-              paymentMethod: 'CASH',
+              id: "payment-1",
+              amount: new Decimal("50.00"),
+              paymentMethod: "CASH",
             },
             {
-              id: 'payment-2',
-              amount: new Decimal('50.00'),
-              paymentMethod: 'CREDIT_CARD',
+              id: "payment-2",
+              amount: new Decimal("50.00"),
+              paymentMethod: "CREDIT_CARD",
             },
           ],
           refunds: [],
@@ -2574,32 +2574,32 @@ describe('OrderService', () => {
       const result = await service.findByStore(mockStoreId, paginationDto);
 
       // Assert
-      expect(result.items[0].totalPaid).toBe('100.00');
-      expect(result.items[0].remainingBalance).toBe('50.00');
+      expect(result.items[0].totalPaid).toBe("100.00");
+      expect(result.items[0].remainingBalance).toBe("50.00");
       expect(result.items[0].isPaidInFull).toBe(false);
     });
   });
 
-  describe('applyDiscount', () => {
-    const mockUserId = 'user-123';
+  describe("applyDiscount", () => {
+    const mockUserId = "user-123";
     const mockOrderWithSession = {
       ...mockOrder,
       id: mockOrderId,
-      subTotal: new Decimal('100.00'),
-      vatRateSnapshot: new Decimal('0.07'),
-      serviceChargeRateSnapshot: new Decimal('0.10'),
-      vatAmount: new Decimal('7.00'),
-      serviceChargeAmount: new Decimal('10.00'),
-      grandTotal: new Decimal('117.00'),
+      subTotal: new Decimal("100.00"),
+      vatRateSnapshot: new Decimal("0.07"),
+      serviceChargeRateSnapshot: new Decimal("0.10"),
+      vatAmount: new Decimal("7.00"),
+      serviceChargeAmount: new Decimal("10.00"),
+      grandTotal: new Decimal("117.00"),
       session: mockActiveSession,
     };
 
-    it('should apply percentage discount successfully (small discount <10%)', async () => {
+    it("should apply percentage discount successfully (small discount <10%)", async () => {
       // Arrange
       const dto: ApplyDiscountDto = {
         discountType: DiscountType.PERCENTAGE,
-        discountValue: '5',
-        reason: 'Loyalty customer',
+        discountValue: "5",
+        reason: "Loyalty customer",
       };
 
       prismaService.order.findUnique.mockResolvedValue(
@@ -2607,29 +2607,29 @@ describe('OrderService', () => {
       );
 
       // Mock payment status check
-      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
-        totalPaid: new Decimal('0'),
-        totalRefunded: new Decimal('0'),
-        netPaid: new Decimal('0'),
-        grandTotal: new Decimal('117.00'),
-        remainingBalance: new Decimal('117.00'),
+      jest.spyOn(service, "getPaymentStatus").mockResolvedValue({
+        totalPaid: new Decimal("0"),
+        totalRefunded: new Decimal("0"),
+        netPaid: new Decimal("0"),
+        grandTotal: new Decimal("117.00"),
+        remainingBalance: new Decimal("117.00"),
         isPaidInFull: false,
       });
 
       const updatedOrder = {
         ...mockOrderWithSession,
         discountType: DiscountType.PERCENTAGE,
-        discountValue: new Decimal('5'),
-        discountAmount: new Decimal('5.00'), // 5% of 100
+        discountValue: new Decimal("5"),
+        discountAmount: new Decimal("5.00"), // 5% of 100
         discountReason: dto.reason,
         discountAppliedBy: mockUserId,
-        vatAmount: new Decimal('6.65'), // 7% of 95
-        serviceChargeAmount: new Decimal('9.50'), // 10% of 95
-        grandTotal: new Decimal('111.15'), // 95 + 6.65 + 9.50
+        vatAmount: new Decimal("6.65"), // 7% of 95
+        serviceChargeAmount: new Decimal("9.50"), // 10% of 95
+        grandTotal: new Decimal("111.15"), // 95 + 6.65 + 9.50
       };
 
       prismaService.order.update.mockResolvedValue(updatedOrder as any);
-      jest.spyOn(service, 'findOne').mockResolvedValue(updatedOrder as any);
+      jest.spyOn(service, "findOne").mockResolvedValue(updatedOrder as any);
 
       // Act
       const result = await service.applyDiscount(
@@ -2655,40 +2655,40 @@ describe('OrderService', () => {
           discountAppliedBy: mockUserId,
         }),
       });
-      expect(result.discountAmount).toEqual(new Decimal('5.00'));
+      expect(result.discountAmount).toEqual(new Decimal("5.00"));
     });
 
-    it('should apply fixed amount discount successfully (small discount <10%)', async () => {
+    it("should apply fixed amount discount successfully (small discount <10%)", async () => {
       // Arrange
       const dto: ApplyDiscountDto = {
         discountType: DiscountType.FIXED_AMOUNT,
-        discountValue: '8.00',
-        reason: 'Special occasion',
+        discountValue: "8.00",
+        reason: "Special occasion",
       };
 
       prismaService.order.findUnique.mockResolvedValue(
         mockOrderWithSession as any,
       );
 
-      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
-        totalPaid: new Decimal('0'),
-        totalRefunded: new Decimal('0'),
-        netPaid: new Decimal('0'),
-        grandTotal: new Decimal('117.00'),
-        remainingBalance: new Decimal('117.00'),
+      jest.spyOn(service, "getPaymentStatus").mockResolvedValue({
+        totalPaid: new Decimal("0"),
+        totalRefunded: new Decimal("0"),
+        netPaid: new Decimal("0"),
+        grandTotal: new Decimal("117.00"),
+        remainingBalance: new Decimal("117.00"),
         isPaidInFull: false,
       });
 
       const updatedOrder = {
         ...mockOrderWithSession,
         discountType: DiscountType.FIXED_AMOUNT,
-        discountValue: new Decimal('8.00'),
-        discountAmount: new Decimal('8.00'),
+        discountValue: new Decimal("8.00"),
+        discountAmount: new Decimal("8.00"),
         discountReason: dto.reason,
       };
 
       prismaService.order.update.mockResolvedValue(updatedOrder as any);
-      jest.spyOn(service, 'findOne').mockResolvedValue(updatedOrder as any);
+      jest.spyOn(service, "findOne").mockResolvedValue(updatedOrder as any);
 
       // Act
       const result = await service.applyDiscount(
@@ -2699,37 +2699,37 @@ describe('OrderService', () => {
       );
 
       // Assert
-      expect(result.discountAmount).toEqual(new Decimal('8.00'));
+      expect(result.discountAmount).toEqual(new Decimal("8.00"));
     });
 
-    it('should enforce ADMIN permission for medium discount (10-50%)', async () => {
+    it("should enforce ADMIN permission for medium discount (10-50%)", async () => {
       // Arrange
       const dto: ApplyDiscountDto = {
         discountType: DiscountType.PERCENTAGE,
-        discountValue: '25',
-        reason: 'Manager comp',
+        discountValue: "25",
+        reason: "Manager comp",
       };
 
       prismaService.order.findUnique.mockResolvedValue(
         mockOrderWithSession as any,
       );
 
-      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
-        totalPaid: new Decimal('0'),
-        totalRefunded: new Decimal('0'),
-        netPaid: new Decimal('0'),
-        grandTotal: new Decimal('117.00'),
-        remainingBalance: new Decimal('117.00'),
+      jest.spyOn(service, "getPaymentStatus").mockResolvedValue({
+        totalPaid: new Decimal("0"),
+        totalRefunded: new Decimal("0"),
+        netPaid: new Decimal("0"),
+        grandTotal: new Decimal("117.00"),
+        remainingBalance: new Decimal("117.00"),
         isPaidInFull: false,
       });
 
       const updatedOrder = {
         ...mockOrderWithSession,
-        discountAmount: new Decimal('25.00'),
+        discountAmount: new Decimal("25.00"),
       };
 
       prismaService.order.update.mockResolvedValue(updatedOrder as any);
-      jest.spyOn(service, 'findOne').mockResolvedValue(updatedOrder as any);
+      jest.spyOn(service, "findOne").mockResolvedValue(updatedOrder as any);
 
       // Act
       await service.applyDiscount(mockUserId, mockStoreId, mockOrderId, dto);
@@ -2742,34 +2742,34 @@ describe('OrderService', () => {
       );
     });
 
-    it('should enforce OWNER permission for large discount (>50%)', async () => {
+    it("should enforce OWNER permission for large discount (>50%)", async () => {
       // Arrange
       const dto: ApplyDiscountDto = {
         discountType: DiscountType.PERCENTAGE,
-        discountValue: '60',
-        reason: 'Owner approval',
+        discountValue: "60",
+        reason: "Owner approval",
       };
 
       prismaService.order.findUnique.mockResolvedValue(
         mockOrderWithSession as any,
       );
 
-      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
-        totalPaid: new Decimal('0'),
-        totalRefunded: new Decimal('0'),
-        netPaid: new Decimal('0'),
-        grandTotal: new Decimal('117.00'),
-        remainingBalance: new Decimal('117.00'),
+      jest.spyOn(service, "getPaymentStatus").mockResolvedValue({
+        totalPaid: new Decimal("0"),
+        totalRefunded: new Decimal("0"),
+        netPaid: new Decimal("0"),
+        grandTotal: new Decimal("117.00"),
+        remainingBalance: new Decimal("117.00"),
         isPaidInFull: false,
       });
 
       const updatedOrder = {
         ...mockOrderWithSession,
-        discountAmount: new Decimal('60.00'),
+        discountAmount: new Decimal("60.00"),
       };
 
       prismaService.order.update.mockResolvedValue(updatedOrder as any);
-      jest.spyOn(service, 'findOne').mockResolvedValue(updatedOrder as any);
+      jest.spyOn(service, "findOne").mockResolvedValue(updatedOrder as any);
 
       // Act
       await service.applyDiscount(mockUserId, mockStoreId, mockOrderId, dto);
@@ -2782,29 +2782,29 @@ describe('OrderService', () => {
       );
     });
 
-    it('should reject discount if user lacks permission', async () => {
+    it("should reject discount if user lacks permission", async () => {
       // Arrange
       const dto: ApplyDiscountDto = {
         discountType: DiscountType.PERCENTAGE,
-        discountValue: '60',
-        reason: 'Unauthorized',
+        discountValue: "60",
+        reason: "Unauthorized",
       };
 
       prismaService.order.findUnique.mockResolvedValue(
         mockOrderWithSession as any,
       );
 
-      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
-        totalPaid: new Decimal('0'),
-        totalRefunded: new Decimal('0'),
-        netPaid: new Decimal('0'),
-        grandTotal: new Decimal('117.00'),
-        remainingBalance: new Decimal('117.00'),
+      jest.spyOn(service, "getPaymentStatus").mockResolvedValue({
+        totalPaid: new Decimal("0"),
+        totalRefunded: new Decimal("0"),
+        netPaid: new Decimal("0"),
+        grandTotal: new Decimal("117.00"),
+        remainingBalance: new Decimal("117.00"),
         isPaidInFull: false,
       });
 
       authService.checkStorePermission.mockRejectedValue(
-        new ForbiddenException('Insufficient permissions'),
+        new ForbiddenException("Insufficient permissions"),
       );
 
       // Act & Assert
@@ -2813,12 +2813,12 @@ describe('OrderService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should throw error if order not found', async () => {
+    it("should throw error if order not found", async () => {
       // Arrange
       const dto: ApplyDiscountDto = {
         discountType: DiscountType.PERCENTAGE,
-        discountValue: '5',
-        reason: 'Test',
+        discountValue: "5",
+        reason: "Test",
       };
 
       prismaService.order.findUnique.mockResolvedValue(null);
@@ -2829,12 +2829,12 @@ describe('OrderService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw error if order belongs to different store', async () => {
+    it("should throw error if order belongs to different store", async () => {
       // Arrange
       const dto: ApplyDiscountDto = {
         discountType: DiscountType.PERCENTAGE,
-        discountValue: '5',
-        reason: 'Test',
+        discountValue: "5",
+        reason: "Test",
       };
 
       const differentStoreOrder = {
@@ -2843,7 +2843,7 @@ describe('OrderService', () => {
           ...mockActiveSession,
           table: {
             ...mockActiveSession.table,
-            storeId: 'different-store',
+            storeId: "different-store",
           },
         },
       };
@@ -2858,24 +2858,24 @@ describe('OrderService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw error if order is already paid', async () => {
+    it("should throw error if order is already paid", async () => {
       // Arrange
       const dto: ApplyDiscountDto = {
         discountType: DiscountType.PERCENTAGE,
-        discountValue: '5',
-        reason: 'Test',
+        discountValue: "5",
+        reason: "Test",
       };
 
       prismaService.order.findUnique.mockResolvedValue(
         mockOrderWithSession as any,
       );
 
-      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
-        totalPaid: new Decimal('117.00'),
-        totalRefunded: new Decimal('0'),
-        netPaid: new Decimal('117.00'),
-        grandTotal: new Decimal('117.00'),
-        remainingBalance: new Decimal('0'),
+      jest.spyOn(service, "getPaymentStatus").mockResolvedValue({
+        totalPaid: new Decimal("117.00"),
+        totalRefunded: new Decimal("0"),
+        netPaid: new Decimal("117.00"),
+        grandTotal: new Decimal("117.00"),
+        remainingBalance: new Decimal("0"),
         isPaidInFull: true,
       });
 
@@ -2885,24 +2885,24 @@ describe('OrderService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw error if percentage exceeds 100%', async () => {
+    it("should throw error if percentage exceeds 100%", async () => {
       // Arrange
       const dto: ApplyDiscountDto = {
         discountType: DiscountType.PERCENTAGE,
-        discountValue: '105',
-        reason: 'Invalid',
+        discountValue: "105",
+        reason: "Invalid",
       };
 
       prismaService.order.findUnique.mockResolvedValue(
         mockOrderWithSession as any,
       );
 
-      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
-        totalPaid: new Decimal('0'),
-        totalRefunded: new Decimal('0'),
-        netPaid: new Decimal('0'),
-        grandTotal: new Decimal('117.00'),
-        remainingBalance: new Decimal('117.00'),
+      jest.spyOn(service, "getPaymentStatus").mockResolvedValue({
+        totalPaid: new Decimal("0"),
+        totalRefunded: new Decimal("0"),
+        netPaid: new Decimal("0"),
+        grandTotal: new Decimal("117.00"),
+        remainingBalance: new Decimal("117.00"),
         isPaidInFull: false,
       });
 
@@ -2912,24 +2912,24 @@ describe('OrderService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw error if fixed amount exceeds subtotal', async () => {
+    it("should throw error if fixed amount exceeds subtotal", async () => {
       // Arrange
       const dto: ApplyDiscountDto = {
         discountType: DiscountType.FIXED_AMOUNT,
-        discountValue: '150.00',
-        reason: 'Invalid',
+        discountValue: "150.00",
+        reason: "Invalid",
       };
 
       prismaService.order.findUnique.mockResolvedValue(
         mockOrderWithSession as any,
       );
 
-      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
-        totalPaid: new Decimal('0'),
-        totalRefunded: new Decimal('0'),
-        netPaid: new Decimal('0'),
-        grandTotal: new Decimal('117.00'),
-        remainingBalance: new Decimal('117.00'),
+      jest.spyOn(service, "getPaymentStatus").mockResolvedValue({
+        totalPaid: new Decimal("0"),
+        totalRefunded: new Decimal("0"),
+        netPaid: new Decimal("0"),
+        grandTotal: new Decimal("117.00"),
+        remainingBalance: new Decimal("117.00"),
         isPaidInFull: false,
       });
 
@@ -2939,24 +2939,24 @@ describe('OrderService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should recalculate totals correctly with discount', async () => {
+    it("should recalculate totals correctly with discount", async () => {
       // Arrange
       const dto: ApplyDiscountDto = {
         discountType: DiscountType.PERCENTAGE,
-        discountValue: '10',
-        reason: 'Loyalty discount',
+        discountValue: "10",
+        reason: "Loyalty discount",
       };
 
       prismaService.order.findUnique.mockResolvedValue(
         mockOrderWithSession as any,
       );
 
-      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
-        totalPaid: new Decimal('0'),
-        totalRefunded: new Decimal('0'),
-        netPaid: new Decimal('0'),
-        grandTotal: new Decimal('117.00'),
-        remainingBalance: new Decimal('117.00'),
+      jest.spyOn(service, "getPaymentStatus").mockResolvedValue({
+        totalPaid: new Decimal("0"),
+        totalRefunded: new Decimal("0"),
+        netPaid: new Decimal("0"),
+        grandTotal: new Decimal("117.00"),
+        remainingBalance: new Decimal("117.00"),
         isPaidInFull: false,
       });
 
@@ -2969,7 +2969,7 @@ describe('OrderService', () => {
         });
       });
 
-      jest.spyOn(service, 'findOne').mockResolvedValue({
+      jest.spyOn(service, "findOne").mockResolvedValue({
         ...mockOrderWithSession,
         ...capturedUpdateData,
       });
@@ -2978,10 +2978,10 @@ describe('OrderService', () => {
       await service.applyDiscount(mockUserId, mockStoreId, mockOrderId, dto);
 
       // Assert
-      const discountAmount = new Decimal('10.00'); // 10% of 100
-      const newSubtotal = new Decimal('90.00'); // 100 - 10
-      const expectedTax = newSubtotal.mul('0.07'); // 6.30
-      const expectedServiceCharge = newSubtotal.mul('0.10'); // 9.00
+      const discountAmount = new Decimal("10.00"); // 10% of 100
+      const newSubtotal = new Decimal("90.00"); // 100 - 10
+      const expectedTax = newSubtotal.mul("0.07"); // 6.30
+      const expectedServiceCharge = newSubtotal.mul("0.10"); // 9.00
       const expectedGrandTotal = newSubtotal
         .add(expectedTax)
         .add(expectedServiceCharge); // 105.30
@@ -3001,38 +3001,38 @@ describe('OrderService', () => {
     });
   });
 
-  describe('removeDiscount', () => {
-    const mockUserId = 'user-123';
+  describe("removeDiscount", () => {
+    const mockUserId = "user-123";
     const mockOrderWithDiscount = {
       ...mockOrder,
       id: mockOrderId,
-      subTotal: new Decimal('100.00'),
-      vatRateSnapshot: new Decimal('0.07'),
-      serviceChargeRateSnapshot: new Decimal('0.10'),
+      subTotal: new Decimal("100.00"),
+      vatRateSnapshot: new Decimal("0.07"),
+      serviceChargeRateSnapshot: new Decimal("0.10"),
       discountType: DiscountType.PERCENTAGE,
-      discountValue: new Decimal('10'),
-      discountAmount: new Decimal('10.00'),
-      discountReason: 'Loyalty',
-      discountAppliedBy: 'admin-123',
+      discountValue: new Decimal("10"),
+      discountAmount: new Decimal("10.00"),
+      discountReason: "Loyalty",
+      discountAppliedBy: "admin-123",
       discountAppliedAt: new Date(),
-      vatAmount: new Decimal('6.30'),
-      serviceChargeAmount: new Decimal('9.00'),
-      grandTotal: new Decimal('105.30'),
+      vatAmount: new Decimal("6.30"),
+      serviceChargeAmount: new Decimal("9.00"),
+      grandTotal: new Decimal("105.30"),
       session: mockActiveSession,
     };
 
-    it('should remove discount successfully', async () => {
+    it("should remove discount successfully", async () => {
       // Arrange
       prismaService.order.findUnique.mockResolvedValue(
         mockOrderWithDiscount as any,
       );
 
-      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
-        totalPaid: new Decimal('0'),
-        totalRefunded: new Decimal('0'),
-        netPaid: new Decimal('0'),
-        grandTotal: new Decimal('105.30'),
-        remainingBalance: new Decimal('105.30'),
+      jest.spyOn(service, "getPaymentStatus").mockResolvedValue({
+        totalPaid: new Decimal("0"),
+        totalRefunded: new Decimal("0"),
+        netPaid: new Decimal("0"),
+        grandTotal: new Decimal("105.30"),
+        remainingBalance: new Decimal("105.30"),
         isPaidInFull: false,
       });
 
@@ -3044,13 +3044,13 @@ describe('OrderService', () => {
         discountReason: null,
         discountAppliedBy: null,
         discountAppliedAt: null,
-        vatAmount: new Decimal('7.00'),
-        serviceChargeAmount: new Decimal('10.00'),
-        grandTotal: new Decimal('117.00'),
+        vatAmount: new Decimal("7.00"),
+        serviceChargeAmount: new Decimal("10.00"),
+        grandTotal: new Decimal("117.00"),
       };
 
       prismaService.order.update.mockResolvedValue(updatedOrder as any);
-      jest.spyOn(service, 'findOne').mockResolvedValue(updatedOrder as any);
+      jest.spyOn(service, "findOne").mockResolvedValue(updatedOrder as any);
 
       // Act
       const result = await service.removeDiscount(
@@ -3079,18 +3079,18 @@ describe('OrderService', () => {
       expect(result.discountType).toBeNull();
     });
 
-    it('should recalculate totals correctly after removing discount', async () => {
+    it("should recalculate totals correctly after removing discount", async () => {
       // Arrange
       prismaService.order.findUnique.mockResolvedValue(
         mockOrderWithDiscount as any,
       );
 
-      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
-        totalPaid: new Decimal('0'),
-        totalRefunded: new Decimal('0'),
-        netPaid: new Decimal('0'),
-        grandTotal: new Decimal('105.30'),
-        remainingBalance: new Decimal('105.30'),
+      jest.spyOn(service, "getPaymentStatus").mockResolvedValue({
+        totalPaid: new Decimal("0"),
+        totalRefunded: new Decimal("0"),
+        netPaid: new Decimal("0"),
+        grandTotal: new Decimal("105.30"),
+        remainingBalance: new Decimal("105.30"),
         isPaidInFull: false,
       });
 
@@ -3103,7 +3103,7 @@ describe('OrderService', () => {
         });
       });
 
-      jest.spyOn(service, 'findOne').mockResolvedValue({
+      jest.spyOn(service, "findOne").mockResolvedValue({
         ...mockOrderWithDiscount,
         ...capturedUpdateData,
       });
@@ -3112,9 +3112,9 @@ describe('OrderService', () => {
       await service.removeDiscount(mockUserId, mockStoreId, mockOrderId);
 
       // Assert
-      const originalSubtotal = new Decimal('100.00');
-      const expectedTax = originalSubtotal.mul('0.07'); // 7.00
-      const expectedServiceCharge = originalSubtotal.mul('0.10'); // 10.00
+      const originalSubtotal = new Decimal("100.00");
+      const expectedTax = originalSubtotal.mul("0.07"); // 7.00
+      const expectedServiceCharge = originalSubtotal.mul("0.10"); // 10.00
       const expectedGrandTotal = originalSubtotal
         .add(expectedTax)
         .add(expectedServiceCharge); // 117.00
@@ -3130,23 +3130,23 @@ describe('OrderService', () => {
       );
     });
 
-    it('should throw error if user lacks ADMIN or OWNER permission', async () => {
+    it("should throw error if user lacks ADMIN or OWNER permission", async () => {
       // Arrange
       prismaService.order.findUnique.mockResolvedValue(
         mockOrderWithDiscount as any,
       );
 
-      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
-        totalPaid: new Decimal('0'),
-        totalRefunded: new Decimal('0'),
-        netPaid: new Decimal('0'),
-        grandTotal: new Decimal('105.30'),
-        remainingBalance: new Decimal('105.30'),
+      jest.spyOn(service, "getPaymentStatus").mockResolvedValue({
+        totalPaid: new Decimal("0"),
+        totalRefunded: new Decimal("0"),
+        netPaid: new Decimal("0"),
+        grandTotal: new Decimal("105.30"),
+        remainingBalance: new Decimal("105.30"),
         isPaidInFull: false,
       });
 
       authService.checkStorePermission.mockRejectedValue(
-        new ForbiddenException('Insufficient permissions'),
+        new ForbiddenException("Insufficient permissions"),
       );
 
       // Act & Assert
@@ -3155,7 +3155,7 @@ describe('OrderService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should throw error if order not found', async () => {
+    it("should throw error if order not found", async () => {
       // Arrange
       prismaService.order.findUnique.mockResolvedValue(null);
 
@@ -3165,18 +3165,18 @@ describe('OrderService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw error if order is already paid', async () => {
+    it("should throw error if order is already paid", async () => {
       // Arrange
       prismaService.order.findUnique.mockResolvedValue(
         mockOrderWithDiscount as any,
       );
 
-      jest.spyOn(service, 'getPaymentStatus').mockResolvedValue({
-        totalPaid: new Decimal('105.30'),
-        totalRefunded: new Decimal('0'),
-        netPaid: new Decimal('105.30'),
-        grandTotal: new Decimal('105.30'),
-        remainingBalance: new Decimal('0'),
+      jest.spyOn(service, "getPaymentStatus").mockResolvedValue({
+        totalPaid: new Decimal("105.30"),
+        totalRefunded: new Decimal("0"),
+        netPaid: new Decimal("105.30"),
+        grandTotal: new Decimal("105.30"),
+        remainingBalance: new Decimal("0"),
         isPaidInFull: true,
       });
 

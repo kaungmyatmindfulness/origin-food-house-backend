@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Role } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Role } from "@prisma/client";
 
 export class UserProfileResponseDto {
   @ApiProperty({ description: "User's unique identifier", example: 123 })
@@ -7,19 +7,19 @@ export class UserProfileResponseDto {
 
   @ApiProperty({
     description: "User's email address",
-    example: 'user@example.com',
+    example: "user@example.com",
   })
   email: string;
 
   @ApiPropertyOptional({
     description: "User's display name",
-    example: 'Jane Doe',
+    example: "Jane Doe",
     nullable: true,
   })
   name?: string | null;
 
   @ApiProperty({
-    description: 'Indicates if the user email is verified',
+    description: "Indicates if the user email is verified",
     example: true,
   })
   verified: boolean;
@@ -33,6 +33,6 @@ export class UserProfileResponseDto {
   })
   selectedStoreRole?: Role | null;
 
-  @ApiProperty({ description: 'Timestamp when the user was created' })
+  @ApiProperty({ description: "Timestamp when the user was created" })
   createdAt: Date;
 }

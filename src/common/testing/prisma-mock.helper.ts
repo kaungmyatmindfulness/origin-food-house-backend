@@ -135,6 +135,12 @@ export const createPrismaMock = () => ({
     findMany: jest.fn(),
     count: jest.fn(),
   },
+  adminUser: {
+    create: jest.fn(),
+    findUnique: jest.fn(),
+    update: jest.fn(),
+    findMany: jest.fn(),
+  },
   $transaction: jest.fn(),
 });
 

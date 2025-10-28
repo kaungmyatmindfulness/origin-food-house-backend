@@ -4,12 +4,12 @@ import {
   NotFoundException,
   BadRequestException,
   InternalServerErrorException,
-} from '@nestjs/common';
-import { OrderStatus, Prisma, RoutingArea } from '@prisma/client';
+} from "@nestjs/common";
+import { OrderStatus, Prisma, RoutingArea } from "@prisma/client";
 
-import { PrismaService } from '../prisma/prisma.service';
-import { KitchenOrderResponseDto } from './dto/kitchen-order-response.dto';
-import { UpdateKitchenStatusDto } from './dto/update-kitchen-status.dto';
+import { PrismaService } from "../prisma/prisma.service";
+import { KitchenOrderResponseDto } from "./dto/kitchen-order-response.dto";
+import { UpdateKitchenStatusDto } from "./dto/update-kitchen-status.dto";
 
 /**
  * Service for Kitchen Display System (KDS) functionality
@@ -90,7 +90,7 @@ export class KitchenService {
             },
           },
         },
-        orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
+        orderBy: [{ status: "asc" }, { createdAt: "asc" }],
       });
 
       // If routingArea is specified, filter order items to only show items from that area
@@ -105,7 +105,7 @@ export class KitchenService {
       }
 
       this.logger.log(
-        `[${method}] Retrieved ${filteredOrders.length} orders for store ${storeId}${status ? ` with status ${status}` : ''}${routingArea ? ` and routing area ${routingArea}` : ''}`,
+        `[${method}] Retrieved ${filteredOrders.length} orders for store ${storeId}${status ? ` with status ${status}` : ""}${routingArea ? ` and routing area ${routingArea}` : ""}`,
       );
 
       return filteredOrders as KitchenOrderResponseDto[];
@@ -115,7 +115,7 @@ export class KitchenService {
         error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException(
-        'Failed to retrieve kitchen orders',
+        "Failed to retrieve kitchen orders",
       );
     }
   }
@@ -155,7 +155,7 @@ export class KitchenService {
       });
 
       if (!order) {
-        throw new NotFoundException('Order not found');
+        throw new NotFoundException("Order not found");
       }
 
       this.logger.log(`[${method}] Retrieved order ${orderId} details`);
@@ -171,7 +171,7 @@ export class KitchenService {
         error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException(
-        'Failed to retrieve order details',
+        "Failed to retrieve order details",
       );
     }
   }
@@ -197,11 +197,11 @@ export class KitchenService {
       });
 
       if (!existingOrder) {
-        throw new NotFoundException('Order not found');
+        throw new NotFoundException("Order not found");
       }
 
       if (existingOrder.storeId !== storeId) {
-        throw new BadRequestException('Order does not belong to this store');
+        throw new BadRequestException("Order does not belong to this store");
       }
 
       // Validate status transition
@@ -239,7 +239,7 @@ export class KitchenService {
         `[${method}] Failed to update order status`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to update order status');
+      throw new InternalServerErrorException("Failed to update order status");
     }
   }
 
@@ -253,7 +253,7 @@ export class KitchenService {
   ): void {
     // Can't change cancelled orders
     if (currentStatus === OrderStatus.CANCELLED) {
-      throw new BadRequestException('Cannot update cancelled order');
+      throw new BadRequestException("Cannot update cancelled order");
     }
 
     // Can't change completed orders to anything except cancelled
@@ -261,7 +261,7 @@ export class KitchenService {
       currentStatus === OrderStatus.COMPLETED &&
       newStatus !== OrderStatus.CANCELLED
     ) {
-      throw new BadRequestException('Cannot update completed order');
+      throw new BadRequestException("Cannot update completed order");
     }
 
     // Valid transitions

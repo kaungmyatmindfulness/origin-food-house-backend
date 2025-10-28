@@ -1,4 +1,4 @@
-import { HttpException, InternalServerErrorException } from '@nestjs/common';
+import { HttpException, InternalServerErrorException } from "@nestjs/common";
 
 /**
  * StandardErrorHandler decorator for consistent error handling across services.
@@ -47,10 +47,10 @@ export function StandardErrorHandler(context: string) {
 
         // Log the error with context and stack trace
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        if (this.logger && typeof this.logger.error === 'function') {
+        if (this.logger && typeof this.logger.error === "function") {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           this.logger.error(
-            `[${context}] ${error instanceof Error ? error.message : 'Unknown error'}`,
+            `[${context}] ${error instanceof Error ? error.message : "Unknown error"}`,
             error instanceof Error ? error.stack : undefined,
           );
         }

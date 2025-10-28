@@ -38,7 +38,8 @@
       "Bash(mkdir:*)",
       "Bash(npm run docker:up:*)",
       "Bash(npm run:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(npm test:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,5 +1,5 @@
-import { Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -8,12 +8,12 @@ import {
   ConnectedSocket,
   OnGatewayConnection,
   OnGatewayDisconnect,
-} from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+} from "@nestjs/websockets";
+import { Server, Socket } from "socket.io";
 
-import { CartService } from './cart.service';
-import { AddToCartDto } from './dto/add-to-cart.dto';
-import { UpdateCartItemDto } from './dto/update-cart-item.dto';
+import { CartService } from "./cart.service";
+import { AddToCartDto } from "./dto/add-to-cart.dto";
+import { UpdateCartItemDto } from "./dto/update-cart-item.dto";
 
 /**
  * WebSocket Gateway for real-time cart synchronization
@@ -27,7 +27,7 @@ import { UpdateCartItemDto } from './dto/update-cart-item.dto';
     },
     credentials: true,
   },
-  namespace: '/cart',
+  namespace: "/cart",
 })
 export class CartGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -41,12 +41,12 @@ export class CartGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly configService: ConfigService,
   ) {
     const corsOrigin = this.configService.get<string>(
-      'CORS_ORIGIN',
-      'http://localhost:3001',
+      "CORS_ORIGIN",
+      "http://localhost:3001",
     );
-    this.allowedOrigins = corsOrigin.split(',').map((origin) => origin.trim());
+    this.allowedOrigins = corsOrigin.split(",").map((origin) => origin.trim());
     this.logger.log(
-      `[constructor] CORS origins configured: ${this.allowedOrigins.join(', ')}`,
+      `[constructor] CORS origins configured: ${this.allowedOrigins.join(", ")}`,
     );
   }
 
@@ -67,18 +67,18 @@ export class CartGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /**
    * Client joins a session room for real-time updates
    */
-  @SubscribeMessage('cart:join')
+  @SubscribeMessage("cart:join")
   async handleJoinSession(
     @MessageBody() data: { sessionId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    const method = 'handleJoinSession';
+    const method = "handleJoinSession";
 
     try {
       const { sessionId } = data;
 
       if (!sessionId) {
-        client.emit('cart:error', { message: 'Session ID is required' });
+        client.emit("cart:error", { message: "Session ID is required" });
         return;
       }
 
@@ -91,15 +91,15 @@ export class CartGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // Send current cart state
       const cart = await this.cartService.getCart(sessionId);
-      client.emit('cart:updated', cart);
+      client.emit("cart:updated", cart);
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to join session';
+        error instanceof Error ? error.message : "Failed to join session";
       this.logger.error(
         `[${method}] Failed to join session`,
         error instanceof Error ? error.stack : String(error),
       );
-      client.emit('cart:error', {
+      client.emit("cart:error", {
         message: errorMessage,
       });
     }
@@ -108,18 +108,18 @@ export class CartGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /**
    * Add item to cart and broadcast to all devices in session
    */
-  @SubscribeMessage('cart:add')
+  @SubscribeMessage("cart:add")
   async handleAddToCart(
     @MessageBody() data: { sessionId: string; item: AddToCartDto },
     @ConnectedSocket() client: Socket,
   ) {
-    const method = 'handleAddToCart';
+    const method = "handleAddToCart";
 
     try {
       const { sessionId, item } = data;
 
       if (!sessionId || !item) {
-        client.emit('cart:error', { message: 'Invalid request data' });
+        client.emit("cart:error", { message: "Invalid request data" });
         return;
       }
 
@@ -127,19 +127,19 @@ export class CartGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const cart = await this.cartService.addItem(sessionId, item);
 
       // Broadcast updated cart to all devices in session
-      this.server.to(`session-${sessionId}`).emit('cart:updated', cart);
+      this.server.to(`session-${sessionId}`).emit("cart:updated", cart);
 
       this.logger.log(
         `[${method}] Item added to cart for session ${sessionId}`,
       );
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to add item to cart';
+        error instanceof Error ? error.message : "Failed to add item to cart";
       this.logger.error(
         `[${method}] Failed to add item to cart`,
         error instanceof Error ? error.stack : String(error),
       );
-      client.emit('cart:error', {
+      client.emit("cart:error", {
         message: errorMessage,
       });
     }
@@ -148,7 +148,7 @@ export class CartGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /**
    * Update cart item and broadcast to all devices in session
    */
-  @SubscribeMessage('cart:update')
+  @SubscribeMessage("cart:update")
   async handleUpdateCartItem(
     @MessageBody()
     data: {
@@ -158,13 +158,13 @@ export class CartGateway implements OnGatewayConnection, OnGatewayDisconnect {
     },
     @ConnectedSocket() client: Socket,
   ) {
-    const method = 'handleUpdateCartItem';
+    const method = "handleUpdateCartItem";
 
     try {
       const { sessionId, cartItemId, updates } = data;
 
       if (!sessionId || !cartItemId || !updates) {
-        client.emit('cart:error', { message: 'Invalid request data' });
+        client.emit("cart:error", { message: "Invalid request data" });
         return;
       }
 
@@ -176,19 +176,19 @@ export class CartGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
 
       // Broadcast updated cart to all devices in session
-      this.server.to(`session-${sessionId}`).emit('cart:updated', cart);
+      this.server.to(`session-${sessionId}`).emit("cart:updated", cart);
 
       this.logger.log(
         `[${method}] Cart item ${cartItemId} updated for session ${sessionId}`,
       );
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to update cart item';
+        error instanceof Error ? error.message : "Failed to update cart item";
       this.logger.error(
         `[${method}] Failed to update cart item`,
         error instanceof Error ? error.stack : String(error),
       );
-      client.emit('cart:error', {
+      client.emit("cart:error", {
         message: errorMessage,
       });
     }
@@ -197,18 +197,18 @@ export class CartGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /**
    * Remove item from cart and broadcast to all devices in session
    */
-  @SubscribeMessage('cart:remove')
+  @SubscribeMessage("cart:remove")
   async handleRemoveFromCart(
     @MessageBody() data: { sessionId: string; cartItemId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    const method = 'handleRemoveFromCart';
+    const method = "handleRemoveFromCart";
 
     try {
       const { sessionId, cartItemId } = data;
 
       if (!sessionId || !cartItemId) {
-        client.emit('cart:error', { message: 'Invalid request data' });
+        client.emit("cart:error", { message: "Invalid request data" });
         return;
       }
 
@@ -216,7 +216,7 @@ export class CartGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const cart = await this.cartService.removeItem(sessionId, cartItemId);
 
       // Broadcast updated cart to all devices in session
-      this.server.to(`session-${sessionId}`).emit('cart:updated', cart);
+      this.server.to(`session-${sessionId}`).emit("cart:updated", cart);
 
       this.logger.log(
         `[${method}] Item ${cartItemId} removed from cart for session ${sessionId}`,
@@ -225,12 +225,12 @@ export class CartGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const errorMessage =
         error instanceof Error
           ? error.message
-          : 'Failed to remove item from cart';
+          : "Failed to remove item from cart";
       this.logger.error(
         `[${method}] Failed to remove item from cart`,
         error instanceof Error ? error.stack : String(error),
       );
-      client.emit('cart:error', {
+      client.emit("cart:error", {
         message: errorMessage,
       });
     }
@@ -239,18 +239,18 @@ export class CartGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /**
    * Clear all items from cart and broadcast to all devices in session
    */
-  @SubscribeMessage('cart:clear')
+  @SubscribeMessage("cart:clear")
   async handleClearCart(
     @MessageBody() data: { sessionId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    const method = 'handleClearCart';
+    const method = "handleClearCart";
 
     try {
       const { sessionId } = data;
 
       if (!sessionId) {
-        client.emit('cart:error', { message: 'Session ID is required' });
+        client.emit("cart:error", { message: "Session ID is required" });
         return;
       }
 
@@ -258,17 +258,17 @@ export class CartGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const cart = await this.cartService.clearCart(sessionId);
 
       // Broadcast updated cart to all devices in session
-      this.server.to(`session-${sessionId}`).emit('cart:updated', cart);
+      this.server.to(`session-${sessionId}`).emit("cart:updated", cart);
 
       this.logger.log(`[${method}] Cart cleared for session ${sessionId}`);
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to clear cart';
+        error instanceof Error ? error.message : "Failed to clear cart";
       this.logger.error(
         `[${method}] Failed to clear cart`,
         error instanceof Error ? error.stack : String(error),
       );
-      client.emit('cart:error', {
+      client.emit("cart:error", {
         message: errorMessage,
       });
     }

@@ -5,22 +5,22 @@ import {
   InternalServerErrorException,
   Logger,
   ForbiddenException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import { Role, User } from '@prisma/client';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
+import { Role, User } from "@prisma/client";
 
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from "src/prisma/prisma.service";
 
-import { UserService } from '../user/user.service';
-import { Auth0Service } from './services/auth0.service';
-import { Auth0UserInfo, Auth0TokenPayload } from './types/auth0.types';
+import { UserService } from "../user/user.service";
+import { Auth0Service } from "./services/auth0.service";
+import { Auth0UserInfo, Auth0TokenPayload } from "./types/auth0.types";
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
-  private readonly JWT_EXPIRATION_TIME = '1d';
+  private readonly JWT_EXPIRATION_TIME = "1d";
 
   constructor(
     private userService: UserService,
@@ -62,7 +62,7 @@ export class AuthService {
   checkPermission(currentRole: Role, authorizedRoles: Role[]): void {
     if (!authorizedRoles.includes(currentRole)) {
       throw new ForbiddenException(
-        `Access denied. Required roles: ${authorizedRoles.join(' or ')}. User role: ${currentRole}.`,
+        `Access denied. Required roles: ${authorizedRoles.join(" or ")}. User role: ${currentRole}.`,
       );
     }
     // If role is included, function completes silently (permission granted)
@@ -185,8 +185,8 @@ export class AuthService {
       const decoded = await this.auth0Service.validateToken(token);
       return decoded;
     } catch (error) {
-      this.logger.error('Failed to validate Auth0 token', error);
-      throw new UnauthorizedException('Invalid Auth0 token');
+      this.logger.error("Failed to validate Auth0 token", error);
+      throw new UnauthorizedException("Invalid Auth0 token");
     }
   }
 
@@ -224,7 +224,7 @@ export class AuthService {
             data: {
               auth0Id,
               email,
-              name: name ?? email.split('@')[0],
+              name: name ?? email.split("@")[0],
               isEmailVerified: email_verified,
               verified: email_verified,
             },
@@ -242,7 +242,7 @@ export class AuthService {
       }
 
       if (!user) {
-        throw new Error('Failed to sync Auth0 user');
+        throw new Error("Failed to sync Auth0 user");
       }
 
       this.logger.log(
@@ -250,8 +250,8 @@ export class AuthService {
       );
       return user;
     } catch (error) {
-      this.logger.error('Failed to sync Auth0 user', error);
-      throw new InternalServerErrorException('Failed to sync user from Auth0');
+      this.logger.error("Failed to sync Auth0 user", error);
+      throw new InternalServerErrorException("Failed to sync user from Auth0");
     }
   }
 
@@ -262,9 +262,9 @@ export class AuthService {
     try {
       return await this.auth0Service.getUserInfo(accessToken);
     } catch (error) {
-      this.logger.error('Failed to get Auth0 user info', error);
+      this.logger.error("Failed to get Auth0 user info", error);
       throw new UnauthorizedException(
-        'Failed to get user information from Auth0',
+        "Failed to get user information from Auth0",
       );
     }
   }

@@ -1,53 +1,53 @@
-import { NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Tier } from '@prisma/client';
+import { NotFoundException } from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import { Tier } from "@prisma/client";
 
-import { TierService } from './tier.service';
-import { CacheService } from '../common/cache/cache.service';
+import { TierService } from "./tier.service";
+import { CacheService } from "../common/cache/cache.service";
 import {
   createPrismaMock,
   PrismaMock,
-} from '../common/testing/prisma-mock.helper';
-import { PrismaService } from '../prisma/prisma.service';
+} from "../common/testing/prisma-mock.helper";
+import { PrismaService } from "../prisma/prisma.service";
 
-describe('TierService', () => {
+describe("TierService", () => {
   let service: TierService;
   let prismaService: PrismaMock;
   let cacheService: jest.Mocked<CacheService>;
 
-  const mockStoreId = 'store-123';
+  const mockStoreId = "store-123";
   const mockFreeTier = {
-    id: 'tier-1',
+    id: "tier-1",
     storeId: mockStoreId,
     tier: Tier.FREE,
-    subscriptionStatus: 'ACTIVE',
-    trialEndsAt: new Date('2026-01-23'),
-    currentPeriodStart: new Date('2025-01-01'),
-    currentPeriodEnd: new Date('2025-02-01'),
+    subscriptionStatus: "ACTIVE",
+    trialEndsAt: new Date("2026-01-23"),
+    currentPeriodStart: new Date("2025-01-01"),
+    currentPeriodEnd: new Date("2025-02-01"),
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
   const mockStandardTier = {
-    id: 'tier-2',
+    id: "tier-2",
     storeId: mockStoreId,
     tier: Tier.STANDARD,
-    subscriptionStatus: 'ACTIVE',
+    subscriptionStatus: "ACTIVE",
     trialEndsAt: null,
-    currentPeriodStart: new Date('2025-01-01'),
-    currentPeriodEnd: new Date('2025-02-01'),
+    currentPeriodStart: new Date("2025-01-01"),
+    currentPeriodEnd: new Date("2025-02-01"),
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
   const mockPremiumTier = {
-    id: 'tier-3',
+    id: "tier-3",
     storeId: mockStoreId,
     tier: Tier.PREMIUM,
-    subscriptionStatus: 'ACTIVE',
+    subscriptionStatus: "ACTIVE",
     trialEndsAt: null,
-    currentPeriodStart: new Date('2025-01-01'),
-    currentPeriodEnd: new Date('2025-02-01'),
+    currentPeriodStart: new Date("2025-01-01"),
+    currentPeriodEnd: new Date("2025-02-01"),
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -80,12 +80,12 @@ describe('TierService', () => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('getStoreTier', () => {
-    it('should return tier for valid store', async () => {
+  describe("getStoreTier", () => {
+    it("should return tier for valid store", async () => {
       // Arrange
       const findUniqueMock = jest.fn().mockResolvedValue(mockFreeTier);
       (prismaService as any).storeTier = { findUnique: findUniqueMock };
@@ -100,7 +100,7 @@ describe('TierService', () => {
       });
     });
 
-    it('should return null if tier not found', async () => {
+    it("should return null if tier not found", async () => {
       // Arrange
       const findUniqueMock = jest.fn().mockResolvedValue(null);
       (prismaService as any).storeTier = { findUnique: findUniqueMock };
@@ -112,20 +112,20 @@ describe('TierService', () => {
       expect(result).toBeNull();
     });
 
-    it('should handle database errors gracefully', async () => {
+    it("should handle database errors gracefully", async () => {
       // Arrange
-      const dbError = new Error('Database connection failed');
+      const dbError = new Error("Database connection failed");
       const findUniqueMock = jest.fn().mockRejectedValue(dbError);
       (prismaService as any).storeTier = { findUnique: findUniqueMock };
 
       // Act & Assert
       await expect(service.getStoreTier(mockStoreId)).rejects.toThrow(
-        'Database connection failed',
+        "Database connection failed",
       );
     });
   });
 
-  describe('getStoreUsage', () => {
+  describe("getStoreUsage", () => {
     beforeEach(() => {
       // Setup default storeTier mock
       const findUniqueMock = jest.fn().mockResolvedValue(mockFreeTier);
@@ -138,7 +138,7 @@ describe('TierService', () => {
       prismaService.order.count = jest.fn().mockResolvedValue(500);
     });
 
-    it('should return cached data on cache hit', async () => {
+    it("should return cached data on cache hit", async () => {
       // Arrange
       const cachedData = {
         tier: Tier.FREE,
@@ -167,7 +167,7 @@ describe('TierService', () => {
       expect(prismaService.table.count).not.toHaveBeenCalled();
     });
 
-    it('should cache results for 5 minutes', async () => {
+    it("should cache results for 5 minutes", async () => {
       // Arrange
       cacheService.get.mockResolvedValue(null);
 
@@ -182,7 +182,7 @@ describe('TierService', () => {
       );
     });
 
-    it('should calculate FREE tier limits correctly', async () => {
+    it("should calculate FREE tier limits correctly", async () => {
       // Arrange
       cacheService.get.mockResolvedValue(null);
 
@@ -200,7 +200,7 @@ describe('TierService', () => {
       expect(result.features.advancedReports).toBe(false);
     });
 
-    it('should calculate STANDARD tier limits correctly', async () => {
+    it("should calculate STANDARD tier limits correctly", async () => {
       // Arrange
       cacheService.get.mockResolvedValue(null);
       const findUniqueMock = jest.fn().mockResolvedValue(mockStandardTier);
@@ -220,7 +220,7 @@ describe('TierService', () => {
       expect(result.features.advancedReports).toBe(false);
     });
 
-    it('should calculate PREMIUM tier limits (Infinity)', async () => {
+    it("should calculate PREMIUM tier limits (Infinity)", async () => {
       // Arrange
       cacheService.get.mockResolvedValue(null);
       const findUniqueMock = jest.fn().mockResolvedValue(mockPremiumTier);
@@ -240,7 +240,7 @@ describe('TierService', () => {
       expect(result.features.advancedReports).toBe(true);
     });
 
-    it('should aggregate usage from all resources', async () => {
+    it("should aggregate usage from all resources", async () => {
       // Arrange
       cacheService.get.mockResolvedValue(null);
 
@@ -264,7 +264,7 @@ describe('TierService', () => {
       expect(result.usage.monthlyOrders.current).toBe(500);
     });
 
-    it('should throw NotFoundException if tier missing', async () => {
+    it("should throw NotFoundException if tier missing", async () => {
       // Arrange
       cacheService.get.mockResolvedValue(null);
       const findUniqueMock = jest.fn().mockResolvedValue(null);
@@ -280,7 +280,7 @@ describe('TierService', () => {
     });
   });
 
-  describe('checkTierLimit', () => {
+  describe("checkTierLimit", () => {
     beforeEach(() => {
       // Setup default storeTier mock
       const findUniqueMock = jest.fn().mockResolvedValue(mockFreeTier);
@@ -294,9 +294,9 @@ describe('TierService', () => {
       prismaService.order.count = jest.fn().mockResolvedValue(500);
     });
 
-    it('should allow creation within limit (FREE: 10/20 tables)', async () => {
+    it("should allow creation within limit (FREE: 10/20 tables)", async () => {
       // Act
-      const result = await service.checkTierLimit(mockStoreId, 'tables', 1);
+      const result = await service.checkTierLimit(mockStoreId, "tables", 1);
 
       // Assert
       expect(result.allowed).toBe(true);
@@ -305,12 +305,12 @@ describe('TierService', () => {
       expect(result.tier).toBe(Tier.FREE);
     });
 
-    it('should block creation at limit (FREE: 20/20 tables)', async () => {
+    it("should block creation at limit (FREE: 20/20 tables)", async () => {
       // Arrange
       prismaService.table.count = jest.fn().mockResolvedValue(20);
 
       // Act
-      const result = await service.checkTierLimit(mockStoreId, 'tables', 1);
+      const result = await service.checkTierLimit(mockStoreId, "tables", 1);
 
       // Assert
       expect(result.allowed).toBe(false);
@@ -318,12 +318,12 @@ describe('TierService', () => {
       expect(result.limit).toBe(20);
     });
 
-    it('should return warning at 90% usage (FREE: 18/20)', async () => {
+    it("should return warning at 90% usage (FREE: 18/20)", async () => {
       // Arrange
       prismaService.table.count = jest.fn().mockResolvedValue(18);
 
       // Act
-      const result = await service.checkTierLimit(mockStoreId, 'tables', 1);
+      const result = await service.checkTierLimit(mockStoreId, "tables", 1);
 
       // Assert
       expect(result.allowed).toBe(true);
@@ -332,14 +332,14 @@ describe('TierService', () => {
       // Note: 18 + 1 = 19, which is 95% usage
     });
 
-    it('should allow unlimited for PREMIUM tier', async () => {
+    it("should allow unlimited for PREMIUM tier", async () => {
       // Arrange
       const findUniqueMock = jest.fn().mockResolvedValue(mockPremiumTier);
       (prismaService as any).storeTier = { findUnique: findUniqueMock };
       prismaService.table.count = jest.fn().mockResolvedValue(1000);
 
       // Act
-      const result = await service.checkTierLimit(mockStoreId, 'tables', 100);
+      const result = await service.checkTierLimit(mockStoreId, "tables", 100);
 
       // Assert
       expect(result.allowed).toBe(true);
@@ -348,14 +348,14 @@ describe('TierService', () => {
       expect(result.tier).toBe(Tier.PREMIUM);
     });
 
-    it('should handle monthly order limit', async () => {
+    it("should handle monthly order limit", async () => {
       // Arrange
       prismaService.order.count = jest.fn().mockResolvedValue(1990);
 
       // Act
       const result = await service.checkTierLimit(
         mockStoreId,
-        'monthlyOrders',
+        "monthlyOrders",
         10,
       );
 
@@ -365,68 +365,68 @@ describe('TierService', () => {
       expect(result.limit).toBe(2000);
     });
 
-    it('should throw NotFoundException if tier missing', async () => {
+    it("should throw NotFoundException if tier missing", async () => {
       // Arrange
       const findUniqueMock = jest.fn().mockResolvedValue(null);
       (prismaService as any).storeTier = { findUnique: findUniqueMock };
 
       // Act & Assert
       await expect(
-        service.checkTierLimit(mockStoreId, 'tables', 1),
+        service.checkTierLimit(mockStoreId, "tables", 1),
       ).rejects.toThrow(NotFoundException);
     });
   });
 
-  describe('hasFeatureAccess / checkFeatureAccess', () => {
-    it('should return false for KDS on FREE tier', async () => {
+  describe("hasFeatureAccess / checkFeatureAccess", () => {
+    it("should return false for KDS on FREE tier", async () => {
       // Arrange
       const findUniqueMock = jest.fn().mockResolvedValue(mockFreeTier);
       (prismaService as any).storeTier = { findUnique: findUniqueMock };
 
       // Act
-      const result = await service.hasFeatureAccess(mockStoreId, 'kds');
+      const result = await service.hasFeatureAccess(mockStoreId, "kds");
 
       // Assert
       expect(result).toBe(false);
     });
 
-    it('should return true for KDS on STANDARD tier', async () => {
+    it("should return true for KDS on STANDARD tier", async () => {
       // Arrange
       const findUniqueMock = jest.fn().mockResolvedValue(mockStandardTier);
       (prismaService as any).storeTier = { findUnique: findUniqueMock };
 
       // Act
-      const result = await service.hasFeatureAccess(mockStoreId, 'kds');
+      const result = await service.hasFeatureAccess(mockStoreId, "kds");
 
       // Assert
       expect(result).toBe(true);
     });
 
-    it('should return false for loyalty on FREE tier', async () => {
+    it("should return false for loyalty on FREE tier", async () => {
       // Arrange
       const findUniqueMock = jest.fn().mockResolvedValue(mockFreeTier);
       (prismaService as any).storeTier = { findUnique: findUniqueMock };
 
       // Act
-      const result = await service.hasFeatureAccess(mockStoreId, 'loyalty');
+      const result = await service.hasFeatureAccess(mockStoreId, "loyalty");
 
       // Assert
       expect(result).toBe(false);
     });
 
-    it('should return true for loyalty on STANDARD tier', async () => {
+    it("should return true for loyalty on STANDARD tier", async () => {
       // Arrange
       const findUniqueMock = jest.fn().mockResolvedValue(mockStandardTier);
       (prismaService as any).storeTier = { findUnique: findUniqueMock };
 
       // Act
-      const result = await service.hasFeatureAccess(mockStoreId, 'loyalty');
+      const result = await service.hasFeatureAccess(mockStoreId, "loyalty");
 
       // Assert
       expect(result).toBe(true);
     });
 
-    it('should return false for advancedReports on STANDARD', async () => {
+    it("should return false for advancedReports on STANDARD", async () => {
       // Arrange
       const findUniqueMock = jest.fn().mockResolvedValue(mockStandardTier);
       (prismaService as any).storeTier = { findUnique: findUniqueMock };
@@ -434,14 +434,14 @@ describe('TierService', () => {
       // Act
       const result = await service.hasFeatureAccess(
         mockStoreId,
-        'advancedReports',
+        "advancedReports",
       );
 
       // Assert
       expect(result).toBe(false);
     });
 
-    it('should return true for advancedReports on PREMIUM', async () => {
+    it("should return true for advancedReports on PREMIUM", async () => {
       // Arrange
       const findUniqueMock = jest.fn().mockResolvedValue(mockPremiumTier);
       (prismaService as any).storeTier = { findUnique: findUniqueMock };
@@ -449,32 +449,32 @@ describe('TierService', () => {
       // Act
       const result = await service.hasFeatureAccess(
         mockStoreId,
-        'advancedReports',
+        "advancedReports",
       );
 
       // Assert
       expect(result).toBe(true);
     });
 
-    it('should throw NotFoundException if tier missing (hasFeatureAccess)', async () => {
+    it("should throw NotFoundException if tier missing (hasFeatureAccess)", async () => {
       // Arrange
       const findUniqueMock = jest.fn().mockResolvedValue(null);
       (prismaService as any).storeTier = { findUnique: findUniqueMock };
 
       // Act & Assert
       await expect(
-        service.hasFeatureAccess(mockStoreId, 'kds'),
+        service.hasFeatureAccess(mockStoreId, "kds"),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('checkFeatureAccess should be an alias for hasFeatureAccess', async () => {
+    it("checkFeatureAccess should be an alias for hasFeatureAccess", async () => {
       // Arrange
       const findUniqueMock = jest.fn().mockResolvedValue(mockStandardTier);
       (prismaService as any).storeTier = { findUnique: findUniqueMock };
 
       // Act
-      const resultHas = await service.hasFeatureAccess(mockStoreId, 'kds');
-      const resultCheck = await service.checkFeatureAccess(mockStoreId, 'kds');
+      const resultHas = await service.hasFeatureAccess(mockStoreId, "kds");
+      const resultCheck = await service.checkFeatureAccess(mockStoreId, "kds");
 
       // Assert
       expect(resultHas).toBe(resultCheck);
@@ -482,8 +482,8 @@ describe('TierService', () => {
     });
   });
 
-  describe('invalidateUsageCache', () => {
-    it('should delete cache key', async () => {
+  describe("invalidateUsageCache", () => {
+    it("should delete cache key", async () => {
       // Act
       await service.invalidateUsageCache(mockStoreId);
 
@@ -493,9 +493,9 @@ describe('TierService', () => {
       );
     });
 
-    it('should not throw on cache deletion failure', async () => {
+    it("should not throw on cache deletion failure", async () => {
       // Arrange
-      cacheService.del.mockRejectedValue(new Error('Cache deletion failed'));
+      cacheService.del.mockRejectedValue(new Error("Cache deletion failed"));
 
       // Act & Assert - should not throw
       await expect(
@@ -504,13 +504,13 @@ describe('TierService', () => {
     });
   });
 
-  describe('trackUsage', () => {
-    it('should invalidate cache after resource creation', async () => {
+  describe("trackUsage", () => {
+    it("should invalidate cache after resource creation", async () => {
       // Arrange
       cacheService.del.mockResolvedValue(undefined);
 
       // Act
-      await service.trackUsage(mockStoreId, 'tables', 1);
+      await service.trackUsage(mockStoreId, "tables", 1);
 
       // Assert
       expect(cacheService.del).toHaveBeenCalledWith(
@@ -518,12 +518,12 @@ describe('TierService', () => {
       );
     });
 
-    it('should invalidate cache after resource deletion', async () => {
+    it("should invalidate cache after resource deletion", async () => {
       // Arrange
       cacheService.del.mockResolvedValue(undefined);
 
       // Act
-      await service.trackUsage(mockStoreId, 'menuItems', -1);
+      await service.trackUsage(mockStoreId, "menuItems", -1);
 
       // Assert
       expect(cacheService.del).toHaveBeenCalledWith(

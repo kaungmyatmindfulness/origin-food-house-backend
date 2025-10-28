@@ -1,8 +1,8 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Expose } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Expose } from "class-transformer";
 
 export class MenuItemBasicResponseDto {
-  @ApiProperty({ format: 'uuid' }) @Expose() id: string;
+  @ApiProperty({ format: "uuid" }) @Expose() id: string;
   @ApiProperty() @Expose() name: string;
   @ApiPropertyOptional({ nullable: true }) @Expose() imageUrl?: string | null;
   @ApiProperty({ type: String }) @Expose() basePrice: string; // Assuming string output for Decimal

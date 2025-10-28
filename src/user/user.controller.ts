@@ -13,7 +13,7 @@ import {
   Query,
   Req,
   UseGuards,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -27,30 +27,30 @@ import {
   ApiResponse,
   ApiTags,
   ApiExtraModels,
-} from '@nestjs/swagger';
-import { Prisma, UserStore, StaffInvitation, User } from '@prisma/client';
+} from "@nestjs/swagger";
+import { Prisma, UserStore, StaffInvitation, User } from "@prisma/client";
 
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { RequestWithUser } from 'src/auth/types';
-import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
-import { GetUser } from 'src/common/decorators/get-user.decorator';
-import { UseTierLimit } from 'src/common/decorators/tier-limit.decorator';
-import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
-import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
-import { TierLimitGuard } from 'src/common/guards/tier-limit.guard';
-import { GetProfileQueryDto } from 'src/user/dto/get-profile-query.dto';
-import { UserProfileResponseDto } from 'src/user/dto/user-profile-response.dto';
+import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
+import { RequestWithUser } from "src/auth/types";
+import { ApiSuccessResponse } from "src/common/decorators/api-success-response.decorator";
+import { GetUser } from "src/common/decorators/get-user.decorator";
+import { UseTierLimit } from "src/common/decorators/tier-limit.decorator";
+import { StandardApiErrorDetails } from "src/common/dto/standard-api-error-details.dto";
+import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
+import { TierLimitGuard } from "src/common/guards/tier-limit.guard";
+import { GetProfileQueryDto } from "src/user/dto/get-profile-query.dto";
+import { UserProfileResponseDto } from "src/user/dto/user-profile-response.dto";
 
-import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
-import { ChangeRoleDto } from './dto/change-role.dto';
-import { CreateUserDto } from './dto/create-user.dto';
-import { InviteStaffDto } from './dto/invite-staff.dto';
-import { SuspendUserDto } from './dto/suspend-user.dto';
-import { UserPublicPayload } from './types/user-payload.types';
-import { UserService } from './user.service';
+import { AddUserToStoreDto } from "./dto/add-user-to-store.dto";
+import { ChangeRoleDto } from "./dto/change-role.dto";
+import { CreateUserDto } from "./dto/create-user.dto";
+import { InviteStaffDto } from "./dto/invite-staff.dto";
+import { SuspendUserDto } from "./dto/suspend-user.dto";
+import { UserPublicPayload } from "./types/user-payload.types";
+import { UserService } from "./user.service";
 
-@ApiTags('Users')
-@Controller('users')
+@ApiTags("Users")
+@Controller("users")
 @ApiExtraModels(
   StandardApiResponse,
   StandardApiErrorDetails,
@@ -61,20 +61,20 @@ export class UserController {
 
   constructor(private readonly userService: UserService) {}
 
-  @Post('register')
+  @Post("register")
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Register a new user (sends verification email)' })
+  @ApiOperation({ summary: "Register a new user (sends verification email)" })
   @ApiCreatedResponse({
-    description: 'User registered successfully. Verification email sent.',
+    description: "User registered successfully. Verification email sent.",
     type: StandardApiResponse,
   })
   @ApiBadRequestResponse({
     description:
-      'Validation error (e.g., email exists, disposable domain, invalid input)',
+      "Validation error (e.g., email exists, disposable domain, invalid input)",
   })
   @ApiResponse({
     status: 500,
-    description: 'Internal server error (e.g., failed to send email)',
+    description: "Internal server error (e.g., failed to send email)",
   })
   async register(
     @Body() createUserDto: CreateUserDto,
@@ -83,27 +83,27 @@ export class UserController {
     const user = await this.userService.createUser(createUserDto);
     return StandardApiResponse.success(
       user,
-      'User registered successfully. Please check your email to verify your account.',
+      "User registered successfully. Please check your email to verify your account.",
     );
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('add-to-store')
+  @Post("add-to-store")
   @ApiBearerAuth()
   @ApiOperation({
     summary:
-      'Assign a user to a store with a role (Admin/Owner Protected - Example)',
+      "Assign a user to a store with a role (Admin/Owner Protected - Example)",
   })
   @ApiOkResponse({
-    description: 'User assigned/updated in store successfully.',
+    description: "User assigned/updated in store successfully.",
     type: StandardApiResponse,
   })
   @ApiBadRequestResponse({
-    description: 'Validation error (e.g., invalid role, missing fields)',
+    description: "Validation error (e.g., invalid role, missing fields)",
   })
-  @ApiNotFoundResponse({ description: 'User or Store not found.' })
+  @ApiNotFoundResponse({ description: "User or Store not found." })
   @ApiForbiddenResponse({
-    description: 'User does not have permission to perform this action.',
+    description: "User does not have permission to perform this action.",
   })
   async addUserToStore(
     @Body() dto: AddUserToStoreDto,
@@ -114,32 +114,32 @@ export class UserController {
     const userStore = await this.userService.addUserToStore(dto);
     return StandardApiResponse.success(
       userStore,
-      'User role in store updated successfully.',
+      "User role in store updated successfully.",
     );
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get(':id/stores')
+  @Get(":id/stores")
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Get all store memberships for a specific user (Protected)',
+    summary: "Get all store memberships for a specific user (Protected)",
   })
   @ApiParam({
-    name: 'id',
-    description: 'ID (UUID) of the target user',
+    name: "id",
+    description: "ID (UUID) of the target user",
     type: String,
-    format: 'uuid',
+    format: "uuid",
   })
   @ApiOkResponse({
-    description: 'List of user store memberships retrieved.',
+    description: "List of user store memberships retrieved.",
     type: StandardApiResponse,
   })
   @ApiForbiddenResponse({
-    description: 'User does not have permission to view this.',
+    description: "User does not have permission to view this.",
   })
-  @ApiNotFoundResponse({ description: 'Target user not found.' })
+  @ApiNotFoundResponse({ description: "Target user not found." })
   async getUserStores(
-    @Param('id', new ParseUUIDPipe({ version: '7' })) userId: string,
+    @Param("id", new ParseUUIDPipe({ version: "7" })) userId: string,
     @Req() req: RequestWithUser,
   ): Promise<
     StandardApiResponse<
@@ -158,27 +158,27 @@ export class UserController {
     }
     return StandardApiResponse.success(
       userStores,
-      'User stores retrieved successfully.',
+      "User stores retrieved successfully.",
     );
   }
 
-  @Get('me')
+  @Get("me")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
-    summary: 'Get current logged-in user profile, optionally scoped to a store',
+    summary: "Get current logged-in user profile, optionally scoped to a store",
   })
   @ApiSuccessResponse(
     UserProfileResponseDto,
-    'Current user profile retrieved successfully.',
+    "Current user profile retrieved successfully.",
   )
   @ApiQuery({
-    name: 'storeId',
+    name: "storeId",
     required: false,
     type: String,
-    format: 'uuid',
+    format: "uuid",
     description:
-      'Optional: ID (UUID) of the store to get user context (e.g., role) for.', //
-    example: '018ebc9a-7e1c-7f5e-b48a-3f4f72c55a1e',
+      "Optional: ID (UUID) of the store to get user context (e.g., role) for.", //
+    example: "018ebc9a-7e1c-7f5e-b48a-3f4f72c55a1e",
   })
   async getCurrentUser(
     @Req() req: RequestWithUser,
@@ -202,36 +202,36 @@ export class UserController {
 
     return StandardApiResponse.success(
       userProfile,
-      'Profile retrieved successfully.',
+      "Profile retrieved successfully.",
     );
   }
 
-  @Post('stores/:storeId/invite-staff')
+  @Post("stores/:storeId/invite-staff")
   @UseGuards(JwtAuthGuard, TierLimitGuard)
-  @UseTierLimit({ resource: 'staff', increment: 1 })
+  @UseTierLimit({ resource: "staff", increment: 1 })
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Invite a staff member to join a store (Owner/Admin only)',
+    summary: "Invite a staff member to join a store (Owner/Admin only)",
   })
   @ApiParam({
-    name: 'storeId',
-    description: 'ID (UUID) of the store',
+    name: "storeId",
+    description: "ID (UUID) of the store",
     type: String,
-    format: 'uuid',
+    format: "uuid",
   })
   @ApiCreatedResponse({
-    description: 'Staff invitation sent successfully.',
+    description: "Staff invitation sent successfully.",
     type: StandardApiResponse,
   })
   @ApiForbiddenResponse({
-    description: 'Insufficient permissions or tier limit reached',
+    description: "Insufficient permissions or tier limit reached",
   })
   @ApiBadRequestResponse({
-    description: 'Invalid input or user already a member',
+    description: "Invalid input or user already a member",
   })
   async inviteStaff(
-    @GetUser('sub') userId: string,
-    @Param('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
+    @GetUser("sub") userId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Body() dto: InviteStaffDto,
   ): Promise<StandardApiResponse<StaffInvitation | null>> {
     const method = this.inviteStaff.name;
@@ -249,49 +249,49 @@ export class UserController {
     if (invitation === null) {
       return StandardApiResponse.success(
         null,
-        'User already exists and has been added to the store.',
+        "User already exists and has been added to the store.",
       );
     }
 
     return StandardApiResponse.success(
       invitation,
-      'Staff invitation sent successfully.',
+      "Staff invitation sent successfully.",
     );
   }
 
-  @Patch('stores/:storeId/users/:targetUserId/role')
+  @Patch("stores/:storeId/users/:targetUserId/role")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Change a user's role within a store (Owner only)" })
   @ApiParam({
-    name: 'storeId',
-    description: 'ID (UUID) of the store',
+    name: "storeId",
+    description: "ID (UUID) of the store",
     type: String,
-    format: 'uuid',
+    format: "uuid",
   })
   @ApiParam({
-    name: 'targetUserId',
-    description: 'ID (UUID) of the user whose role to change',
+    name: "targetUserId",
+    description: "ID (UUID) of the user whose role to change",
     type: String,
-    format: 'uuid',
+    format: "uuid",
   })
   @ApiOkResponse({
-    description: 'User role updated successfully.',
+    description: "User role updated successfully.",
     type: StandardApiResponse,
   })
   @ApiForbiddenResponse({
-    description: 'Insufficient permissions (Owner only)',
+    description: "Insufficient permissions (Owner only)",
   })
   @ApiBadRequestResponse({
-    description: 'Cannot change own role',
+    description: "Cannot change own role",
   })
   @ApiNotFoundResponse({
-    description: 'User not found in store',
+    description: "User not found in store",
   })
   async changeRole(
-    @GetUser('sub') userId: string,
-    @Param('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
-    @Param('targetUserId', new ParseUUIDPipe({ version: '7' }))
+    @GetUser("sub") userId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
+    @Param("targetUserId", new ParseUUIDPipe({ version: "7" }))
     targetUserId: string,
     @Body() dto: ChangeRoleDto,
   ): Promise<StandardApiResponse<UserStore>> {
@@ -309,43 +309,43 @@ export class UserController {
 
     return StandardApiResponse.success(
       updated,
-      'User role updated successfully.',
+      "User role updated successfully.",
     );
   }
 
-  @Patch('stores/:storeId/users/:targetUserId/suspend')
+  @Patch("stores/:storeId/users/:targetUserId/suspend")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Suspend a user account (Owner/Admin only)' })
+  @ApiOperation({ summary: "Suspend a user account (Owner/Admin only)" })
   @ApiParam({
-    name: 'storeId',
-    description: 'ID (UUID) of the store',
+    name: "storeId",
+    description: "ID (UUID) of the store",
     type: String,
-    format: 'uuid',
+    format: "uuid",
   })
   @ApiParam({
-    name: 'targetUserId',
-    description: 'ID (UUID) of the user to suspend',
+    name: "targetUserId",
+    description: "ID (UUID) of the user to suspend",
     type: String,
-    format: 'uuid',
+    format: "uuid",
   })
   @ApiOkResponse({
-    description: 'User suspended successfully.',
+    description: "User suspended successfully.",
     type: StandardApiResponse,
   })
   @ApiForbiddenResponse({
-    description: 'Insufficient permissions (Owner/Admin only)',
+    description: "Insufficient permissions (Owner/Admin only)",
   })
   @ApiBadRequestResponse({
-    description: 'Cannot suspend yourself',
+    description: "Cannot suspend yourself",
   })
   @ApiNotFoundResponse({
-    description: 'User not found',
+    description: "User not found",
   })
   async suspendUser(
-    @GetUser('sub') userId: string,
-    @Param('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
-    @Param('targetUserId', new ParseUUIDPipe({ version: '7' }))
+    @GetUser("sub") userId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
+    @Param("targetUserId", new ParseUUIDPipe({ version: "7" }))
     targetUserId: string,
     @Body() dto: SuspendUserDto,
   ): Promise<StandardApiResponse<User>> {
@@ -361,41 +361,41 @@ export class UserController {
       dto.reason,
     );
 
-    return StandardApiResponse.success(user, 'User suspended successfully.');
+    return StandardApiResponse.success(user, "User suspended successfully.");
   }
 
-  @Patch('stores/:storeId/users/:targetUserId/reactivate')
+  @Patch("stores/:storeId/users/:targetUserId/reactivate")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Reactivate a suspended user account (Owner/Admin only)',
+    summary: "Reactivate a suspended user account (Owner/Admin only)",
   })
   @ApiParam({
-    name: 'storeId',
-    description: 'ID (UUID) of the store',
+    name: "storeId",
+    description: "ID (UUID) of the store",
     type: String,
-    format: 'uuid',
+    format: "uuid",
   })
   @ApiParam({
-    name: 'targetUserId',
-    description: 'ID (UUID) of the user to reactivate',
+    name: "targetUserId",
+    description: "ID (UUID) of the user to reactivate",
     type: String,
-    format: 'uuid',
+    format: "uuid",
   })
   @ApiOkResponse({
-    description: 'User reactivated successfully.',
+    description: "User reactivated successfully.",
     type: StandardApiResponse,
   })
   @ApiForbiddenResponse({
-    description: 'Insufficient permissions (Owner/Admin only)',
+    description: "Insufficient permissions (Owner/Admin only)",
   })
   @ApiNotFoundResponse({
-    description: 'User not found',
+    description: "User not found",
   })
   async reactivateUser(
-    @GetUser('sub') userId: string,
-    @Param('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
-    @Param('targetUserId', new ParseUUIDPipe({ version: '7' }))
+    @GetUser("sub") userId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
+    @Param("targetUserId", new ParseUUIDPipe({ version: "7" }))
     targetUserId: string,
   ): Promise<StandardApiResponse<User>> {
     const method = this.reactivateUser.name;
@@ -409,6 +409,6 @@ export class UserController {
       storeId,
     );
 
-    return StandardApiResponse.success(user, 'User reactivated successfully.');
+    return StandardApiResponse.success(user, "User reactivated successfully.");
   }
 }

@@ -2,35 +2,35 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
-} from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Role, Prisma } from '@prisma/client';
+} from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import { Role, Prisma } from "@prisma/client";
 
-import { MenuService } from './menu.service';
-import { AuditLogService } from '../audit-log/audit-log.service';
-import { AuthService } from '../auth/auth.service';
+import { MenuService } from "./menu.service";
+import { AuditLogService } from "../audit-log/audit-log.service";
+import { AuthService } from "../auth/auth.service";
 import {
   createPrismaMock,
   PrismaMock,
-} from '../common/testing/prisma-mock.helper';
-import { PrismaService } from '../prisma/prisma.service';
-import { TierService } from '../tier/tier.service';
+} from "../common/testing/prisma-mock.helper";
+import { PrismaService } from "../prisma/prisma.service";
+import { TierService } from "../tier/tier.service";
 
-describe('MenuService', () => {
+describe("MenuService", () => {
   let service: MenuService;
   let prismaService: PrismaMock;
   let authService: jest.Mocked<AuthService>;
   let _auditLogService: jest.Mocked<AuditLogService>;
   let _tierService: jest.Mocked<TierService>;
 
-  const mockStoreId = 'store-123';
-  const mockUserId = 'user-123';
-  const mockItemId = 'item-123';
-  const mockCategoryId = 'category-123';
+  const mockStoreId = "store-123";
+  const mockUserId = "user-123";
+  const mockItemId = "item-123";
+  const mockCategoryId = "category-123";
 
   const mockCategory = {
     id: mockCategoryId,
-    name: 'Appetizers',
+    name: "Appetizers",
     storeId: mockStoreId,
     sortOrder: 0,
     createdAt: new Date(),
@@ -40,9 +40,9 @@ describe('MenuService', () => {
 
   const mockMenuItem = {
     id: mockItemId,
-    name: 'Spring Rolls',
-    description: 'Fresh spring rolls',
-    basePrice: new Prisma.Decimal('5.99'),
+    name: "Spring Rolls",
+    description: "Fresh spring rolls",
+    basePrice: new Prisma.Decimal("5.99"),
     imageUrl: null,
     categoryId: mockCategoryId,
     storeId: mockStoreId,
@@ -124,12 +124,12 @@ describe('MenuService', () => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('getStoreMenuItems', () => {
-    it('should return all menu items for a store', async () => {
+  describe("getStoreMenuItems", () => {
+    it("should return all menu items for a store", async () => {
       const mockItems = [mockMenuItem];
       prismaService.menuItem.findMany.mockResolvedValue(mockItems as any);
 
@@ -138,12 +138,12 @@ describe('MenuService', () => {
       expect(result).toEqual(mockItems);
       expect(prismaService.menuItem.findMany).toHaveBeenCalledWith({
         where: { storeId: mockStoreId, deletedAt: null },
-        orderBy: [{ category: { sortOrder: 'asc' } }, { sortOrder: 'asc' }],
+        orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }],
         include: expect.any(Object),
       });
     });
 
-    it('should return empty array if no items found', async () => {
+    it("should return empty array if no items found", async () => {
       prismaService.menuItem.findMany.mockResolvedValue([]);
 
       const result = await service.getStoreMenuItems(mockStoreId);
@@ -152,8 +152,8 @@ describe('MenuService', () => {
     });
   });
 
-  describe('getMenuItemById', () => {
-    it('should return menu item by ID', async () => {
+  describe("getMenuItemById", () => {
+    it("should return menu item by ID", async () => {
       prismaService.menuItem.findFirst.mockResolvedValue(mockMenuItem as any);
 
       const result = await service.getMenuItemById(mockItemId);
@@ -161,21 +161,21 @@ describe('MenuService', () => {
       expect(result).toEqual(mockMenuItem);
     });
 
-    it('should throw NotFoundException if item not found', async () => {
+    it("should throw NotFoundException if item not found", async () => {
       prismaService.menuItem.findFirst.mockResolvedValue(null);
 
-      await expect(service.getMenuItemById('non-existent-id')).rejects.toThrow(
+      await expect(service.getMenuItemById("non-existent-id")).rejects.toThrow(
         NotFoundException,
       );
     });
   });
 
-  describe('createMenuItem', () => {
+  describe("createMenuItem", () => {
     const createDto = {
-      name: 'New Item',
-      description: 'Description',
-      basePrice: '9.99',
-      category: { name: 'Appetizers' },
+      name: "New Item",
+      description: "Description",
+      basePrice: "9.99",
+      category: { name: "Appetizers" },
       customizationGroups: [],
     };
 
@@ -186,7 +186,7 @@ describe('MenuService', () => {
       );
     });
 
-    it('should create menu item successfully', async () => {
+    it("should create menu item successfully", async () => {
       mockTransaction.category.findFirst.mockResolvedValue(mockCategory as any);
       mockTransaction.menuItem.aggregate.mockResolvedValue({
         _max: { sortOrder: 0 },
@@ -212,7 +212,7 @@ describe('MenuService', () => {
       );
     });
 
-    it('should throw BadRequestException if category name is missing', async () => {
+    it("should throw BadRequestException if category name is missing", async () => {
       const invalidDto = { ...createDto, category: {} as any };
 
       await expect(
@@ -220,9 +220,9 @@ describe('MenuService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should check permissions before creating', async () => {
+    it("should check permissions before creating", async () => {
       authService.checkStorePermission.mockRejectedValue(
-        new ForbiddenException('Insufficient permissions'),
+        new ForbiddenException("Insufficient permissions"),
       );
 
       await expect(
@@ -230,17 +230,17 @@ describe('MenuService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should create customization groups when provided', async () => {
+    it("should create customization groups when provided", async () => {
       const dtoWithCustomizations = {
         ...createDto,
         customizationGroups: [
           {
-            name: 'Size',
+            name: "Size",
             minSelectable: 1,
             maxSelectable: 1,
             options: [
-              { name: 'Small', additionalPrice: '0' },
-              { name: 'Large', additionalPrice: '2.00' },
+              { name: "Small", additionalPrice: "0" },
+              { name: "Large", additionalPrice: "2.00" },
             ],
           },
         ],
@@ -254,7 +254,7 @@ describe('MenuService', () => {
         id: mockItemId,
       } as any);
       mockTransaction.customizationGroup.create.mockResolvedValue({
-        id: 'group-123',
+        id: "group-123",
       } as any);
       mockTransaction.customizationOption.createMany.mockResolvedValue({
         count: 2,
@@ -275,11 +275,11 @@ describe('MenuService', () => {
     });
   });
 
-  describe('updateMenuItem', () => {
+  describe("updateMenuItem", () => {
     const updateDto = {
-      name: 'Updated Item',
-      description: 'Updated description',
-      basePrice: '12.99',
+      name: "Updated Item",
+      description: "Updated description",
+      basePrice: "12.99",
     };
 
     beforeEach(() => {
@@ -289,7 +289,7 @@ describe('MenuService', () => {
       );
     });
 
-    it('should update menu item successfully', async () => {
+    it("should update menu item successfully", async () => {
       mockTransaction.menuItem.findUnique.mockResolvedValue(
         mockMenuItem as any,
       );
@@ -311,7 +311,7 @@ describe('MenuService', () => {
       expect(mockTransaction.menuItem.update).toHaveBeenCalled();
     });
 
-    it('should throw NotFoundException if item not found', async () => {
+    it("should throw NotFoundException if item not found", async () => {
       mockTransaction.menuItem.findUnique.mockResolvedValue(null);
 
       await expect(
@@ -319,8 +319,8 @@ describe('MenuService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw ForbiddenException if item belongs to different store', async () => {
-      const wrongStoreItem = { ...mockMenuItem, storeId: 'different-store' };
+    it("should throw ForbiddenException if item belongs to different store", async () => {
+      const wrongStoreItem = { ...mockMenuItem, storeId: "different-store" };
       mockTransaction.menuItem.findUnique.mockResolvedValue(
         wrongStoreItem as any,
       );
@@ -330,16 +330,16 @@ describe('MenuService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should sync customization groups when provided', async () => {
+    it("should sync customization groups when provided", async () => {
       const updateDtoWithCustomizations = {
         ...updateDto,
         customizationGroups: [
           {
-            id: 'existing-group-id',
-            name: 'Updated Size',
+            id: "existing-group-id",
+            name: "Updated Size",
             minSelectable: 1,
             maxSelectable: 1,
-            options: [{ name: 'Medium', additionalPrice: '1.00' }],
+            options: [{ name: "Medium", additionalPrice: "1.00" }],
           },
         ],
       };
@@ -348,12 +348,12 @@ describe('MenuService', () => {
         ...mockMenuItem,
         customizationGroups: [
           {
-            id: 'existing-group-id',
-            name: 'Size',
+            id: "existing-group-id",
+            name: "Size",
             menuItemId: mockItemId,
             minSelectable: 1,
             maxSelectable: 1,
-            customizationOptions: [{ id: 'option-123' }],
+            customizationOptions: [{ id: "option-123" }],
             createdAt: new Date(),
             updatedAt: new Date(),
           },
@@ -385,7 +385,7 @@ describe('MenuService', () => {
     });
   });
 
-  describe('deleteMenuItem', () => {
+  describe("deleteMenuItem", () => {
     beforeEach(() => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.$transaction.mockImplementation((callback: any) =>
@@ -393,7 +393,7 @@ describe('MenuService', () => {
       );
     });
 
-    it('should soft delete menu item successfully', async () => {
+    it("should soft delete menu item successfully", async () => {
       mockTransaction.menuItem.findUnique.mockResolvedValue(
         mockMenuItem as any,
       );
@@ -413,7 +413,7 @@ describe('MenuService', () => {
       });
     });
 
-    it('should return id if item not found (idempotent)', async () => {
+    it("should return id if item not found (idempotent)", async () => {
       mockTransaction.menuItem.findUnique.mockResolvedValue(null);
 
       const result = await service.deleteMenuItem(
@@ -426,8 +426,8 @@ describe('MenuService', () => {
       expect(mockTransaction.menuItem.delete).not.toHaveBeenCalled();
     });
 
-    it('should throw ForbiddenException if item belongs to different store', async () => {
-      const wrongStoreItem = { ...mockMenuItem, storeId: 'different-store' };
+    it("should throw ForbiddenException if item belongs to different store", async () => {
+      const wrongStoreItem = { ...mockMenuItem, storeId: "different-store" };
       mockTransaction.menuItem.findUnique.mockResolvedValue(
         wrongStoreItem as any,
       );
@@ -437,9 +437,9 @@ describe('MenuService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should check permissions before deleting', async () => {
+    it("should check permissions before deleting", async () => {
       authService.checkStorePermission.mockRejectedValue(
-        new ForbiddenException('Insufficient permissions'),
+        new ForbiddenException("Insufficient permissions"),
       );
 
       await expect(

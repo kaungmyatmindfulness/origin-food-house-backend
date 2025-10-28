@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Refund Processed - Origin Food House</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #4CAF50; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="margin: 0;">✅ Refund Processed</h1>
+  </div>
+
+  <div style="padding: 30px; background: #ffffff; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+    <p>Hi {{ownerName}},</p>
+
+    <p>Your refund request for <strong>{{storeName}}</strong> has been processed successfully.</p>
+
+    <div style="background: #e8f5e9; padding: 20px; border-radius: 5px; margin: 20px 0;">
+      <h3 style="margin-top: 0;">Refund Details:</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px 0;"><strong>Original Payment:</strong></td>
+          <td style="padding: 8px 0;">${{originalAmount}} USD</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Refund Amount:</strong></td>
+          <td style="padding: 8px 0; color: #4CAF50; font-size: 20px; font-weight: bold;">${{refundAmount}} USD</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Refund Method:</strong></td>
+          <td style="padding: 8px 0;">{{refundMethod}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Processing Date:</strong></td>
+          <td style="padding: 8px 0;">{{processedAt}}</td>
+        </tr>
+        {{#if refundReference}}
+        <tr>
+          <td style="padding: 8px 0;"><strong>Reference Number:</strong></td>
+          <td style="padding: 8px 0; font-family: monospace;">{{refundReference}}</td>
+        </tr>
+        {{/if}}
+      </table>
+    </div>
+
+    <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; font-size: 14px;">
+      <p style="margin: 0;">
+        <strong>Processing Time:</strong><br>
+        {{#if isBankTransfer}}
+        Bank transfer refunds typically appear in your account within 5-7 business days.
+        {{else}}
+        Refunds are usually processed immediately but may take 1-3 business days to appear in your account, depending on your payment provider.
+        {{/if}}
+      </p>
+    </div>
+
+    <p><strong>What happens next?</strong></p>
+    <ul>
+      <li>You will receive the refund via {{refundMethod}}</li>
+      <li>Your subscription will remain active until {{subscriptionEndsAt}}</li>
+      <li>No further charges will be applied for this billing period</li>
+      <li>You can upgrade or renew at any time</li>
+    </ul>
+
+    {{#if hasNote}}
+    <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;">
+      <p style="margin: 0;"><strong>Admin Note:</strong></p>
+      <p style="margin: 10px 0 0 0; font-style: italic;">{{adminNote}}</p>
+    </div>
+    {{/if}}
+
+    <p style="text-align: center; margin: 30px 0;">
+      <a href="{{billingHistoryUrl}}" style="background: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+        View Billing History
+      </a>
+    </p>
+
+    <p style="color: #666; font-size: 14px; margin-top: 30px;">
+      If you have any questions about your refund, contact us at support@originfoodhouse.com
+    </p>
+  </div>
+
+  <div style="background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; margin-top: 20px; border-radius: 8px;">
+    &copy; {{year}} Origin Food House. All rights reserved.
+  </div>
+</body>
+</html>

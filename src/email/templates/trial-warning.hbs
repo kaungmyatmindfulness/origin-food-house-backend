@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Your Trial is Ending Soon - Origin Food House</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #FF9800; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="margin: 0;">⏰ Your Trial is Ending Soon</h1>
+  </div>
+
+  <div style="padding: 30px; background: #ffffff; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+    <p>Hi {{ownerName}},</p>
+
+    <p>Your 30-day Standard tier trial for <strong>{{storeName}}</strong> will expire soon.</p>
+
+    <div style="background: #fff3cd; padding: 20px; border-left: 4px solid #FF9800; border-radius: 5px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #f57c00;">Trial Status:</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px 0;"><strong>Days Remaining:</strong></td>
+          <td style="padding: 8px 0; color: #f57c00; font-size: 24px; font-weight: bold;">{{daysRemaining}} days</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Expires On:</strong></td>
+          <td style="padding: 8px 0; font-weight: bold;">{{trialEndsAt}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Current Tier:</strong></td>
+          <td style="padding: 8px 0;">Standard (Trial)</td>
+        </tr>
+      </table>
+    </div>
+
+    <p><strong>What happens when your trial ends?</strong></p>
+    <ul>
+      <li>❌ Your account will automatically downgrade to the Free tier</li>
+      <li>❌ Free tier limits: 3 tables, 20 menu items, 1 staff, 100 orders/month</li>
+      <li>❌ Some advanced features will be disabled</li>
+    </ul>
+
+    <p style="background: #e8f5e9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+      <strong>Good news!</strong> Upgrade now to continue enjoying all Standard or Premium features without interruption.
+    </p>
+
+    <div style="background: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+      <h3 style="margin-top: 0;">Upgrade Options:</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 12px; border: 2px solid #4CAF50; border-radius: 5px; text-align: center; width: 50%;">
+            <strong style="font-size: 18px; color: #4CAF50;">Standard</strong><br>
+            <span style="font-size: 24px; font-weight: bold;">$240</span>/year<br>
+            <span style="font-size: 12px; color: #666;">($20/month)</span>
+          </td>
+          <td style="width: 20px;"></td>
+          <td style="padding: 12px; border: 2px solid #FFD700; border-radius: 5px; text-align: center; width: 50%;">
+            <strong style="font-size: 18px; color: #FF9800;">Premium</strong><br>
+            <span style="font-size: 24px; font-weight: bold;">$1200</span>/year<br>
+            <span style="font-size: 12px; color: #666;">($100/month)</span>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <p style="text-align: center; margin: 30px 0;">
+      <a href="{{upgradeUrl}}" style="background: #FF9800; color: white; padding: 14px 28px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+        Upgrade Now
+      </a>
+    </p>
+
+    <p style="color: #666; font-size: 14px; margin-top: 30px;">
+      Questions about upgrading? Contact us at support@originfoodhouse.com
+    </p>
+  </div>
+
+  <div style="background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; margin-top: 20px; border-radius: 8px;">
+    &copy; {{year}} Origin Food House. All rights reserved.
+  </div>
+</body>
+</html>

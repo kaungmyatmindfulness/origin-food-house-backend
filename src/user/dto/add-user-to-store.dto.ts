@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Role } from '@prisma/client';
+import { ApiProperty } from "@nestjs/swagger";
+import { Role } from "@prisma/client";
 
 export class AddUserToStoreDto {
   @ApiProperty()

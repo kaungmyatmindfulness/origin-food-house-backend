@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>You Are Now The Owner - Origin Food House</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="margin: 0; font-size: 28px;">🎉 Congratulations!</h1>
+    <p style="margin: 10px 0 0 0; font-size: 18px;">You Are Now The Owner</p>
+  </div>
+
+  <div style="padding: 30px; background: #ffffff; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+    <p>Hi {{newOwnerName}},</p>
+
+    <p>The ownership transfer for <strong>{{storeName}}</strong> has been completed. You are now the owner!</p>
+
+    <div style="background: #f3e5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+      <h3 style="margin-top: 0;">Transfer Summary:</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px 0;"><strong>Store:</strong></td>
+          <td style="padding: 8px 0;">{{storeName}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Previous Owner:</strong></td>
+          <td style="padding: 8px 0;">{{oldOwnerName}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Your New Role:</strong></td>
+          <td style="padding: 8px 0; color: #7b1fa2; font-weight: bold; font-size: 18px;">Owner</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Transfer Completed:</strong></td>
+          <td style="padding: 8px 0;">{{completedAt}}</td>
+        </tr>
+      </table>
+    </div>
+
+    <p><strong>As the owner, you now have full control:</strong></p>
+    <ul>
+      <li>✅ Manage all store settings and configurations</li>
+      <li>✅ Add, remove, and manage staff members</li>
+      <li>✅ Control subscription and billing</li>
+      <li>✅ Access all financial reports and analytics</li>
+      <li>✅ Transfer ownership to others if needed</li>
+      <li>✅ Delete the store (use with caution)</li>
+    </ul>
+
+    <div style="background: #e8f5e9; padding: 20px; border-radius: 5px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #2E7D32;">Current Subscription:</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px 0;"><strong>Tier:</strong></td>
+          <td style="padding: 8px 0;">{{subscriptionTier}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Status:</strong></td>
+          <td style="padding: 8px 0;">{{subscriptionStatus}}</td>
+        </tr>
+        {{#if subscriptionEndsAt}}
+        <tr>
+          <td style="padding: 8px 0;"><strong>Renews/Expires:</strong></td>
+          <td style="padding: 8px 0;">{{subscriptionEndsAt}}</td>
+        </tr>
+        {{/if}}
+      </table>
+    </div>
+
+    <p style="text-align: center; margin: 30px 0;">
+      <a href="{{dashboardUrl}}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 28px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+        Go to Dashboard
+      </a>
+    </p>
+
+    <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; font-size: 14px;">
+      <p style="margin: 0;">
+        <strong>Important:</strong> As the owner, you are now responsible for the subscription and billing. Please review the payment settings to ensure uninterrupted service.
+      </p>
+    </div>
+
+    <p style="color: #666; font-size: 14px; margin-top: 30px;">
+      Welcome to {{storeName}}! If you have any questions, contact us at support@originfoodhouse.com
+    </p>
+  </div>
+
+  <div style="background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; margin-top: 20px; border-radius: 8px;">
+    &copy; {{year}} Origin Food House. All rights reserved.
+  </div>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Payment Verified - Origin Food House</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #4CAF50; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="margin: 0;">✅ Payment Verified!</h1>
+  </div>
+
+  <div style="padding: 30px; background: #ffffff; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+    <p>Hi {{ownerName}},</p>
+
+    <p>Great news! Your payment has been verified and your subscription has been activated.</p>
+
+    <div style="background: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+      <h3 style="margin-top: 0;">Subscription Details:</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px 0;"><strong>Store:</strong></td>
+          <td style="padding: 8px 0;">{{storeName}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Tier:</strong></td>
+          <td style="padding: 8px 0; color: #FFD700;"><strong>{{tier}}</strong></td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Amount Paid:</strong></td>
+          <td style="padding: 8px 0;">${{amount}} USD</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Billing Cycle:</strong></td>
+          <td style="padding: 8px 0;">Annual</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Valid Until:</strong></td>
+          <td style="padding: 8px 0;">{{validUntil}}</td>
+        </tr>
+      </table>
+    </div>
+
+    <p>You now have access to all <strong>{{tier}}</strong> tier features:</p>
+    <ul>
+      {{#if isPremium}}
+      <li>✅ Unlimited tables</li>
+      <li>✅ Unlimited menu items</li>
+      <li>✅ Unlimited staff accounts</li>
+      <li>✅ Unlimited monthly orders</li>
+      <li>✅ Priority support</li>
+      <li>✅ Advanced analytics</li>
+      <li>✅ Custom branding</li>
+      {{else}}
+      <li>✅ Up to 10 tables</li>
+      <li>✅ Up to 100 menu items</li>
+      <li>✅ Up to 5 staff accounts</li>
+      <li>✅ Up to 500 orders/month</li>
+      <li>✅ Standard support</li>
+      <li>✅ Basic analytics</li>
+      {{/if}}
+    </ul>
+
+    <p style="text-align: center; margin: 30px 0;">
+      <a href="{{storeSettingsUrl}}" style="background: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+        View Store Settings
+      </a>
+    </p>
+
+    <div style="background: #e8f5e9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 14px;">
+        <strong>Thank you for choosing Origin Food House!</strong><br>
+        We're excited to support your restaurant's growth.
+      </p>
+    </div>
+
+    <p style="color: #666; font-size: 14px; margin-top: 30px;">
+      If you have any questions, contact us at support@originfoodhouse.com
+    </p>
+  </div>
+
+  <div style="background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; margin-top: 20px; border-radius: 8px;">
+    &copy; {{year}} Origin Food House. All rights reserved.
+  </div>
+</body>
+</html>

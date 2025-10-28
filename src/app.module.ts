@@ -1,32 +1,37 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
-import { EventEmitterModule } from '@nestjs/event-emitter';
-import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
+import { APP_GUARD } from "@nestjs/core";
+import { EventEmitterModule } from "@nestjs/event-emitter";
+import { ScheduleModule } from "@nestjs/schedule";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 
-import { ActiveTableSessionModule } from 'src/active-table-session/active-table-session.module';
-import { AuditLogModule } from 'src/audit-log/audit-log.module';
-import { AuthModule } from 'src/auth/auth.module';
-import { CartModule } from 'src/cart/cart.module';
-import { CategoryModule } from 'src/category/category.module';
-import { CacheModule } from 'src/common/cache/cache.module';
-import { UnusedImageCleanupService } from 'src/common/cleanup/unused-image-cleanup.service';
-import { CommonModule } from 'src/common/common.module';
-import { LoggerMiddleware } from 'src/common/middleware/logger.middleware';
-import { EmailModule } from 'src/email/email.module';
-import { KitchenModule } from 'src/kitchen/kitchen.module';
-import { MenuModule } from 'src/menu/menu.module';
-import { OrderModule } from 'src/order/order.module';
-import { PaymentModule } from 'src/payment/payment.module';
-import { ReportModule } from 'src/report/report.module';
-import { StoreModule } from 'src/store/store.module';
-import { TableModule } from 'src/table/table.module';
-import { TierModule } from 'src/tier/tier.module';
-import { UserModule } from 'src/user/user.module';
+import { ActiveTableSessionModule } from "src/active-table-session/active-table-session.module";
+import { AdminModule } from "src/admin/admin.module";
+import { AuditLogModule } from "src/audit-log/audit-log.module";
+import { AuthModule } from "src/auth/auth.module";
+import { CartModule } from "src/cart/cart.module";
+import { CategoryModule } from "src/category/category.module";
+import { CacheModule } from "src/common/cache/cache.module";
+import { UnusedImageCleanupService } from "src/common/cleanup/unused-image-cleanup.service";
+import { CommonModule } from "src/common/common.module";
+import { LoggerMiddleware } from "src/common/middleware/logger.middleware";
+import { EmailModule } from "src/email/email.module";
+import { JobsModule } from "src/jobs/jobs.module";
+import { KitchenModule } from "src/kitchen/kitchen.module";
+import { MenuModule } from "src/menu/menu.module";
+import { OrderModule } from "src/order/order.module";
+import { PaymentModule } from "src/payment/payment.module";
+import { RedisModule } from "src/redis/redis.module";
+import { ReportModule } from "src/report/report.module";
+import { StorageModule } from "src/storage/storage.module";
+import { StoreModule } from "src/store/store.module";
+import { SubscriptionModule } from "src/subscription/subscription.module";
+import { TableModule } from "src/table/table.module";
+import { TierModule } from "src/tier/tier.module";
+import { UserModule } from "src/user/user.module";
 
-import { AppService } from './app.service';
-import { PrismaService } from './prisma/prisma.service';
+import { AppService } from "./app.service";
+import { PrismaService } from "./prisma/prisma.service";
 
 @Module({
   imports: [
@@ -38,24 +43,29 @@ import { PrismaService } from './prisma/prisma.service';
     ]),
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: ".env",
     }),
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
     CacheModule, // Global Redis caching module
     ActiveTableSessionModule,
+    AdminModule,
     AuditLogModule,
     AuthModule,
     CartModule,
     CategoryModule,
     CommonModule,
     EmailModule,
+    JobsModule,
     KitchenModule,
     MenuModule,
     OrderModule,
     PaymentModule,
+    RedisModule,
     ReportModule,
+    StorageModule,
     StoreModule,
+    SubscriptionModule,
     TableModule,
     TierModule,
     UserModule,
@@ -74,6 +84,6 @@ import { PrismaService } from './prisma/prisma.service';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(LoggerMiddleware).forRoutes('*');
+    consumer.apply(LoggerMiddleware).forRoutes("*");
   }
 }

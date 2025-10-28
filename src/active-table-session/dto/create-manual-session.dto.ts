@@ -1,10 +1,10 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { SessionType } from '@prisma/client';
-import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { ApiProperty } from "@nestjs/swagger";
+import { SessionType } from "@prisma/client";
+import { IsEnum, IsInt, IsOptional, IsString, Min } from "class-validator";
 
 export class CreateManualSessionDto {
   @ApiProperty({
-    description: 'Type of manual session (COUNTER, PHONE, or TAKEOUT)',
+    description: "Type of manual session (COUNTER, PHONE, or TAKEOUT)",
     enum: SessionType,
     example: SessionType.COUNTER,
   })
@@ -12,8 +12,8 @@ export class CreateManualSessionDto {
   sessionType: SessionType;
 
   @ApiProperty({
-    description: 'Optional customer name',
-    example: 'John Doe',
+    description: "Optional customer name",
+    example: "John Doe",
     required: false,
   })
   @IsOptional()
@@ -21,8 +21,8 @@ export class CreateManualSessionDto {
   customerName?: string;
 
   @ApiProperty({
-    description: 'Optional customer phone number',
-    example: '+1234567890',
+    description: "Optional customer phone number",
+    example: "+1234567890",
     required: false,
   })
   @IsOptional()
@@ -30,7 +30,7 @@ export class CreateManualSessionDto {
   customerPhone?: string;
 
   @ApiProperty({
-    description: 'Number of guests in the session',
+    description: "Number of guests in the session",
     example: 2,
     required: false,
     minimum: 1,

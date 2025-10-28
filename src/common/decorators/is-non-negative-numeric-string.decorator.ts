@@ -1,6 +1,6 @@
-import { registerDecorator, ValidationOptions } from 'class-validator';
+import { registerDecorator, ValidationOptions } from "class-validator";
 
-import { IsNonNegativeNumericStringConstraint } from 'src/common/validators/is-non-negative-numeric-string.validator';
+import { IsNonNegativeNumericStringConstraint } from "src/common/validators/is-non-negative-numeric-string.validator";
 
 /**
  * Custom Decorator Function: @IsNonNegativeNumericString()
@@ -13,7 +13,7 @@ export function IsNonNegativeNumericString(
 ) {
   return function (object: object, propertyName: string) {
     registerDecorator({
-      name: 'isNonNegativeNumericString',
+      name: "isNonNegativeNumericString",
       target: object.constructor,
       propertyName,
       options: validationOptions,

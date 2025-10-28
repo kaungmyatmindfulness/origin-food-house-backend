@@ -1,35 +1,35 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Decimal } from '@prisma/client/runtime/library';
+import { ApiProperty } from "@nestjs/swagger";
+import { Decimal } from "@prisma/client/runtime/library";
 
 /**
  * DTO for popular menu item
  */
 export class PopularItemDto {
   @ApiProperty({
-    description: 'Menu item ID',
+    description: "Menu item ID",
   })
   menuItemId: string;
 
   @ApiProperty({
-    description: 'Menu item name',
+    description: "Menu item name",
   })
   menuItemName: string;
 
   @ApiProperty({
-    description: 'Total quantity sold',
+    description: "Total quantity sold",
     example: 150,
   })
   quantitySold: number;
 
   @ApiProperty({
-    description: 'Total revenue from this item',
+    description: "Total revenue from this item",
     type: String,
-    example: '1500.00',
+    example: "1500.00",
   })
   totalRevenue: Decimal;
 
   @ApiProperty({
-    description: 'Number of orders containing this item',
+    description: "Number of orders containing this item",
     example: 75,
   })
   orderCount: number;
@@ -40,18 +40,18 @@ export class PopularItemDto {
  */
 export class PopularItemsDto {
   @ApiProperty({
-    description: 'List of popular items',
+    description: "List of popular items",
     type: [PopularItemDto],
   })
   items: PopularItemDto[];
 
   @ApiProperty({
-    description: 'Date range start',
+    description: "Date range start",
   })
   startDate: Date;
 
   @ApiProperty({
-    description: 'Date range end',
+    description: "Date range end",
   })
   endDate: Date;
 }

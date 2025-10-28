@@ -1,19 +1,19 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Tier } from '@prisma/client';
+import { ApiProperty } from "@nestjs/swagger";
+import { Tier } from "@prisma/client";
 
 /**
  * DTO representing usage of a single resource with its limit
  */
 export class ResourceUsageDto {
-  @ApiProperty({ example: 15, description: 'Current usage count' })
+  @ApiProperty({ example: 15, description: "Current usage count" })
   current: number;
 
-  @ApiProperty({ example: 20, description: 'Maximum allowed by tier' })
+  @ApiProperty({ example: 20, description: "Maximum allowed by tier" })
   limit: number;
 
   @ApiProperty({
     example: 75,
-    description: 'Usage percentage (calculated)',
+    description: "Usage percentage (calculated)",
   })
   get percentage(): number {
     if (this.limit === Infinity || this.limit === 0) {
@@ -46,14 +46,14 @@ export class UsageBreakdownDto {
 export class FeatureAccessDto {
   @ApiProperty({
     example: true,
-    description: 'Access to Kitchen Display System',
+    description: "Access to Kitchen Display System",
   })
   kds: boolean;
 
-  @ApiProperty({ example: false, description: 'Access to Loyalty Program' })
+  @ApiProperty({ example: false, description: "Access to Loyalty Program" })
   loyalty: boolean;
 
-  @ApiProperty({ example: false, description: 'Access to Advanced Reports' })
+  @ApiProperty({ example: false, description: "Access to Advanced Reports" })
   advancedReports: boolean;
 }
 
@@ -62,8 +62,8 @@ export class FeatureAccessDto {
  */
 export class StoreUsageDto {
   @ApiProperty({
-    enum: ['FREE', 'STANDARD', 'PREMIUM'],
-    example: 'STANDARD',
+    enum: ["FREE", "STANDARD", "PREMIUM"],
+    example: "STANDARD",
   })
   tier: Tier;
 

@@ -2,38 +2,38 @@ import {
   BadRequestException,
   InternalServerErrorException,
   NotFoundException,
-} from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import { OrderStatus, RoutingArea } from '@prisma/client';
+} from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import { OrderStatus, RoutingArea } from "@prisma/client";
 
-import { KitchenService } from './kitchen.service';
+import { KitchenService } from "./kitchen.service";
 import {
   createPrismaMock,
   PrismaMock,
-} from '../common/testing/prisma-mock.helper';
-import { PrismaService } from '../prisma/prisma.service';
+} from "../common/testing/prisma-mock.helper";
+import { PrismaService } from "../prisma/prisma.service";
 
-describe('KitchenService', () => {
+describe("KitchenService", () => {
   let service: KitchenService;
   let prismaService: PrismaMock;
 
-  const mockStoreId = 'store-123';
-  const mockOrderId = 'order-123';
+  const mockStoreId = "store-123";
+  const mockOrderId = "order-123";
 
   const mockOrder = {
     id: mockOrderId,
     storeId: mockStoreId,
     status: OrderStatus.PENDING,
-    subtotal: '10.00',
-    total: '10.00',
+    subtotal: "10.00",
+    total: "10.00",
     createdAt: new Date(),
     updatedAt: new Date(),
     orderItems: [
       {
-        id: 'item-1',
+        id: "item-1",
         menuItem: {
-          name: 'Burger',
-          description: 'Delicious burger',
+          name: "Burger",
+          description: "Delicious burger",
           routingArea: RoutingArea.GRILL,
           preparationTimeMinutes: 15,
         },
@@ -46,10 +46,10 @@ describe('KitchenService', () => {
     ...mockOrder,
     orderItems: [
       {
-        id: 'item-1',
+        id: "item-1",
         menuItem: {
-          name: 'Burger',
-          description: 'Delicious burger',
+          name: "Burger",
+          description: "Delicious burger",
           routingArea: RoutingArea.GRILL,
           preparationTimeMinutes: 15,
         },
@@ -60,13 +60,13 @@ describe('KitchenService', () => {
 
   const mockFryOrder = {
     ...mockOrder,
-    id: 'order-456',
+    id: "order-456",
     orderItems: [
       {
-        id: 'item-2',
+        id: "item-2",
         menuItem: {
-          name: 'Fries',
-          description: 'Crispy fries',
+          name: "Fries",
+          description: "Crispy fries",
           routingArea: RoutingArea.FRY,
           preparationTimeMinutes: 10,
         },
@@ -94,12 +94,12 @@ describe('KitchenService', () => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('getOrdersByStatus', () => {
-    it('should return all kitchen orders without filters', async () => {
+  describe("getOrdersByStatus", () => {
+    it("should return all kitchen orders without filters", async () => {
       prismaService.order.findMany.mockResolvedValue([
         mockGrillOrder,
         mockFryOrder,
@@ -125,7 +125,7 @@ describe('KitchenService', () => {
       );
     });
 
-    it('should filter orders by status', async () => {
+    it("should filter orders by status", async () => {
       prismaService.order.findMany.mockResolvedValue([mockOrder] as any);
 
       const result = await service.getOrdersByStatus(
@@ -144,7 +144,7 @@ describe('KitchenService', () => {
       );
     });
 
-    it('should filter orders by routing area', async () => {
+    it("should filter orders by routing area", async () => {
       prismaService.order.findMany.mockResolvedValue([
         mockGrillOrder,
         mockFryOrder,
@@ -179,7 +179,7 @@ describe('KitchenService', () => {
       );
     });
 
-    it('should filter by both status and routing area', async () => {
+    it("should filter by both status and routing area", async () => {
       prismaService.order.findMany.mockResolvedValue([mockGrillOrder] as any);
 
       const result = await service.getOrdersByStatus(
@@ -209,7 +209,7 @@ describe('KitchenService', () => {
       );
     });
 
-    it('should include routingArea and preparationTimeMinutes in menu item selection', async () => {
+    it("should include routingArea and preparationTimeMinutes in menu item selection", async () => {
       prismaService.order.findMany.mockResolvedValue([mockOrder] as any);
 
       await service.getOrdersByStatus(mockStoreId);
@@ -232,9 +232,9 @@ describe('KitchenService', () => {
       );
     });
 
-    it('should throw InternalServerErrorException on database error', async () => {
+    it("should throw InternalServerErrorException on database error", async () => {
       prismaService.order.findMany.mockRejectedValue(
-        new Error('Database error'),
+        new Error("Database error"),
       );
 
       await expect(service.getOrdersByStatus(mockStoreId)).rejects.toThrow(
@@ -243,8 +243,8 @@ describe('KitchenService', () => {
     });
   });
 
-  describe('getOrderDetails', () => {
-    it('should return order details by ID', async () => {
+  describe("getOrderDetails", () => {
+    it("should return order details by ID", async () => {
       prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
 
       const result = await service.getOrderDetails(mockOrderId);
@@ -256,7 +256,7 @@ describe('KitchenService', () => {
       });
     });
 
-    it('should throw NotFoundException if order not found', async () => {
+    it("should throw NotFoundException if order not found", async () => {
       prismaService.order.findUnique.mockResolvedValue(null);
 
       await expect(service.getOrderDetails(mockOrderId)).rejects.toThrow(
@@ -265,14 +265,14 @@ describe('KitchenService', () => {
     });
   });
 
-  describe('updateOrderStatus', () => {
+  describe("updateOrderStatus", () => {
     const updateDto = { status: OrderStatus.PREPARING };
 
     beforeEach(() => {
       jest.clearAllMocks();
     });
 
-    it('should update order status successfully', async () => {
+    it("should update order status successfully", async () => {
       prismaService.order.findUnique
         .mockResolvedValueOnce(mockOrder as any)
         .mockResolvedValueOnce({
@@ -297,7 +297,7 @@ describe('KitchenService', () => {
       });
     });
 
-    it('should throw NotFoundException if order not found', async () => {
+    it("should throw NotFoundException if order not found", async () => {
       prismaService.order.findUnique.mockResolvedValueOnce(null);
 
       await expect(
@@ -305,10 +305,10 @@ describe('KitchenService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw BadRequestException if order belongs to different store', async () => {
+    it("should throw BadRequestException if order belongs to different store", async () => {
       prismaService.order.findUnique.mockResolvedValueOnce({
         ...mockOrder,
-        storeId: 'different-store',
+        storeId: "different-store",
       } as any);
 
       await expect(
@@ -316,7 +316,7 @@ describe('KitchenService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should validate status transitions', async () => {
+    it("should validate status transitions", async () => {
       prismaService.order.findUnique.mockResolvedValueOnce({
         ...mockOrder,
         status: OrderStatus.CANCELLED,
@@ -327,7 +327,7 @@ describe('KitchenService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should set paidAt when status is COMPLETED', async () => {
+    it("should set paidAt when status is COMPLETED", async () => {
       const servedOrder = {
         ...mockOrder,
         status: OrderStatus.SERVED,

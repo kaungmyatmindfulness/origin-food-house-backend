@@ -1,13 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { ApiProperty } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 
-import { CustomizationOptionResponseDto } from './customization-option-response.dto';
+import { CustomizationOptionResponseDto } from "./customization-option-response.dto";
 
 export class CustomizationGroupResponseDto {
   @ApiProperty({ example: 219 })
   id: string;
 
-  @ApiProperty({ example: 'Size' })
+  @ApiProperty({ example: "Size" })
   name: string;
 
   @ApiProperty({ example: false })

@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { RoutingArea } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { RoutingArea } from "@prisma/client";
+import { Type } from "class-transformer";
 import {
   IsString,
   IsOptional,
@@ -10,20 +10,20 @@ import {
   IsEnum,
   IsInt,
   Min,
-} from 'class-validator';
+} from "class-validator";
 
-import { IsPositiveNumericString } from 'src/common/decorators/is-positive-numeric-string.decorator';
+import { IsPositiveNumericString } from "src/common/decorators/is-positive-numeric-string.decorator";
 
-import { UpsertCategoryDto } from './upsert-category.dto';
-import { UpsertCustomizationGroupDto } from './upsert-customization-group.dto';
+import { UpsertCategoryDto } from "./upsert-category.dto";
+import { UpsertCustomizationGroupDto } from "./upsert-customization-group.dto";
 
 export class CreateMenuItemDto {
-  @ApiProperty({ example: 'Pad Krapow Moo' })
+  @ApiProperty({ example: "Pad Krapow Moo" })
   @IsString()
   name: string;
 
   @ApiPropertyOptional({
-    example: 'Stir-fried minced pork with holy basil, served with rice.',
+    example: "Stir-fried minced pork with holy basil, served with rice.",
   })
   @IsOptional()
   @IsString()
@@ -32,17 +32,17 @@ export class CreateMenuItemDto {
   @ApiProperty({
     example: 9.5,
     type: String,
-    description: 'Base price before customizations',
+    description: "Base price before customizations",
   })
   @IsPositiveNumericString({
     message:
-      'Base price must be a numeric string representing a value of 0.01 or greater',
+      "Base price must be a numeric string representing a value of 0.01 or greater",
   })
   basePrice: string;
 
   @ApiPropertyOptional({
-    example: 'images/krapow-pork.jpg',
-    description: 'Key for image stored in S3 or similar',
+    example: "images/krapow-pork.jpg",
+    description: "Key for image stored in S3 or similar",
   })
   @IsOptional()
   @IsString()
@@ -50,7 +50,7 @@ export class CreateMenuItemDto {
 
   @ApiPropertyOptional({
     description:
-      'Set to true to temporarily hide the item (e.g., out of stock). Defaults to false (visible).',
+      "Set to true to temporarily hide the item (e.g., out of stock). Defaults to false (visible).",
     example: false,
     type: Boolean,
   })
@@ -61,29 +61,29 @@ export class CreateMenuItemDto {
   @ApiPropertyOptional({
     enum: RoutingArea,
     description:
-      'Kitchen routing area for this item (e.g., GRILL, FRY, DRINKS). Defaults to OTHER.',
+      "Kitchen routing area for this item (e.g., GRILL, FRY, DRINKS). Defaults to OTHER.",
     example: RoutingArea.GRILL,
   })
   @IsOptional()
   @IsEnum(RoutingArea, {
-    message: 'routingArea must be a valid RoutingArea enum value',
+    message: "routingArea must be a valid RoutingArea enum value",
   })
   routingArea?: RoutingArea;
 
   @ApiPropertyOptional({
-    description: 'Expected preparation time in minutes',
+    description: "Expected preparation time in minutes",
     example: 15,
     type: Number,
   })
   @IsOptional()
   @IsInt()
-  @Min(1, { message: 'preparationTimeMinutes must be at least 1 minute' })
+  @Min(1, { message: "preparationTimeMinutes must be at least 1 minute" })
   preparationTimeMinutes?: number;
 
   @ApiProperty({
     type: UpsertCategoryDto,
     description:
-      'Category for the item. Provide ID to link/update existing, or just name to create new.',
+      "Category for the item. Provide ID to link/update existing, or just name to create new.",
   })
   @ValidateNested()
   @Type(() => UpsertCategoryDto)
@@ -92,7 +92,7 @@ export class CreateMenuItemDto {
   @ApiPropertyOptional({
     type: [UpsertCustomizationGroupDto],
     description:
-      'Optional customization groups (e.g., Size, Spice Level, Add-ons). Omit IDs for new groups/options.',
+      "Optional customization groups (e.g., Size, Spice Level, Add-ons). Omit IDs for new groups/options.",
   })
   @IsOptional()
   @IsArray()

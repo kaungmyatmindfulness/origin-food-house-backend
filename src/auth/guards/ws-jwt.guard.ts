@@ -3,13 +3,13 @@ import {
   ExecutionContext,
   Injectable,
   Logger,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import { WsException } from '@nestjs/websockets';
-import { Socket } from 'socket.io';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
+import { WsException } from "@nestjs/websockets";
+import { Socket } from "socket.io";
 
-import { JwtPayload } from '../interfaces/jwt-payload.interface';
+import { JwtPayload } from "../interfaces/jwt-payload.interface";
 
 interface AuthenticatedSocket extends Socket {
   data: {
@@ -18,7 +18,7 @@ interface AuthenticatedSocket extends Socket {
       storeId?: string;
     };
   };
-  handshake: Socket['handshake'] & {
+  handshake: Socket["handshake"] & {
     auth?: {
       token?: string;
     };
@@ -47,7 +47,7 @@ export class WsJwtGuard implements CanActivate {
    * Validates the WebSocket connection by checking JWT token
    */
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const method = 'canActivate';
+    const method = "canActivate";
 
     try {
       const client: AuthenticatedSocket = context.switchToWs().getClient();
@@ -57,18 +57,18 @@ export class WsJwtGuard implements CanActivate {
         this.logger.warn(
           `[${method}] No token provided in WebSocket connection`,
         );
-        throw new WsException('Unauthorized: No token provided');
+        throw new WsException("Unauthorized: No token provided");
       }
 
       // Verify and decode token
-      const secret = this.configService.get<string>('JWT_SECRET');
+      const secret = this.configService.get<string>("JWT_SECRET");
       const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
         secret,
       });
 
       if (!payload?.sub) {
         this.logger.warn(`[${method}] Invalid token payload`);
-        throw new WsException('Unauthorized: Invalid token');
+        throw new WsException("Unauthorized: Invalid token");
       }
 
       // Attach user data to socket for later use
@@ -92,7 +92,7 @@ export class WsJwtGuard implements CanActivate {
         throw error;
       }
 
-      throw new WsException('Unauthorized: Invalid or expired token');
+      throw new WsException("Unauthorized: Invalid or expired token");
     }
   }
 
@@ -106,19 +106,19 @@ export class WsJwtGuard implements CanActivate {
   private extractToken(client: AuthenticatedSocket): string | null {
     // 1. Try Authorization header
     const authHeader = client.handshake.headers.authorization;
-    if (authHeader?.startsWith('Bearer ')) {
+    if (authHeader?.startsWith("Bearer ")) {
       return authHeader.substring(7);
     }
 
     // 2. Try query parameter
     const queryToken = client.handshake.query.token;
-    if (typeof queryToken === 'string') {
+    if (typeof queryToken === "string") {
       return queryToken;
     }
 
     // 3. Try auth object
     const authToken = client.handshake.auth?.token;
-    if (typeof authToken === 'string') {
+    if (typeof authToken === "string") {
       return authToken;
     }
 

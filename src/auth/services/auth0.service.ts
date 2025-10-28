@@ -1,19 +1,19 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, UnauthorizedException, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import {
   expressjwt,
   GetVerificationKey,
   Request as JWTRequest,
-} from 'express-jwt';
-import * as jwksRsa from 'jwks-rsa';
+} from "express-jwt";
+import * as jwksRsa from "jwks-rsa";
 
-import { Auth0Config } from '../config/auth0.config';
+import { Auth0Config } from "../config/auth0.config";
 import {
   Auth0UserInfo,
   Auth0TokenPayload,
   Auth0UserCreateData,
   Auth0ManagementApiError,
-} from '../types/auth0.types';
+} from "../types/auth0.types";
 
 @Injectable()
 export class Auth0Service {
@@ -22,10 +22,10 @@ export class Auth0Service {
   private readonly jwtCheck: ReturnType<typeof expressjwt>;
 
   constructor(private readonly configService: ConfigService) {
-    const config = this.configService.get<Auth0Config>('auth0');
+    const config = this.configService.get<Auth0Config>("auth0");
 
     if (!config) {
-      throw new Error('Auth0 configuration is missing');
+      throw new Error("Auth0 configuration is missing");
     }
 
     this.auth0Config = config;
@@ -40,7 +40,7 @@ export class Auth0Service {
       }) as GetVerificationKey,
       audience: this.auth0Config.audience,
       issuer: this.auth0Config.issuer,
-      algorithms: ['RS256'],
+      algorithms: ["RS256"],
     });
   }
 
@@ -64,14 +64,14 @@ export class Auth0Service {
       // Execute the JWT check middleware
       void this.jwtCheck(mockReq, mockRes, (error) => {
         if (error) {
-          this.logger.error('JWT validation failed', error);
-          reject(new UnauthorizedException('Invalid Auth0 token'));
+          this.logger.error("JWT validation failed", error);
+          reject(new UnauthorizedException("Invalid Auth0 token"));
           return;
         }
 
         if (!mockReq.auth) {
-          this.logger.error('No auth payload after validation');
-          reject(new UnauthorizedException('Token validation failed'));
+          this.logger.error("No auth payload after validation");
+          reject(new UnauthorizedException("Token validation failed"));
           return;
         }
 
@@ -99,15 +99,15 @@ export class Auth0Service {
         this.logger.error(
           `Failed to fetch user info from Auth0: ${response.status} - ${errorText}`,
         );
-        throw new Error('Failed to fetch user info from Auth0');
+        throw new Error("Failed to fetch user info from Auth0");
       }
 
       const userInfo = (await response.json()) as Auth0UserInfo;
       return userInfo;
     } catch (error) {
-      this.logger.error('Failed to get user information from Auth0', error);
+      this.logger.error("Failed to get user information from Auth0", error);
       throw new UnauthorizedException(
-        'Failed to get user information from Auth0',
+        "Failed to get user information from Auth0",
       );
     }
   }
@@ -121,11 +121,11 @@ export class Auth0Service {
     userData: Partial<Auth0UserCreateData>,
   ): Promise<Auth0UserInfo> {
     if (!this.auth0Config.managementApiToken) {
-      throw new Error('Auth0 Management API token is not configured');
+      throw new Error("Auth0 Management API token is not configured");
     }
 
     const createUserData: Auth0UserCreateData = {
-      connection: 'Username-Password-Authentication',
+      connection: "Username-Password-Authentication",
       email,
       ...userData,
     };
@@ -134,10 +134,10 @@ export class Auth0Service {
       const response = await fetch(
         `https://${this.auth0Config.domain}/api/v2/users`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${this.auth0Config.managementApiToken}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(createUserData),
         },
@@ -153,7 +153,7 @@ export class Auth0Service {
       return createdUser;
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error.message : "Unknown error";
       this.logger.error(
         `Failed to create or update user in Auth0: ${errorMessage}`,
       );

@@ -5,7 +5,7 @@ import {
   Logger,
   BadRequestException,
   InternalServerErrorException,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   Prisma,
   Role,
@@ -13,19 +13,19 @@ import {
   StoreInformation,
   StoreSetting,
   UserStore,
-} from '@prisma/client';
-import slugify from 'slugify';
+} from "@prisma/client";
+import slugify from "slugify";
 
-import { AuditLogService } from 'src/audit-log/audit-log.service';
-import { AuthService } from 'src/auth/auth.service';
-import { S3Service } from 'src/common/infra/s3.service';
-import { BusinessHoursDto } from 'src/store/dto/business-hours.dto';
-import { CreateStoreDto } from 'src/store/dto/create-store.dto';
-import { UpdateStoreInformationDto } from 'src/store/dto/update-store-information.dto';
-import { UpdateStoreSettingDto } from 'src/store/dto/update-store-setting.dto';
+import { AuditLogService } from "src/audit-log/audit-log.service";
+import { AuthService } from "src/auth/auth.service";
+import { S3Service } from "src/common/infra/s3.service";
+import { BusinessHoursDto } from "src/store/dto/business-hours.dto";
+import { CreateStoreDto } from "src/store/dto/create-store.dto";
+import { UpdateStoreInformationDto } from "src/store/dto/update-store-information.dto";
+import { UpdateStoreSettingDto } from "src/store/dto/update-store-setting.dto";
 
-import { InviteOrAssignRoleDto } from './dto/invite-or-assign-role.dto';
-import { PrismaService } from '../prisma/prisma.service';
+import { InviteOrAssignRoleDto } from "./dto/invite-or-assign-role.dto";
+import { PrismaService } from "../prisma/prisma.service";
 
 const storeWithDetailsInclude = Prisma.validator<Prisma.StoreInclude>()({
   information: true,
@@ -77,7 +77,7 @@ export class StoreService {
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
+        error.code === "P2025"
       ) {
         // P2025 from findUniqueOrThrow
         this.logger.warn(`[${method}] Store ${storeId} not found.`);
@@ -88,7 +88,7 @@ export class StoreService {
         error,
       );
       throw new InternalServerErrorException(
-        'Could not retrieve store details.',
+        "Could not retrieve store details.",
       );
     }
   }
@@ -103,7 +103,7 @@ export class StoreService {
     );
 
     try {
-      const { nanoid } = await import('nanoid');
+      const { nanoid } = await import("nanoid");
       const result = await this.prisma.$transaction(async (tx) => {
         const slug = `${slugify(dto.name, {
           lower: true,
@@ -158,7 +158,7 @@ export class StoreService {
       if (error instanceof BadRequestException) throw error;
 
       this.logger.error(`Failed to create store with name ${dto.name}`, error);
-      throw new InternalServerErrorException('Could not create store.');
+      throw new InternalServerErrorException("Could not create store.");
     }
   }
 
@@ -206,7 +206,7 @@ export class StoreService {
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
+        error.code === "P2025"
       ) {
         this.logger.warn(
           `[${method}] Update failed: StoreInformation for Store ID ${storeId} not found.`,
@@ -221,7 +221,7 @@ export class StoreService {
         error,
       );
       throw new InternalServerErrorException(
-        'Could not update store information.',
+        "Could not update store information.",
       );
     }
   }
@@ -268,7 +268,7 @@ export class StoreService {
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
+        error.code === "P2025"
       ) {
         this.logger.warn(
           `[${method}] Update failed: StoreSetting for Store ID ${storeId} not found. Ensure settings were created with the store.`,
@@ -284,7 +284,7 @@ export class StoreService {
         error,
       );
       throw new InternalServerErrorException(
-        'Could not update store settings.',
+        "Could not update store settings.",
       );
     }
   }
@@ -312,7 +312,7 @@ export class StoreService {
         `Attempt by User ${actingUserId} to assign OWNER role via invite/assign method denied for Store ${storeId}.`,
       );
       throw new BadRequestException(
-        'Cannot assign OWNER role using this method. Store ownership transfer requires a different process.',
+        "Cannot assign OWNER role using this method. Store ownership transfer requires a different process.",
       );
     }
 
@@ -383,7 +383,7 @@ export class StoreService {
         `Failed to assign role ${dto.role} to email ${dto.email} in Store ${storeId}`,
         error,
       );
-      throw new InternalServerErrorException('Could not assign role to user.');
+      throw new InternalServerErrorException("Could not assign role to user.");
     }
   }
 
@@ -424,14 +424,14 @@ export class StoreService {
       this.logger.warn(
         `[${method}] Invalid VAT rate ${vatRate} by User ${userId}`,
       );
-      throw new BadRequestException('VAT rate must be between 0% and 30%');
+      throw new BadRequestException("VAT rate must be between 0% and 30%");
     }
     if (service.lt(0) || service.gt(0.3)) {
       this.logger.warn(
         `[${method}] Invalid service charge rate ${serviceChargeRate} by User ${userId}`,
       );
       throw new BadRequestException(
-        'Service charge rate must be between 0% and 30%',
+        "Service charge rate must be between 0% and 30%",
       );
     }
 
@@ -464,12 +464,15 @@ export class StoreService {
         storeId,
         userId,
         {
-          field: 'taxAndServiceCharge',
-          oldValue: {
-            vat: oldSetting.vatRate?.toString() ?? '0',
-            service: oldSetting.serviceChargeRate?.toString() ?? '0',
-          },
-          newValue: { vat: vatRate, service: serviceChargeRate },
+          field: "taxAndServiceCharge",
+          oldValue: JSON.stringify({
+            vat: oldSetting.vatRate?.toString() ?? "0",
+            service: oldSetting.serviceChargeRate?.toString() ?? "0",
+          }),
+          newValue: JSON.stringify({
+            vat: vatRate,
+            service: serviceChargeRate,
+          }),
         },
         undefined,
         undefined,
@@ -491,7 +494,7 @@ export class StoreService {
         error,
       );
       throw new InternalServerErrorException(
-        'Could not update tax and service charge.',
+        "Could not update tax and service charge.",
       );
     }
   }
@@ -531,7 +534,7 @@ export class StoreService {
       const updated = await this.prisma.storeSetting.update({
         where: { storeId },
         data: {
-          businessHours: businessHours as Prisma.InputJsonValue, // Prisma JSON type
+          businessHours: this.toJsonValue(businessHours),
         },
       });
 
@@ -539,7 +542,11 @@ export class StoreService {
       await this.auditLogService.logStoreSettingChange(
         storeId,
         userId,
-        { field: 'businessHours', oldValue: null, newValue: businessHours },
+        {
+          field: "businessHours",
+          oldValue: "null",
+          newValue: JSON.stringify(businessHours),
+        },
         undefined,
         undefined,
       );
@@ -551,7 +558,7 @@ export class StoreService {
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
+        error.code === "P2025"
       ) {
         this.logger.warn(
           `[${method}] Update failed: StoreSetting for Store ID ${storeId} not found.`,
@@ -565,9 +572,18 @@ export class StoreService {
         error,
       );
       throw new InternalServerErrorException(
-        'Could not update business hours.',
+        "Could not update business hours.",
       );
     }
+  }
+
+  /**
+   * Converts any object to Prisma.InputJsonValue.
+   * This is a type-safe wrapper for JSON field assignments.
+   * @private
+   */
+  private toJsonValue(value: unknown): Prisma.InputJsonValue {
+    return value as Prisma.InputJsonValue;
   }
 
   /**
@@ -576,13 +592,13 @@ export class StoreService {
    */
   private validateBusinessHours(hours: BusinessHoursDto): void {
     const days: Array<keyof BusinessHoursDto> = [
-      'monday',
-      'tuesday',
-      'wednesday',
-      'thursday',
-      'friday',
-      'saturday',
-      'sunday',
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+      "sunday",
     ];
 
     for (const day of days) {
@@ -669,7 +685,7 @@ export class StoreService {
       await this.auditLogService.logStoreSettingChange(
         storeId,
         userId,
-        { field: 'branding', oldValue: '', newValue: JSON.stringify(updates) },
+        { field: "branding", oldValue: "", newValue: JSON.stringify(updates) },
         undefined,
         undefined,
       );
@@ -681,7 +697,7 @@ export class StoreService {
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
+        error.code === "P2025"
       ) {
         this.logger.warn(
           `[${method}] Update failed: StoreInformation for Store ID ${storeId} not found.`,
@@ -694,7 +710,7 @@ export class StoreService {
         `[${method}] Failed to upload branding for Store ID ${storeId}`,
         error,
       );
-      throw new InternalServerErrorException('Could not upload branding.');
+      throw new InternalServerErrorException("Could not upload branding.");
     }
   }
 
@@ -734,19 +750,19 @@ export class StoreService {
       this.logger.warn(
         `[${method}] Invalid point rate ${pointRate} by User ${userId}`,
       );
-      throw new BadRequestException('Point rate must be positive');
+      throw new BadRequestException("Point rate must be positive");
     }
     if (redemptionRateDecimal.lte(0)) {
       this.logger.warn(
         `[${method}] Invalid redemption rate ${redemptionRate} by User ${userId}`,
       );
-      throw new BadRequestException('Redemption rate must be positive');
+      throw new BadRequestException("Redemption rate must be positive");
     }
     if (expiryDays < 0 || expiryDays > 3650) {
       this.logger.warn(
         `[${method}] Invalid expiry days ${expiryDays} by User ${userId}`,
       );
-      throw new BadRequestException('Expiry days must be between 0 and 3650');
+      throw new BadRequestException("Expiry days must be between 0 and 3650");
     }
 
     try {
@@ -765,9 +781,9 @@ export class StoreService {
         storeId,
         userId,
         {
-          field: 'loyaltyRules',
-          oldValue: null,
-          newValue: { pointRate, redemptionRate, expiryDays },
+          field: "loyaltyRules",
+          oldValue: "null",
+          newValue: JSON.stringify({ pointRate, redemptionRate, expiryDays }),
         },
         undefined,
         undefined,
@@ -780,7 +796,7 @@ export class StoreService {
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
+        error.code === "P2025"
       ) {
         this.logger.warn(
           `[${method}] Update failed: StoreSetting for Store ID ${storeId} not found.`,
@@ -793,7 +809,7 @@ export class StoreService {
         `[${method}] Failed to update loyalty rules for Store ID ${storeId}`,
         error,
       );
-      throw new InternalServerErrorException('Could not update loyalty rules.');
+      throw new InternalServerErrorException("Could not update loyalty rules.");
     }
   }
 }

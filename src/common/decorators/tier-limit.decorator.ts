@@ -1,9 +1,9 @@
-import { SetMetadata } from '@nestjs/common';
+import { SetMetadata } from "@nestjs/common";
 
-export const TIER_LIMIT_KEY = 'tierLimit';
+export const TIER_LIMIT_KEY = "tierLimit";
 
 export interface TierLimitConfig {
-  resource: 'tables' | 'menuItems' | 'staff' | 'monthlyOrders';
+  resource: "tables" | "menuItems" | "staff" | "monthlyOrders";
   increment?: number;
 }
 

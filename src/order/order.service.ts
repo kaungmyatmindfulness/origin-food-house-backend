@@ -5,20 +5,20 @@ import {
   BadRequestException,
   InternalServerErrorException,
   ForbiddenException,
-} from '@nestjs/common';
-import { Prisma, OrderStatus, DiscountType, Role } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+} from "@nestjs/common";
+import { Prisma, OrderStatus, DiscountType, Role } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 
-import { ApplyDiscountDto } from './dto/apply-discount.dto';
-import { CheckoutCartDto } from './dto/checkout-cart.dto';
-import { KdsQueryDto } from './dto/kds-query.dto';
-import { OrderResponseDto } from './dto/order-response.dto';
-import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
-import { AuthService } from '../auth/auth.service';
-import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
-import { KitchenGateway } from '../kitchen/gateway/kitchen.gateway';
-import { PrismaService } from '../prisma/prisma.service';
+import { ApplyDiscountDto } from "./dto/apply-discount.dto";
+import { CheckoutCartDto } from "./dto/checkout-cart.dto";
+import { KdsQueryDto } from "./dto/kds-query.dto";
+import { OrderResponseDto } from "./dto/order-response.dto";
+import { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
+import { AuthService } from "../auth/auth.service";
+import { PaginatedResponseDto } from "../common/dto/paginated-response.dto";
+import { PaginationQueryDto } from "../common/dto/pagination-query.dto";
+import { KitchenGateway } from "../kitchen/gateway/kitchen.gateway";
+import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class OrderService {
@@ -54,11 +54,11 @@ export class OrderService {
       });
 
       if (!session) {
-        throw new NotFoundException('Session not found');
+        throw new NotFoundException("Session not found");
       }
 
-      if (session.status === 'CLOSED') {
-        throw new BadRequestException('Session is already closed');
+      if (session.status === "CLOSED") {
+        throw new BadRequestException("Session is already closed");
       }
 
       // Get cart with items
@@ -75,18 +75,18 @@ export class OrderService {
       });
 
       if (!cart) {
-        throw new NotFoundException('Cart not found');
+        throw new NotFoundException("Cart not found");
       }
 
       if (cart.items.length === 0) {
-        throw new BadRequestException('Cart is empty');
+        throw new BadRequestException("Cart is empty");
       }
 
       // Get store settings for VAT and service charge
       const storeSetting = session.store.setting;
-      const vatRate = storeSetting?.vatRate ?? new Decimal('0');
+      const vatRate = storeSetting?.vatRate ?? new Decimal("0");
       const serviceChargeRate =
-        storeSetting?.serviceChargeRate ?? new Decimal('0');
+        storeSetting?.serviceChargeRate ?? new Decimal("0");
 
       // Use transaction to create order
       const order = await this.prisma.$transaction(async (tx) => {
@@ -105,7 +105,7 @@ export class OrderService {
             orderNumber,
             storeId: session.storeId,
             sessionId: session.id,
-            tableName: dto.tableName ?? session.table?.name ?? 'Counter Order',
+            tableName: dto.tableName ?? session.table?.name ?? "Counter Order",
             status: OrderStatus.PENDING,
             orderType: dto.orderType,
             subTotal,
@@ -168,7 +168,7 @@ export class OrderService {
 
         await tx.cart.update({
           where: { id: cart.id },
-          data: { subTotal: new Decimal('0') },
+          data: { subTotal: new Decimal("0") },
         });
 
         return newOrder;
@@ -195,7 +195,7 @@ export class OrderService {
         `[${method}] Failed to checkout cart`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to create order');
+      throw new InternalServerErrorException("Failed to create order");
     }
   }
 
@@ -220,18 +220,18 @@ export class OrderService {
       });
 
       if (!order) {
-        throw new NotFoundException('Order not found');
+        throw new NotFoundException("Order not found");
       }
 
       // Calculate payment status inline (optimize to avoid double query)
       const totalPaid = (order.payments || []).reduce(
         (sum, payment) => sum.add(new Decimal(payment.amount)),
-        new Decimal('0'),
+        new Decimal("0"),
       );
 
       const totalRefunded = (order.refunds || []).reduce(
         (sum, refund) => sum.add(new Decimal(refund.amount)),
-        new Decimal('0'),
+        new Decimal("0"),
       );
 
       const netPaid = totalPaid.sub(totalRefunded);
@@ -254,7 +254,7 @@ export class OrderService {
         `[${method}] Failed to get order`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to retrieve order');
+      throw new InternalServerErrorException("Failed to retrieve order");
     }
   }
 
@@ -283,7 +283,7 @@ export class OrderService {
             payments: true,
             refunds: true,
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           skip,
           take,
         }),
@@ -297,12 +297,12 @@ export class OrderService {
         // Calculate payment status inline to avoid N+1 queries
         const totalPaid = (order.payments || []).reduce(
           (sum, payment) => sum.add(new Decimal(payment.amount)),
-          new Decimal('0'),
+          new Decimal("0"),
         );
 
         const totalRefunded = (order.refunds || []).reduce(
           (sum, refund) => sum.add(new Decimal(refund.amount)),
-          new Decimal('0'),
+          new Decimal("0"),
         );
 
         const netPaid = totalPaid.sub(totalRefunded);
@@ -333,7 +333,7 @@ export class OrderService {
         `[${method}] Failed to get orders`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to retrieve orders');
+      throw new InternalServerErrorException("Failed to retrieve orders");
     }
   }
 
@@ -380,13 +380,13 @@ export class OrderService {
                   },
                 },
               },
-              orderBy: { createdAt: 'asc' },
+              orderBy: { createdAt: "asc" },
             },
             payments: true,
             refunds: true,
           },
           // Sort by status priority (PENDING first) then by creation time
-          orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+          orderBy: [{ status: "asc" }, { createdAt: "desc" }],
           skip,
           take,
         }),
@@ -398,12 +398,12 @@ export class OrderService {
         // Calculate payment status inline to avoid N+1 queries
         const totalPaid = (order.payments || []).reduce(
           (sum, payment) => sum.add(new Decimal(payment.amount)),
-          new Decimal('0'),
+          new Decimal("0"),
         );
 
         const totalRefunded = (order.refunds || []).reduce(
           (sum, refund) => sum.add(new Decimal(refund.amount)),
-          new Decimal('0'),
+          new Decimal("0"),
         );
 
         const netPaid = totalPaid.sub(totalRefunded);
@@ -420,7 +420,7 @@ export class OrderService {
       });
 
       this.logger.log(
-        `[${method}] Retrieved ${orders.length} KDS orders for store ${storeId} (page ${page}, status: ${status ?? 'active'})`,
+        `[${method}] Retrieved ${orders.length} KDS orders for store ${storeId} (page ${page}, status: ${status ?? "active"})`,
       );
 
       return PaginatedResponseDto.create(
@@ -434,7 +434,7 @@ export class OrderService {
         `[${method}] Failed to get KDS orders`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to retrieve KDS orders');
+      throw new InternalServerErrorException("Failed to retrieve KDS orders");
     }
   }
 
@@ -456,7 +456,7 @@ export class OrderService {
           payments: true,
           refunds: true,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       });
 
       // Enhance orders with payment status
@@ -464,12 +464,12 @@ export class OrderService {
         // Calculate payment status inline to avoid N+1 queries
         const totalPaid = (order.payments || []).reduce(
           (sum, payment) => sum.add(new Decimal(payment.amount)),
-          new Decimal('0'),
+          new Decimal("0"),
         );
 
         const totalRefunded = (order.refunds || []).reduce(
           (sum, refund) => sum.add(new Decimal(refund.amount)),
-          new Decimal('0'),
+          new Decimal("0"),
         );
 
         const netPaid = totalPaid.sub(totalRefunded);
@@ -492,7 +492,7 @@ export class OrderService {
         error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException(
-        'Failed to retrieve session orders',
+        "Failed to retrieve session orders",
       );
     }
   }
@@ -521,19 +521,19 @@ export class OrderService {
       });
 
       if (!order) {
-        throw new NotFoundException('Order not found');
+        throw new NotFoundException("Order not found");
       }
 
       // Calculate total paid from all payments (supports split payments)
       const totalPaid = order.payments.reduce(
         (sum, payment) => sum.add(new Decimal(payment.amount)),
-        new Decimal('0'),
+        new Decimal("0"),
       );
 
       // Calculate total refunded
       const totalRefunded = order.refunds.reduce(
         (sum, refund) => sum.add(new Decimal(refund.amount)),
-        new Decimal('0'),
+        new Decimal("0"),
       );
 
       // Calculate net paid (total paid - refunds)
@@ -569,7 +569,7 @@ export class OrderService {
         error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException(
-        'Failed to calculate payment status',
+        "Failed to calculate payment status",
       );
     }
   }
@@ -590,7 +590,7 @@ export class OrderService {
       });
 
       if (!existingOrder) {
-        throw new NotFoundException('Order not found');
+        throw new NotFoundException("Order not found");
       }
 
       // Validate status transition
@@ -618,7 +618,7 @@ export class OrderService {
       // Broadcast status update to kitchen screens
       this.kitchenGateway.server
         .to(`store-${updatedOrder.storeId}`)
-        .emit('kitchen:status-updated', {
+        .emit("kitchen:status-updated", {
           orderId,
           status: dto.status,
           paidAt: updatedOrder.paidAt,
@@ -645,7 +645,7 @@ export class OrderService {
         `[${method}] Failed to update order status`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to update order status');
+      throw new InternalServerErrorException("Failed to update order status");
     }
   }
 
@@ -676,14 +676,14 @@ export class OrderService {
         !order.session?.table ||
         order.session.table.storeId !== storeId
       ) {
-        throw new NotFoundException('Order not found in this store');
+        throw new NotFoundException("Order not found in this store");
       }
 
       // Validate order is not paid
       const paymentStatus = await this.getPaymentStatus(orderId);
       if (paymentStatus.isPaidInFull) {
         throw new BadRequestException(
-          'Cannot apply discount to fully paid order',
+          "Cannot apply discount to fully paid order",
         );
       }
 
@@ -692,7 +692,7 @@ export class OrderService {
       if (dto.discountType === DiscountType.PERCENTAGE) {
         const percentage = new Decimal(dto.discountValue);
         if (percentage.greaterThan(100)) {
-          throw new BadRequestException('Percentage cannot exceed 100%');
+          throw new BadRequestException("Percentage cannot exceed 100%");
         }
         discountAmount = new Decimal(order.subTotal)
           .mul(percentage)
@@ -701,7 +701,7 @@ export class OrderService {
         discountAmount = new Decimal(dto.discountValue);
         if (discountAmount.greaterThan(order.subTotal)) {
           throw new BadRequestException(
-            'Discount amount cannot exceed subtotal',
+            "Discount amount cannot exceed subtotal",
           );
         }
       }
@@ -716,9 +716,9 @@ export class OrderService {
 
       // Recalculate totals
       const newSubtotal = new Decimal(order.subTotal).minus(discountAmount);
-      const taxRate = new Decimal(order.vatRateSnapshot ?? '0');
+      const taxRate = new Decimal(order.vatRateSnapshot ?? "0");
       const serviceChargeRate = new Decimal(
-        order.serviceChargeRateSnapshot ?? '0',
+        order.serviceChargeRateSnapshot ?? "0",
       );
 
       const newTax = newSubtotal.mul(taxRate);
@@ -759,7 +759,7 @@ export class OrderService {
         `[${method}] Failed to apply discount`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to apply discount');
+      throw new InternalServerErrorException("Failed to apply discount");
     }
   }
 
@@ -785,14 +785,14 @@ export class OrderService {
         !order.session?.table ||
         order.session.table.storeId !== storeId
       ) {
-        throw new NotFoundException('Order not found in this store');
+        throw new NotFoundException("Order not found in this store");
       }
 
       // Validate order is not paid
       const paymentStatus = await this.getPaymentStatus(orderId);
       if (paymentStatus.isPaidInFull) {
         throw new BadRequestException(
-          'Cannot remove discount from fully paid order',
+          "Cannot remove discount from fully paid order",
         );
       }
 
@@ -804,9 +804,9 @@ export class OrderService {
 
       // Recalculate without discount
       const originalSubtotal = new Decimal(order.subTotal);
-      const taxRate = new Decimal(order.vatRateSnapshot ?? '0');
+      const taxRate = new Decimal(order.vatRateSnapshot ?? "0");
       const serviceChargeRate = new Decimal(
-        order.serviceChargeRateSnapshot ?? '0',
+        order.serviceChargeRateSnapshot ?? "0",
       );
 
       const originalTax = originalSubtotal.mul(taxRate);
@@ -848,7 +848,7 @@ export class OrderService {
         `[${method}] Failed to remove discount`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to remove discount');
+      throw new InternalServerErrorException("Failed to remove discount");
     }
   }
 
@@ -862,7 +862,7 @@ export class OrderService {
   ): Promise<string> {
     // Get today's date in YYYYMMDD format
     const today = new Date();
-    const datePrefix = today.toISOString().split('T')[0].replace(/-/g, '');
+    const datePrefix = today.toISOString().split("T")[0].replace(/-/g, "");
 
     // Get count of orders for today
     const startOfDay = new Date(
@@ -884,7 +884,7 @@ export class OrderService {
     });
 
     // Generate order number: YYYYMMDD-001, YYYYMMDD-002, etc.
-    const orderSequence = (todayOrderCount + 1).toString().padStart(3, '0');
+    const orderSequence = (todayOrderCount + 1).toString().padStart(3, "0");
     return `${datePrefix}-${orderSequence}`;
   }
 
@@ -898,7 +898,7 @@ export class OrderService {
   ): void {
     // Can't change cancelled orders
     if (currentStatus === OrderStatus.CANCELLED) {
-      throw new BadRequestException('Cannot update cancelled order');
+      throw new BadRequestException("Cannot update cancelled order");
     }
 
     // Can't change completed orders to anything except cancelled
@@ -906,7 +906,7 @@ export class OrderService {
       currentStatus === OrderStatus.COMPLETED &&
       newStatus !== OrderStatus.CANCELLED
     ) {
-      throw new BadRequestException('Cannot update completed order');
+      throw new BadRequestException("Cannot update completed order");
     }
 
     // Valid transitions

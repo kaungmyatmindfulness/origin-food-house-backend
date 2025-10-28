@@ -5,26 +5,26 @@ import {
   BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   Prisma,
   OrderStatus,
   Role,
   Order,
   PaymentMethod,
-} from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+} from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 
-import { AuditLogService } from '../audit-log/audit-log.service';
-import { AuthService } from '../auth/auth.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateRefundDto } from './dto/create-refund.dto';
+import { AuditLogService } from "../audit-log/audit-log.service";
+import { AuthService } from "../auth/auth.service";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateRefundDto } from "./dto/create-refund.dto";
 import {
   PaymentResponseDto,
   RefundResponseDto,
-} from './dto/payment-response.dto';
-import { RecordPaymentDto } from './dto/record-payment.dto';
-import { RecordSplitPaymentDto } from './dto/record-split-payment.dto';
+} from "./dto/payment-response.dto";
+import { RecordPaymentDto } from "./dto/record-payment.dto";
+import { RecordSplitPaymentDto } from "./dto/record-split-payment.dto";
 
 @Injectable()
 export class PaymentService {
@@ -50,7 +50,7 @@ export class PaymentService {
     userId: string,
     allowedRoles: Role[],
   ): Promise<Order> {
-    const method = 'validateOrderStoreAccess';
+    const method = "validateOrderStoreAccess";
 
     // Fetch order with store information
     const order = await this.prisma.order.findUnique({
@@ -69,7 +69,7 @@ export class PaymentService {
 
     if (!order) {
       this.logger.warn(`[${method}] Order ${orderId} not found`);
-      throw new NotFoundException('Order not found');
+      throw new NotFoundException("Order not found");
     }
 
     // Validate user has permission to the order's store
@@ -114,24 +114,24 @@ export class PaymentService {
       });
 
       if (!order) {
-        throw new NotFoundException('Order not found');
+        throw new NotFoundException("Order not found");
       }
 
       if (order.status === OrderStatus.CANCELLED) {
         throw new BadRequestException(
-          'Cannot accept payment for cancelled order',
+          "Cannot accept payment for cancelled order",
         );
       }
 
       // Calculate total paid and refunded
       const totalPaid = order.payments.reduce(
         (sum, p) => sum.add(new Decimal(p.amount)),
-        new Decimal('0'),
+        new Decimal("0"),
       );
 
       const totalRefunded = order.refunds.reduce(
         (sum, r) => sum.add(new Decimal(r.amount)),
-        new Decimal('0'),
+        new Decimal("0"),
       );
 
       const netPaid = totalPaid.sub(totalRefunded);
@@ -186,7 +186,7 @@ export class PaymentService {
           `[${method}] amountTendered provided for non-cash payment method: ${dto.paymentMethod}`,
         );
         throw new BadRequestException(
-          'amountTendered is only applicable for cash payments',
+          "amountTendered is only applicable for cash payments",
         );
       }
 
@@ -246,12 +246,12 @@ export class PaymentService {
       );
 
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2003') {
-          throw new BadRequestException('Invalid order reference');
+        if (error.code === "P2003") {
+          throw new BadRequestException("Invalid order reference");
         }
       }
 
-      throw new InternalServerErrorException('Failed to record payment');
+      throw new InternalServerErrorException("Failed to record payment");
     }
   }
 
@@ -274,7 +274,7 @@ export class PaymentService {
 
       const payments = await this.prisma.payment.findMany({
         where: { orderId, deletedAt: null },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       });
 
       this.logger.log(
@@ -294,7 +294,7 @@ export class PaymentService {
         `[${method}] Failed to get payments`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to retrieve payments');
+      throw new InternalServerErrorException("Failed to retrieve payments");
     }
   }
 
@@ -325,18 +325,18 @@ export class PaymentService {
       });
 
       if (!order) {
-        throw new NotFoundException('Order not found');
+        throw new NotFoundException("Order not found");
       }
 
       // Calculate refundable amount
       const totalPaid = order.payments.reduce(
         (sum, p) => sum.add(new Decimal(p.amount)),
-        new Decimal('0'),
+        new Decimal("0"),
       );
 
       const totalRefunded = order.refunds.reduce(
         (sum, r) => sum.add(new Decimal(r.amount)),
-        new Decimal('0'),
+        new Decimal("0"),
       );
 
       const refundableAmount = totalPaid.sub(totalRefunded);
@@ -349,8 +349,8 @@ export class PaymentService {
         );
       }
 
-      if (refundAmount.lessThanOrEqualTo(new Decimal('0'))) {
-        throw new BadRequestException('Refund amount must be positive');
+      if (refundAmount.lessThanOrEqualTo(new Decimal("0"))) {
+        throw new BadRequestException("Refund amount must be positive");
       }
 
       // Create refund record
@@ -374,7 +374,7 @@ export class PaymentService {
         refund.id,
         {
           amount: dto.amount,
-          reason: dto.reason ?? 'No reason provided',
+          reason: dto.reason ?? "No reason provided",
           orderId,
         },
       );
@@ -395,12 +395,12 @@ export class PaymentService {
       );
 
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2003') {
-          throw new BadRequestException('Invalid order reference');
+        if (error.code === "P2003") {
+          throw new BadRequestException("Invalid order reference");
         }
       }
 
-      throw new InternalServerErrorException('Failed to create refund');
+      throw new InternalServerErrorException("Failed to create refund");
     }
   }
 
@@ -422,7 +422,7 @@ export class PaymentService {
 
       const refunds = await this.prisma.refund.findMany({
         where: { orderId },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       });
 
       this.logger.log(
@@ -442,7 +442,7 @@ export class PaymentService {
         `[${method}] Failed to get refunds`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to retrieve refunds');
+      throw new InternalServerErrorException("Failed to retrieve refunds");
     }
   }
 
@@ -479,19 +479,19 @@ export class PaymentService {
       });
 
       if (!order) {
-        throw new NotFoundException('Order not found');
+        throw new NotFoundException("Order not found");
       }
 
       const grandTotal = new Decimal(order.grandTotal);
 
       const totalPaid = order.payments.reduce(
         (sum, p) => sum.add(new Decimal(p.amount)),
-        new Decimal('0'),
+        new Decimal("0"),
       );
 
       const totalRefunded = order.refunds.reduce(
         (sum, r) => sum.add(new Decimal(r.amount)),
-        new Decimal('0'),
+        new Decimal("0"),
       );
 
       const netPaid = totalPaid.sub(totalRefunded);
@@ -523,7 +523,7 @@ export class PaymentService {
         error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException(
-        'Failed to retrieve payment summary',
+        "Failed to retrieve payment summary",
       );
     }
   }
@@ -539,7 +539,7 @@ export class PaymentService {
 
     return payments.reduce(
       (sum, p) => sum.add(new Decimal(p.amount)),
-      new Decimal('0'),
+      new Decimal("0"),
     );
   }
 
@@ -552,7 +552,7 @@ export class PaymentService {
    */
   async calculateSplitAmounts(
     orderId: string,
-    splitType: 'EVEN' | 'BY_ITEM' | 'CUSTOM',
+    splitType: "EVEN" | "BY_ITEM" | "CUSTOM",
     splitData: Record<string, unknown>,
   ): Promise<{
     splits: { guestNumber: number; amount: Decimal }[];
@@ -574,23 +574,23 @@ export class PaymentService {
     });
 
     if (!order) {
-      throw new NotFoundException('Order not found');
+      throw new NotFoundException("Order not found");
     }
 
     const grandTotal = new Decimal(order.grandTotal);
     const alreadyPaid = order.payments.reduce(
       (sum: Decimal, p) => sum.add(new Decimal(p.amount)),
-      new Decimal('0'),
+      new Decimal("0"),
     );
     const remaining = grandTotal.sub(alreadyPaid);
 
     let splits: { guestNumber: number; amount: Decimal }[] = [];
 
     switch (splitType) {
-      case 'EVEN': {
+      case "EVEN": {
         const guestCount = (splitData.guestCount as number | undefined) ?? 2;
         if (guestCount < 2) {
-          throw new BadRequestException('Guest count must be at least 2');
+          throw new BadRequestException("Guest count must be at least 2");
         }
         const perGuest = remaining.dividedBy(guestCount);
         splits = Array.from({ length: guestCount }, (_, i) => ({
@@ -600,7 +600,7 @@ export class PaymentService {
         break;
       }
 
-      case 'BY_ITEM': {
+      case "BY_ITEM": {
         // Group items by guest assignment
         const itemAssignments =
           (splitData.itemAssignments as Record<string, string[]> | undefined) ??
@@ -609,7 +609,7 @@ export class PaymentService {
 
         if (guestNumbers.length === 0) {
           throw new BadRequestException(
-            'Item assignments required for BY_ITEM split',
+            "Item assignments required for BY_ITEM split",
           );
         }
 
@@ -623,11 +623,11 @@ export class PaymentService {
                 sum.add(
                   new Decimal(item.finalPrice ?? item.price).mul(item.quantity),
                 ),
-              new Decimal('0'),
+              new Decimal("0"),
             );
 
           return {
-            guestNumber: parseInt(guestNum.replace('guest', ''), 10),
+            guestNumber: parseInt(guestNum.replace("guest", ""), 10),
             amount: guestTotal,
           };
         });
@@ -636,12 +636,12 @@ export class PaymentService {
         break;
       }
 
-      case 'CUSTOM': {
+      case "CUSTOM": {
         const customAmounts =
           (splitData.customAmounts as string[] | undefined) ?? [];
         if (customAmounts.length === 0) {
           throw new BadRequestException(
-            'Custom amounts required for CUSTOM split',
+            "Custom amounts required for CUSTOM split",
           );
         }
 
@@ -661,7 +661,7 @@ export class PaymentService {
     // Validate total doesn't exceed remaining
     const total = splits.reduce(
       (sum, s) => sum.add(s.amount),
-      new Decimal('0'),
+      new Decimal("0"),
     );
     if (total.greaterThan(remaining)) {
       this.logger.warn(
@@ -708,12 +708,12 @@ export class PaymentService {
       });
 
       if (!fullOrder) {
-        throw new NotFoundException('Order not found');
+        throw new NotFoundException("Order not found");
       }
 
       if (fullOrder.status === OrderStatus.CANCELLED) {
         throw new BadRequestException(
-          'Cannot accept payment for cancelled order',
+          "Cannot accept payment for cancelled order",
         );
       }
 
@@ -750,7 +750,7 @@ export class PaymentService {
         }
       } else if (dto.amountTendered) {
         throw new BadRequestException(
-          'amountTendered is only applicable for cash payments',
+          "amountTendered is only applicable for cash payments",
         );
       }
 
@@ -817,12 +817,12 @@ export class PaymentService {
       );
 
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2003') {
-          throw new BadRequestException('Invalid order reference');
+        if (error.code === "P2003") {
+          throw new BadRequestException("Invalid order reference");
         }
       }
 
-      throw new InternalServerErrorException('Failed to record split payment');
+      throw new InternalServerErrorException("Failed to record split payment");
     }
   }
 }

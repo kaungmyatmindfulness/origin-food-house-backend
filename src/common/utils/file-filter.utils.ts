@@ -1,7 +1,7 @@
-import { BadRequestException } from '@nestjs/common';
-import { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
+import { BadRequestException } from "@nestjs/common";
+import { MulterOptions } from "@nestjs/platform-express/multer/interfaces/multer-options.interface";
 
-export const imageFileFilter: MulterOptions['fileFilter'] = (
+export const imageFileFilter: MulterOptions["fileFilter"] = (
   req,
   file,
   callback,
@@ -9,7 +9,7 @@ export const imageFileFilter: MulterOptions['fileFilter'] = (
   if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
     return callback(
       new BadRequestException(
-        'Only image files (jpg, jpeg, png, webp) are allowed!',
+        "Only image files (jpg, jpeg, png, webp) are allowed!",
       ),
       false,
     );

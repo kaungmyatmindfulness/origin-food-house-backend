@@ -1,8 +1,8 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { OrderStatus } from '@prisma/client';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { OrderStatus } from "@prisma/client";
+import { IsEnum, IsOptional, IsString } from "class-validator";
 
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { PaginationQueryDto } from "../../common/dto/pagination-query.dto";
 
 /**
  * Query parameters for Kitchen Display System (KDS) order filtering
@@ -10,7 +10,7 @@ import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
  */
 export class KdsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
-    description: 'Filter by order status',
+    description: "Filter by order status",
     enum: OrderStatus,
     example: OrderStatus.PENDING,
   })
@@ -19,8 +19,8 @@ export class KdsQueryDto extends PaginationQueryDto {
   status?: OrderStatus;
 
   @ApiPropertyOptional({
-    description: 'Store ID (required)',
-    example: 'abc1234',
+    description: "Store ID (required)",
+    example: "abc1234",
   })
   @IsString()
   storeId!: string;

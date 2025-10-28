@@ -5,19 +5,19 @@ import {
   BadRequestException,
   InternalServerErrorException, // Keep for re-throwing truly unexpected errors
   Logger,
-} from '@nestjs/common';
-import { Role, Table, Prisma, TableStatus } from '@prisma/client';
+} from "@nestjs/common";
+import { Role, Table, Prisma, TableStatus } from "@prisma/client";
 
-import { StandardErrorHandler } from 'src/common/decorators/standard-error-handler.decorator';
+import { StandardErrorHandler } from "src/common/decorators/standard-error-handler.decorator";
 
-import { AuthService } from '../auth/auth.service'; // Assuming AuthService provides checkStorePermission
-import { PrismaService } from '../prisma/prisma.service';
-import { TierService } from '../tier/tier.service';
-import { BatchUpsertTableDto } from './dto/batch-upsert-table.dto'; // Use correct DTO
-import { CreateTableDto } from './dto/create-table.dto';
-import { UpdateTableStatusDto } from './dto/update-table-status.dto';
-import { UpdateTableDto } from './dto/update-table.dto';
-import { TableGateway } from './table.gateway';
+import { AuthService } from "../auth/auth.service"; // Assuming AuthService provides checkStorePermission
+import { PrismaService } from "../prisma/prisma.service";
+import { TierService } from "../tier/tier.service";
+import { BatchUpsertTableDto } from "./dto/batch-upsert-table.dto"; // Use correct DTO
+import { CreateTableDto } from "./dto/create-table.dto";
+import { UpdateTableStatusDto } from "./dto/update-table-status.dto";
+import { UpdateTableDto } from "./dto/update-table.dto";
+import { TableGateway } from "./table.gateway";
 
 /**
  * Natural sort comparator function for strings containing numbers.
@@ -44,11 +44,11 @@ function naturalCompare(a: string, b: string): number {
 
     // If segments differ and are of different types (number vs string), number comes first
     if (typeof an !== typeof bn) {
-      return typeof an === 'number' ? -1 : 1;
+      return typeof an === "number" ? -1 : 1;
     }
 
     // If segments are of the same type, compare them
-    if (typeof an === 'number') {
+    if (typeof an === "number") {
       // Both are numbers
       // Type assertion needed here as TS might not narrow bn correctly inside loop
       if (an !== (bn as number)) {
@@ -104,7 +104,7 @@ export class TableService {
   }
 
   /** Creates a single table */
-  @StandardErrorHandler('create table')
+  @StandardErrorHandler("create table")
   async createTable(
     userId: string,
     storeId: string,
@@ -150,7 +150,7 @@ export class TableService {
       // Fetch potentially unsorted or rely on default DB order
     });
     // Apply natural sort
-    tables.sort((a, b) => naturalCompare(a.name || '', b.name || ''));
+    tables.sort((a, b) => naturalCompare(a.name || "", b.name || ""));
     this.logger.log(
       `Found and sorted ${tables.length} tables for Store ${storeId}`,
     );
@@ -158,7 +158,7 @@ export class TableService {
   }
 
   /** Finds a single table ensuring it belongs to the store */
-  @StandardErrorHandler('find table')
+  @StandardErrorHandler("find table")
   async findOne(storeId: string, tableId: string): Promise<Table> {
     // Use findFirstOrThrow for combined check
     const table = await this.prisma.table.findFirstOrThrow({
@@ -204,7 +204,7 @@ export class TableService {
       if (error instanceof BadRequestException) throw error; // Re-throw validation error
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
+        error.code === "P2002"
       ) {
         throw new BadRequestException(
           `Table name "${dto.name}" is already taken.`,
@@ -212,7 +212,7 @@ export class TableService {
       }
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
+        error.code === "P2025"
       ) {
         // Should be caught by findOne, but handle defensively
         throw new NotFoundException(
@@ -223,7 +223,7 @@ export class TableService {
         `Failed to update table ${tableId} in Store ${storeId}`,
         error,
       );
-      throw new InternalServerErrorException('Could not update table.');
+      throw new InternalServerErrorException("Could not update table.");
     }
   }
 
@@ -261,7 +261,7 @@ export class TableService {
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
+        error.code === "P2025"
       ) {
         // Should be caught by findOne, but handle defensively
         throw new NotFoundException(
@@ -273,7 +273,7 @@ export class TableService {
         `Failed to delete table ${tableId} from Store ${storeId}`,
         error,
       );
-      throw new InternalServerErrorException('Could not delete table.');
+      throw new InternalServerErrorException("Could not delete table.");
     }
   }
 
@@ -311,7 +311,7 @@ export class TableService {
       .map(([name]) => name);
     if (duplicateInputNames.length > 0) {
       throw new BadRequestException(
-        `Duplicate table names found in input list: ${duplicateInputNames.join(', ')}`,
+        `Duplicate table names found in input list: ${duplicateInputNames.join(", ")}`,
       );
     }
 
@@ -377,7 +377,7 @@ export class TableService {
 
           if (idsToDelete.length > 0) {
             this.logger.log(
-              `[${method}] Identified ${idsToDelete.length} tables to delete for Store ${storeId}: [${idsToDelete.join(', ')}]`,
+              `[${method}] Identified ${idsToDelete.length} tables to delete for Store ${storeId}: [${idsToDelete.join(", ")}]`,
             );
             await tx.table.deleteMany({ where: { id: { in: idsToDelete } } });
             this.logger.log(
@@ -391,7 +391,7 @@ export class TableService {
           });
           // Apply natural sort outside transaction
           finalTableList.sort((a, b) =>
-            naturalCompare(a.name || '', b.name || ''),
+            naturalCompare(a.name || "", b.name || ""),
           );
           return finalTableList;
         },
@@ -412,7 +412,7 @@ export class TableService {
       }
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
+        error.code === "P2002"
       ) {
         this.logger.error(
           `[${method}] Table sync failed for Store ${storeId} due to unique constraint violation.`,
@@ -426,7 +426,7 @@ export class TableService {
         `[${method}] Batch table sync failed for Store ${storeId}`,
         error,
       );
-      throw new InternalServerErrorException('Could not synchronize tables.');
+      throw new InternalServerErrorException("Could not synchronize tables.");
     }
   } // End syncTables
 
@@ -488,7 +488,7 @@ export class TableService {
 
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
+        error.code === "P2025"
       ) {
         throw new NotFoundException(
           `Table with ID ${tableId} not found during status update.`,
@@ -499,7 +499,7 @@ export class TableService {
         `[${method}] Failed to update table status for table ${tableId}`,
         error,
       );
-      throw new InternalServerErrorException('Could not update table status.');
+      throw new InternalServerErrorException("Could not update table status.");
     }
   }
 
@@ -547,7 +547,7 @@ export class TableService {
     if (!validTransitions[currentStatus]?.includes(newStatus)) {
       throw new BadRequestException(
         `Invalid table status transition from ${currentStatus} to ${newStatus}. ` +
-          `Valid transitions from ${currentStatus} are: ${validTransitions[currentStatus]?.join(', ') || 'none'}`,
+          `Valid transitions from ${currentStatus} are: ${validTransitions[currentStatus]?.join(", ") || "none"}`,
       );
     }
   }

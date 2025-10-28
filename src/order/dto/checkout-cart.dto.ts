@@ -1,10 +1,10 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { OrderType } from '@prisma/client';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { ApiProperty } from "@nestjs/swagger";
+import { OrderType } from "@prisma/client";
+import { IsEnum, IsOptional, IsString } from "class-validator";
 
 export class CheckoutCartDto {
   @ApiProperty({
-    description: 'Order type',
+    description: "Order type",
     enum: OrderType,
     example: OrderType.DINE_IN,
     default: OrderType.DINE_IN,
@@ -13,8 +13,8 @@ export class CheckoutCartDto {
   orderType: OrderType;
 
   @ApiProperty({
-    description: 'Table name (from session)',
-    example: 'Table 5',
+    description: "Table name (from session)",
+    example: "Table 5",
     required: false,
   })
   @IsOptional()

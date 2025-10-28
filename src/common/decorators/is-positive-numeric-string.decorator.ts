@@ -1,6 +1,6 @@
-import { registerDecorator, ValidationOptions } from 'class-validator';
+import { registerDecorator, ValidationOptions } from "class-validator";
 
-import { IsPositiveNumericStringConstraint } from '../validators/is-positive-numeric-string.validator';
+import { IsPositiveNumericStringConstraint } from "../validators/is-positive-numeric-string.validator";
 
 /**
  * Decorator function that applies the IsPositiveNumericStringConstraint.
@@ -10,7 +10,7 @@ import { IsPositiveNumericStringConstraint } from '../validators/is-positive-num
 export function IsPositiveNumericString(validationOptions?: ValidationOptions) {
   return function (object: object, propertyName: string) {
     registerDecorator({
-      name: 'isPositiveNumericString',
+      name: "isPositiveNumericString",
       target: object.constructor,
       propertyName,
       options: validationOptions,

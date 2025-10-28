@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { AuditLog, AuditAction, Prisma } from '@prisma/client';
+import { Injectable, Logger } from "@nestjs/common";
+import { AuditLog, AuditAction, Prisma } from "@prisma/client";
 
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateAuditLogDto } from './dto/create-audit-log.dto';
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateAuditLogDto } from "./dto/create-audit-log.dto";
 
 /**
  * AuditLogService provides immutable audit trail functionality
@@ -28,7 +28,14 @@ export class AuditLogService {
       );
 
       const log = await this.prisma.auditLog.create({
-        data: dto,
+        data: {
+          userId: dto.userId,
+          storeId: dto.storeId,
+          action: dto.action,
+          entityType: dto.entityType,
+          entityId: dto.entityId,
+          details: dto.details as Prisma.InputJsonValue,
+        },
       });
 
       return log;
@@ -100,7 +107,7 @@ export class AuditLogService {
           where,
           skip,
           take: limit,
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
         }),
         this.prisma.auditLog.count({ where }),
       ]);
@@ -138,7 +145,7 @@ export class AuditLogService {
       storeId,
       userId,
       action: AuditAction.STORE_SETTING_CHANGED,
-      entityType: 'StoreSetting',
+      entityType: "StoreSetting",
       entityId: storeId,
       details,
       ipAddress,
@@ -165,7 +172,7 @@ export class AuditLogService {
       storeId,
       userId,
       action: AuditAction.MENU_PRICE_CHANGED,
-      entityType: 'MenuItem',
+      entityType: "MenuItem",
       entityId: menuItemId,
       details,
       ipAddress,
@@ -192,7 +199,7 @@ export class AuditLogService {
       storeId,
       userId,
       action: AuditAction.PAYMENT_REFUNDED,
-      entityType: 'Payment',
+      entityType: "Payment",
       entityId: paymentId,
       details,
       ipAddress,
@@ -219,7 +226,7 @@ export class AuditLogService {
       storeId,
       userId,
       action: AuditAction.USER_ROLE_CHANGED,
-      entityType: 'UserStore',
+      entityType: "UserStore",
       entityId: targetUserId,
       details,
       ipAddress,
@@ -245,7 +252,7 @@ export class AuditLogService {
       storeId,
       userId,
       action: AuditAction.USER_SUSPENDED,
-      entityType: 'User',
+      entityType: "User",
       entityId: targetUserId,
       details,
       ipAddress,
@@ -271,7 +278,7 @@ export class AuditLogService {
       storeId,
       userId,
       action: AuditAction.MENU_ITEM_86D,
-      entityType: 'MenuItem',
+      entityType: "MenuItem",
       entityId: menuItemId,
       details,
       ipAddress,
@@ -310,25 +317,25 @@ export class AuditLogService {
 
       // Generate CSV header
       const csvHeader =
-        'Timestamp,User ID,Action,Entity Type,Entity ID,Details,IP Address,User Agent\n';
+        "Timestamp,User ID,Action,Entity Type,Entity ID,Details,IP Address,User Agent\n";
 
       // Generate CSV rows
       const csvRows = result.logs
         .map((log) => {
           return [
             log.createdAt.toISOString(),
-            log.userId ?? 'SYSTEM',
+            log.userId ?? "SYSTEM",
             log.action,
             log.entityType,
-            log.entityId ?? 'N/A',
+            log.entityId ?? "N/A",
             JSON.stringify(log.details),
-            log.ipAddress ?? 'N/A',
-            log.userAgent ?? 'N/A',
+            log.ipAddress ?? "N/A",
+            log.userAgent ?? "N/A",
           ]
             .map((field) => `"${String(field).replace(/"/g, '""')}"`)
-            .join(',');
+            .join(",");
         })
-        .join('\n');
+        .join("\n");
 
       this.logger.log(
         `[${method}] Exported ${result.logs.length} audit logs for store ${storeId}`,

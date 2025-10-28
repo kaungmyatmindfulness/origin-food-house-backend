@@ -1,4 +1,4 @@
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { createParamDecorator, ExecutionContext } from "@nestjs/common";
 
 /**
  * Decorator to extract sessionId from request headers or query params
@@ -12,14 +12,14 @@ export const GetSessionId = createParamDecorator(
     }>();
 
     // Try to get from header first (for WebSocket or API calls with auth)
-    const headerSessionId = request.headers['x-session-id'];
-    if (typeof headerSessionId === 'string') {
+    const headerSessionId = request.headers["x-session-id"];
+    if (typeof headerSessionId === "string") {
       return headerSessionId;
     }
 
     // Fallback to query parameter
     const querySessionId = request.query?.sessionId;
-    if (typeof querySessionId === 'string') {
+    if (typeof querySessionId === "string") {
       return querySessionId;
     }
 

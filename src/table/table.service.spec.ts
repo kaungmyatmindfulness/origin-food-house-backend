@@ -3,35 +3,35 @@ import {
   NotFoundException,
   ForbiddenException,
   InternalServerErrorException,
-} from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Role, Prisma, TableStatus } from '@prisma/client';
+} from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import { Role, Prisma, TableStatus } from "@prisma/client";
 
-import { TableGateway } from './table.gateway';
-import { TableService } from './table.service';
-import { AuthService } from '../auth/auth.service';
+import { TableGateway } from "./table.gateway";
+import { TableService } from "./table.service";
+import { AuthService } from "../auth/auth.service";
 import {
   createPrismaMock,
   PrismaMock,
-} from '../common/testing/prisma-mock.helper';
-import { PrismaService } from '../prisma/prisma.service';
-import { TierService } from '../tier/tier.service';
+} from "../common/testing/prisma-mock.helper";
+import { PrismaService } from "../prisma/prisma.service";
+import { TierService } from "../tier/tier.service";
 
-describe('TableService', () => {
+describe("TableService", () => {
   let service: TableService;
   let prismaService: PrismaMock;
   let authService: jest.Mocked<AuthService>;
   let tableGateway: jest.Mocked<TableGateway>;
   let _tierService: jest.Mocked<TierService>;
 
-  const mockUserId = 'user-123';
-  const mockStoreId = 'store-123';
-  const mockTableId = 'table-123';
+  const mockUserId = "user-123";
+  const mockStoreId = "store-123";
+  const mockTableId = "table-123";
 
   const mockTable = {
     id: mockTableId,
     storeId: mockStoreId,
-    name: 'Table 1',
+    name: "Table 1",
     currentStatus: TableStatus.VACANT,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -92,12 +92,12 @@ describe('TableService', () => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('createTable', () => {
-    const createDto = { name: 'Table 5' };
+  describe("createTable", () => {
+    const createDto = { name: "Table 5" };
 
     beforeEach(() => {
       authService.checkStorePermission.mockResolvedValue(undefined);
@@ -106,7 +106,7 @@ describe('TableService', () => {
       );
     });
 
-    it('should create table successfully', async () => {
+    it("should create table successfully", async () => {
       mockTransaction.table.findFirst.mockResolvedValue(null);
       mockTransaction.table.create.mockResolvedValue({
         ...mockTable,
@@ -131,7 +131,7 @@ describe('TableService', () => {
       );
     });
 
-    it('should throw BadRequestException if table name already exists', async () => {
+    it("should throw BadRequestException if table name already exists", async () => {
       mockTransaction.table.findFirst.mockResolvedValue(mockTable as any);
 
       await expect(
@@ -139,12 +139,12 @@ describe('TableService', () => {
       ).rejects.toThrow(BadRequestException);
       await expect(
         service.createTable(mockUserId, mockStoreId, createDto),
-      ).rejects.toThrow('conflicts with an existing table');
+      ).rejects.toThrow("conflicts with an existing table");
     });
 
-    it('should check permissions before creating', async () => {
+    it("should check permissions before creating", async () => {
       authService.checkStorePermission.mockRejectedValue(
-        new ForbiddenException('Insufficient permissions'),
+        new ForbiddenException("Insufficient permissions"),
       );
 
       await expect(
@@ -153,12 +153,12 @@ describe('TableService', () => {
     });
   });
 
-  describe('findAllByStore', () => {
-    it('should return all tables sorted naturally', async () => {
+  describe("findAllByStore", () => {
+    it("should return all tables sorted naturally", async () => {
       const mockTables = [
-        { ...mockTable, name: 'T-10' },
-        { ...mockTable, name: 'T-2' },
-        { ...mockTable, name: 'T-1' },
+        { ...mockTable, name: "T-10" },
+        { ...mockTable, name: "T-2" },
+        { ...mockTable, name: "T-1" },
       ];
       prismaService.store.count.mockResolvedValue(1);
       prismaService.table.findMany.mockResolvedValue(mockTables as any);
@@ -166,12 +166,12 @@ describe('TableService', () => {
       const result = await service.findAllByStore(mockStoreId);
 
       expect(result).toHaveLength(3);
-      expect(result[0].name).toBe('T-1');
-      expect(result[1].name).toBe('T-2');
-      expect(result[2].name).toBe('T-10');
+      expect(result[0].name).toBe("T-1");
+      expect(result[1].name).toBe("T-2");
+      expect(result[2].name).toBe("T-10");
     });
 
-    it('should throw NotFoundException if store not found', async () => {
+    it("should throw NotFoundException if store not found", async () => {
       prismaService.store.count.mockResolvedValue(0);
 
       await expect(service.findAllByStore(mockStoreId)).rejects.toThrow(
@@ -179,7 +179,7 @@ describe('TableService', () => {
       );
     });
 
-    it('should return empty array if no tables exist', async () => {
+    it("should return empty array if no tables exist", async () => {
       prismaService.store.count.mockResolvedValue(1);
       prismaService.table.findMany.mockResolvedValue([]);
 
@@ -189,8 +189,8 @@ describe('TableService', () => {
     });
   });
 
-  describe('findOne', () => {
-    it('should return table if it belongs to store', async () => {
+  describe("findOne", () => {
+    it("should return table if it belongs to store", async () => {
       prismaService.table.findFirstOrThrow.mockResolvedValue(mockTable as any);
 
       const result = await service.findOne(mockStoreId, mockTableId);
@@ -201,12 +201,12 @@ describe('TableService', () => {
       });
     });
 
-    it('should throw NotFoundException if table not found', async () => {
+    it("should throw NotFoundException if table not found", async () => {
       const prismaError = new Prisma.PrismaClientKnownRequestError(
-        'Not found',
+        "Not found",
         {
-          code: 'P2025',
-          clientVersion: '5.0.0',
+          code: "P2025",
+          clientVersion: "5.0.0",
         },
       );
       prismaService.table.findFirstOrThrow.mockRejectedValue(prismaError);
@@ -218,8 +218,8 @@ describe('TableService', () => {
     });
   });
 
-  describe('updateTable', () => {
-    const updateDto = { name: 'Updated Table' };
+  describe("updateTable", () => {
+    const updateDto = { name: "Updated Table" };
 
     beforeEach(() => {
       authService.checkStorePermission.mockResolvedValue(undefined);
@@ -229,7 +229,7 @@ describe('TableService', () => {
       );
     });
 
-    it('should update table name successfully', async () => {
+    it("should update table name successfully", async () => {
       mockTransaction.table.findFirst.mockResolvedValue(null);
       mockTransaction.table.update.mockResolvedValue({
         ...mockTable,
@@ -251,9 +251,9 @@ describe('TableService', () => {
       );
     });
 
-    it('should throw BadRequestException if name conflicts with another table', async () => {
+    it("should throw BadRequestException if name conflicts with another table", async () => {
       mockTransaction.table.findFirst.mockResolvedValue({
-        id: 'other-table',
+        id: "other-table",
         name: updateDto.name,
       } as any);
 
@@ -263,13 +263,13 @@ describe('TableService', () => {
     });
   });
 
-  describe('deleteTable', () => {
+  describe("deleteTable", () => {
     beforeEach(() => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.table.findFirstOrThrow.mockResolvedValue(mockTable as any);
     });
 
-    it('should delete table successfully', async () => {
+    it("should delete table successfully", async () => {
       prismaService.table.delete.mockResolvedValue(mockTable as any);
 
       const result = await service.deleteTable(
@@ -289,11 +289,11 @@ describe('TableService', () => {
     });
   });
 
-  describe('syncTables', () => {
+  describe("syncTables", () => {
     const syncDto = {
       tables: [
-        { id: 'table-1', name: 'T-1' },
-        { name: 'T-2' }, // New table without ID
+        { id: "table-1", name: "T-1" },
+        { name: "T-2" }, // New table without ID
       ],
     };
 
@@ -304,10 +304,10 @@ describe('TableService', () => {
       );
     });
 
-    it('should sync tables successfully', async () => {
+    it("should sync tables successfully", async () => {
       const currentTables = [
-        { id: 'table-1', name: 'Old T-1' },
-        { id: 'table-3', name: 'T-3' }, // Will be deleted
+        { id: "table-1", name: "Old T-1" },
+        { id: "table-3", name: "T-3" }, // Will be deleted
       ];
 
       mockTransaction.table.findMany.mockResolvedValueOnce(
@@ -315,30 +315,30 @@ describe('TableService', () => {
       );
       mockTransaction.table.findFirst.mockResolvedValue(null);
       mockTransaction.table.update.mockResolvedValue({
-        id: 'table-1',
-        name: 'T-1',
+        id: "table-1",
+        name: "T-1",
       } as any);
       mockTransaction.table.create.mockResolvedValue({
-        id: 'table-2',
-        name: 'T-2',
+        id: "table-2",
+        name: "T-2",
       } as any);
       mockTransaction.table.deleteMany.mockResolvedValue({ count: 1 } as any);
       mockTransaction.table.findMany.mockResolvedValueOnce([
-        { id: 'table-1', name: 'T-1' },
-        { id: 'table-2', name: 'T-2' },
+        { id: "table-1", name: "T-1" },
+        { id: "table-2", name: "T-2" },
       ] as any);
 
       const result = await service.syncTables(mockUserId, mockStoreId, syncDto);
 
       expect(result).toHaveLength(2);
       expect(mockTransaction.table.deleteMany).toHaveBeenCalledWith({
-        where: { id: { in: ['table-3'] } },
+        where: { id: { in: ["table-3"] } },
       });
     });
 
-    it('should throw BadRequestException for duplicate names in input', async () => {
+    it("should throw BadRequestException for duplicate names in input", async () => {
       const duplicateDto = {
-        tables: [{ name: 'T-1' }, { name: 'T-1' }],
+        tables: [{ name: "T-1" }, { name: "T-1" }],
       };
 
       await expect(
@@ -346,12 +346,12 @@ describe('TableService', () => {
       ).rejects.toThrow(BadRequestException);
       await expect(
         service.syncTables(mockUserId, mockStoreId, duplicateDto),
-      ).rejects.toThrow('Duplicate table names');
+      ).rejects.toThrow("Duplicate table names");
     });
 
-    it('should throw BadRequestException for empty table names', async () => {
+    it("should throw BadRequestException for empty table names", async () => {
       const emptyNameDto = {
-        tables: [{ name: '' }, { name: 'T-1' }],
+        tables: [{ name: "" }, { name: "T-1" }],
       };
 
       await expect(
@@ -359,14 +359,14 @@ describe('TableService', () => {
       ).rejects.toThrow(BadRequestException);
       await expect(
         service.syncTables(mockUserId, mockStoreId, emptyNameDto),
-      ).rejects.toThrow('cannot be empty');
+      ).rejects.toThrow("cannot be empty");
     });
 
-    it('should throw BadRequestException if updating non-existent table ID', async () => {
+    it("should throw BadRequestException if updating non-existent table ID", async () => {
       const invalidDto = {
-        tables: [{ id: 'non-existent-id', name: 'T-1' }],
+        tables: [{ id: "non-existent-id", name: "T-1" }],
       };
-      const currentTables = [{ id: 'table-1', name: 'T-1' }];
+      const currentTables = [{ id: "table-1", name: "T-1" }];
 
       mockTransaction.table.findMany.mockResolvedValue(currentTables as any);
 
@@ -375,17 +375,17 @@ describe('TableService', () => {
       ).rejects.toThrow(BadRequestException);
       await expect(
         service.syncTables(mockUserId, mockStoreId, invalidDto),
-      ).rejects.toThrow('not found in store');
+      ).rejects.toThrow("not found in store");
     });
   });
 
-  describe('updateTableStatus', () => {
+  describe("updateTableStatus", () => {
     beforeEach(() => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.table.findFirstOrThrow.mockResolvedValue(mockTable as any);
     });
 
-    it('should update table status successfully', async () => {
+    it("should update table status successfully", async () => {
       const updatedTable = {
         ...mockTable,
         currentStatus: TableStatus.SEATED,
@@ -415,9 +415,9 @@ describe('TableService', () => {
       );
     });
 
-    it('should check permissions before updating', async () => {
+    it("should check permissions before updating", async () => {
       authService.checkStorePermission.mockRejectedValue(
-        new ForbiddenException('Insufficient permissions'),
+        new ForbiddenException("Insufficient permissions"),
       );
 
       await expect(
@@ -427,7 +427,7 @@ describe('TableService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should throw NotFoundException if table not found', async () => {
+    it("should throw NotFoundException if table not found", async () => {
       prismaService.table.findFirstOrThrow.mockRejectedValue(
         new NotFoundException(),
       );
@@ -439,7 +439,7 @@ describe('TableService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should allow idempotent status updates (same status)', async () => {
+    it("should allow idempotent status updates (same status)", async () => {
       prismaService.table.update.mockResolvedValue(mockTable as any);
 
       const result = await service.updateTableStatus(
@@ -452,7 +452,7 @@ describe('TableService', () => {
       expect(result.currentStatus).toBe(TableStatus.VACANT);
     });
 
-    it('should validate VACANT to SEATED transition', async () => {
+    it("should validate VACANT to SEATED transition", async () => {
       prismaService.table.update.mockResolvedValue({
         ...mockTable,
         currentStatus: TableStatus.SEATED,
@@ -468,7 +468,7 @@ describe('TableService', () => {
       expect(result.currentStatus).toBe(TableStatus.SEATED);
     });
 
-    it('should validate SEATED to ORDERING transition', async () => {
+    it("should validate SEATED to ORDERING transition", async () => {
       prismaService.table.findFirstOrThrow.mockResolvedValue({
         ...mockTable,
         currentStatus: TableStatus.SEATED,
@@ -488,7 +488,7 @@ describe('TableService', () => {
       expect(result.currentStatus).toBe(TableStatus.ORDERING);
     });
 
-    it('should validate ORDERING to SERVED transition', async () => {
+    it("should validate ORDERING to SERVED transition", async () => {
       prismaService.table.findFirstOrThrow.mockResolvedValue({
         ...mockTable,
         currentStatus: TableStatus.ORDERING,
@@ -508,7 +508,7 @@ describe('TableService', () => {
       expect(result.currentStatus).toBe(TableStatus.SERVED);
     });
 
-    it('should validate SERVED to READY_TO_PAY transition', async () => {
+    it("should validate SERVED to READY_TO_PAY transition", async () => {
       prismaService.table.findFirstOrThrow.mockResolvedValue({
         ...mockTable,
         currentStatus: TableStatus.SERVED,
@@ -528,7 +528,7 @@ describe('TableService', () => {
       expect(result.currentStatus).toBe(TableStatus.READY_TO_PAY);
     });
 
-    it('should validate READY_TO_PAY to CLEANING transition', async () => {
+    it("should validate READY_TO_PAY to CLEANING transition", async () => {
       prismaService.table.findFirstOrThrow.mockResolvedValue({
         ...mockTable,
         currentStatus: TableStatus.READY_TO_PAY,
@@ -548,7 +548,7 @@ describe('TableService', () => {
       expect(result.currentStatus).toBe(TableStatus.CLEANING);
     });
 
-    it('should validate CLEANING to VACANT transition', async () => {
+    it("should validate CLEANING to VACANT transition", async () => {
       prismaService.table.findFirstOrThrow.mockResolvedValue({
         ...mockTable,
         currentStatus: TableStatus.CLEANING,
@@ -568,7 +568,7 @@ describe('TableService', () => {
       expect(result.currentStatus).toBe(TableStatus.VACANT);
     });
 
-    it('should reject invalid VACANT to SERVED transition', async () => {
+    it("should reject invalid VACANT to SERVED transition", async () => {
       await expect(
         service.updateTableStatus(mockUserId, mockStoreId, mockTableId, {
           status: TableStatus.SERVED,
@@ -581,7 +581,7 @@ describe('TableService', () => {
       ).rejects.toThrow(/Invalid table status transition/);
     });
 
-    it('should reject invalid VACANT to ORDERING transition', async () => {
+    it("should reject invalid VACANT to ORDERING transition", async () => {
       await expect(
         service.updateTableStatus(mockUserId, mockStoreId, mockTableId, {
           status: TableStatus.ORDERING,
@@ -589,7 +589,7 @@ describe('TableService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should reject invalid SEATED to READY_TO_PAY transition', async () => {
+    it("should reject invalid SEATED to READY_TO_PAY transition", async () => {
       prismaService.table.findFirstOrThrow.mockResolvedValue({
         ...mockTable,
         currentStatus: TableStatus.SEATED,
@@ -602,7 +602,7 @@ describe('TableService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should allow SERVED to ORDERING transition (adding more items)', async () => {
+    it("should allow SERVED to ORDERING transition (adding more items)", async () => {
       prismaService.table.findFirstOrThrow.mockResolvedValue({
         ...mockTable,
         currentStatus: TableStatus.SERVED,
@@ -622,7 +622,7 @@ describe('TableService', () => {
       expect(result.currentStatus).toBe(TableStatus.ORDERING);
     });
 
-    it('should allow READY_TO_PAY to ORDERING transition (payment cancelled)', async () => {
+    it("should allow READY_TO_PAY to ORDERING transition (payment cancelled)", async () => {
       prismaService.table.findFirstOrThrow.mockResolvedValue({
         ...mockTable,
         currentStatus: TableStatus.READY_TO_PAY,
@@ -642,7 +642,7 @@ describe('TableService', () => {
       expect(result.currentStatus).toBe(TableStatus.ORDERING);
     });
 
-    it('should allow emergency transitions to VACANT from any status', async () => {
+    it("should allow emergency transitions to VACANT from any status", async () => {
       const statuses = [
         TableStatus.SEATED,
         TableStatus.ORDERING,
@@ -671,7 +671,7 @@ describe('TableService', () => {
       }
     });
 
-    it('should reject CLEANING to ORDERING transition', async () => {
+    it("should reject CLEANING to ORDERING transition", async () => {
       prismaService.table.findFirstOrThrow.mockResolvedValue({
         ...mockTable,
         currentStatus: TableStatus.CLEANING,
@@ -684,8 +684,8 @@ describe('TableService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should log state transition', async () => {
-      const loggerSpy = jest.spyOn(service['logger'], 'log');
+    it("should log state transition", async () => {
+      const loggerSpy = jest.spyOn(service["logger"], "log");
       prismaService.table.update.mockResolvedValue({
         ...mockTable,
         currentStatus: TableStatus.SEATED,

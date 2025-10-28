@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>You've Been Invited to Own a Store - Origin Food House</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="margin: 0; font-size: 28px;">🎉 Store Ownership Transfer</h1>
+  </div>
+
+  <div style="padding: 30px; background: #ffffff; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+    <p>Hello,</p>
+
+    <p>You have been invited to become the new owner of <strong>{{storeName}}</strong> on Origin Food House.</p>
+
+    <div style="background: #f3e5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+      <h3 style="margin-top: 0;">Transfer Details:</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px 0;"><strong>Store Name:</strong></td>
+          <td style="padding: 8px 0;">{{storeName}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Current Owner:</strong></td>
+          <td style="padding: 8px 0;">{{currentOwnerName}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Your New Role:</strong></td>
+          <td style="padding: 8px 0; color: #7b1fa2; font-weight: bold;">Owner</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Initiated:</strong></td>
+          <td style="padding: 8px 0;">{{initiatedAt}}</td>
+        </tr>
+      </table>
+    </div>
+
+    <p><strong>What does ownership include?</strong></p>
+    <ul>
+      <li>✅ Full access to all store settings and configurations</li>
+      <li>✅ Ability to manage staff and assign roles</li>
+      <li>✅ Control over subscription and billing</li>
+      <li>✅ Access to all financial reports</li>
+      <li>✅ Authority to transfer ownership to others</li>
+    </ul>
+
+    <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; font-size: 14px;">
+      <p style="margin: 0;">
+        <strong>Note:</strong> The current owner has initiated this transfer and will verify it with a one-time password. The transfer will be completed once they confirm.
+      </p>
+    </div>
+
+    <p><strong>Next Steps:</strong></p>
+    <ol>
+      <li>The current owner will verify the transfer with an OTP</li>
+      <li>You will receive a confirmation email once the transfer is complete</li>
+      <li>You can then access the store with full owner privileges</li>
+    </ol>
+
+    {{#if needsAccount}}
+    <p style="text-align: center; margin: 30px 0;">
+      <a href="{{signupUrl}}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 28px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+        Create Account
+      </a>
+    </p>
+    <p style="font-size: 14px; color: #666; text-align: center;">
+      You'll need an Origin Food House account to accept this transfer.
+    </p>
+    {{/if}}
+
+    <p style="color: #666; font-size: 14px; margin-top: 30px;">
+      Questions? Contact us at support@originfoodhouse.com
+    </p>
+  </div>
+
+  <div style="background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; margin-top: 20px; border-radius: 8px;">
+    &copy; {{year}} Origin Food House. All rights reserved.
+  </div>
+</body>
+</html>

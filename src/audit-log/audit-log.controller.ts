@@ -7,18 +7,18 @@ import {
   Logger,
   Header,
   Res,
-} from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { AuditAction, Role } from '@prisma/client';
-import { Response } from 'express';
+} from "@nestjs/common";
+import { ApiTags, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { AuditAction, Role } from "@prisma/client";
+import { Response } from "express";
 
-import { AuditLogService } from './audit-log.service';
-import { AuthService } from '../auth/auth.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { GetUser } from '../common/decorators/get-user.decorator';
+import { AuditLogService } from "./audit-log.service";
+import { AuthService } from "../auth/auth.service";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { GetUser } from "../common/decorators/get-user.decorator";
 
-@ApiTags('Audit Logs')
-@Controller('audit-logs')
+@ApiTags("Audit Logs")
+@Controller("audit-logs")
 export class AuditLogController {
   private readonly logger = new Logger(AuditLogController.name);
 
@@ -37,20 +37,20 @@ export class AuditLogController {
    * @param userId Filter by user ID
    * @returns Paginated audit logs
    */
-  @Get(':storeId')
+  @Get(":storeId")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'action', required: false, enum: AuditAction })
-  @ApiQuery({ name: 'userId', required: false, type: String })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
+  @ApiQuery({ name: "action", required: false, enum: AuditAction })
+  @ApiQuery({ name: "userId", required: false, type: String })
   async getStoreAuditLogs(
-    @GetUser('sub') currentUserId: string,
-    @Param('storeId') storeId: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-    @Query('action') action?: AuditAction,
-    @Query('userId') userId?: string,
+    @GetUser("sub") currentUserId: string,
+    @Param("storeId") storeId: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+    @Query("action") action?: AuditAction,
+    @Query("userId") userId?: string,
   ) {
     const method = this.getStoreAuditLogs.name;
 
@@ -69,9 +69,9 @@ export class AuditLogController {
     });
 
     return {
-      status: 'success' as const,
+      status: "success" as const,
       data: logs,
-      message: 'Audit logs retrieved successfully',
+      message: "Audit logs retrieved successfully",
       errors: null,
     };
   }
@@ -87,21 +87,21 @@ export class AuditLogController {
    * @param res Response object for streaming CSV
    * @returns CSV file download
    */
-  @Get(':storeId/export')
+  @Get(":storeId/export")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @Header('Content-Type', 'text/csv')
-  @ApiQuery({ name: 'action', required: false, enum: AuditAction })
-  @ApiQuery({ name: 'userId', required: false, type: String })
-  @ApiQuery({ name: 'startDate', required: false, type: String })
-  @ApiQuery({ name: 'endDate', required: false, type: String })
+  @Header("Content-Type", "text/csv")
+  @ApiQuery({ name: "action", required: false, enum: AuditAction })
+  @ApiQuery({ name: "userId", required: false, type: String })
+  @ApiQuery({ name: "startDate", required: false, type: String })
+  @ApiQuery({ name: "endDate", required: false, type: String })
   async exportAuditLogs(
-    @GetUser('sub') currentUserId: string,
-    @Param('storeId') storeId: string,
-    @Query('action') action?: AuditAction,
-    @Query('userId') userId?: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
+    @GetUser("sub") currentUserId: string,
+    @Param("storeId") storeId: string,
+    @Query("action") action?: AuditAction,
+    @Query("userId") userId?: string,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
     @Res() res?: Response,
   ) {
     const method = this.exportAuditLogs.name;
@@ -121,9 +121,9 @@ export class AuditLogController {
     });
 
     // Set filename with timestamp
-    const timestamp = new Date().toISOString().split('T')[0];
+    const timestamp = new Date().toISOString().split("T")[0];
     res?.setHeader(
-      'Content-Disposition',
+      "Content-Disposition",
       `attachment; filename="audit-logs-${storeId}-${timestamp}.csv"`,
     );
 

@@ -6,15 +6,15 @@ import {
   InternalServerErrorException,
   ForbiddenException,
   UnauthorizedException,
-} from '@nestjs/common';
-import { Prisma, Role, SessionStatus } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+} from "@nestjs/common";
+import { Prisma, Role, SessionStatus } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 
-import { AuthService } from '../auth/auth.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { AddToCartDto } from './dto/add-to-cart.dto';
-import { CartResponseDto } from './dto/cart-response.dto';
-import { UpdateCartItemDto } from './dto/update-cart-item.dto';
+import { AuthService } from "../auth/auth.service";
+import { PrismaService } from "../prisma/prisma.service";
+import { AddToCartDto } from "./dto/add-to-cart.dto";
+import { CartResponseDto } from "./dto/cart-response.dto";
+import { UpdateCartItemDto } from "./dto/update-cart-item.dto";
 
 @Injectable()
 export class CartService {
@@ -52,7 +52,7 @@ export class CartService {
 
     if (!session) {
       this.logger.warn(`[${method}] Session not found: ${sessionId}`);
-      throw new NotFoundException('Session not found');
+      throw new NotFoundException("Session not found");
     }
 
     // Check session is active
@@ -60,7 +60,7 @@ export class CartService {
       this.logger.warn(
         `[${method}] Attempt to access closed session: ${sessionId}`,
       );
-      throw new BadRequestException('Session is closed and cannot be modified');
+      throw new BadRequestException("Session is closed and cannot be modified");
     }
 
     // If no authentication provided, deny access
@@ -68,7 +68,7 @@ export class CartService {
       this.logger.warn(
         `[${method}] No authentication provided for session: ${sessionId}`,
       );
-      throw new UnauthorizedException('Authentication required to access cart');
+      throw new UnauthorizedException("Authentication required to access cart");
     }
 
     // For SOS app (customer): Verify session token
@@ -78,7 +78,7 @@ export class CartService {
           `[${method}] Invalid session token for session: ${sessionId}`,
         );
         throw new ForbiddenException(
-          'Invalid session token. You do not have access to this cart.',
+          "Invalid session token. You do not have access to this cart.",
         );
       }
 
@@ -107,7 +107,7 @@ export class CartService {
           `[${method}] User ${userId} does not have permission for store: ${session.storeId}`,
         );
         throw new ForbiddenException(
-          'You do not have permission to access this store cart',
+          "You do not have permission to access this store cart",
         );
       }
     }
@@ -133,7 +133,7 @@ export class CartService {
       });
 
       if (!session) {
-        throw new NotFoundException('Session not found');
+        throw new NotFoundException("Session not found");
       }
 
       // Get or create cart
@@ -144,7 +144,7 @@ export class CartService {
             include: {
               customizations: true,
             },
-            orderBy: { createdAt: 'asc' },
+            orderBy: { createdAt: "asc" },
           },
         },
       });
@@ -157,7 +157,7 @@ export class CartService {
           data: {
             sessionId,
             storeId: session.storeId,
-            subTotal: new Decimal('0'),
+            subTotal: new Decimal("0"),
           },
           include: {
             items: {
@@ -184,7 +184,7 @@ export class CartService {
         `[${method}] Failed to get cart`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to retrieve cart');
+      throw new InternalServerErrorException("Failed to retrieve cart");
     }
   }
 
@@ -209,7 +209,7 @@ export class CartService {
       });
 
       if (!session) {
-        throw new NotFoundException('Session not found');
+        throw new NotFoundException("Session not found");
       }
 
       // Get menu item
@@ -225,15 +225,15 @@ export class CartService {
       });
 
       if (!menuItem) {
-        throw new NotFoundException('Menu item not found');
+        throw new NotFoundException("Menu item not found");
       }
 
       if (menuItem.isOutOfStock) {
-        throw new BadRequestException('Menu item is out of stock');
+        throw new BadRequestException("Menu item is out of stock");
       }
 
       if (menuItem.isHidden || menuItem.deletedAt) {
-        throw new BadRequestException('Menu item is not available');
+        throw new BadRequestException("Menu item is not available");
       }
 
       // Validate customizations
@@ -246,7 +246,7 @@ export class CartService {
         });
 
         if (options.length !== optionIds.length) {
-          throw new BadRequestException('Invalid customization options');
+          throw new BadRequestException("Invalid customization options");
         }
       }
 
@@ -261,7 +261,7 @@ export class CartService {
           data: {
             sessionId,
             storeId: session.storeId,
-            subTotal: new Decimal('0'),
+            subTotal: new Decimal("0"),
           },
         });
 
@@ -327,12 +327,12 @@ export class CartService {
       );
 
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2003') {
-          throw new BadRequestException('Invalid reference');
+        if (error.code === "P2003") {
+          throw new BadRequestException("Invalid reference");
         }
       }
 
-      throw new InternalServerErrorException('Failed to add item to cart');
+      throw new InternalServerErrorException("Failed to add item to cart");
     }
   }
 
@@ -359,12 +359,12 @@ export class CartService {
       });
 
       if (!cartItem) {
-        throw new NotFoundException('Cart item not found');
+        throw new NotFoundException("Cart item not found");
       }
 
       if (cartItem.cart.sessionId !== sessionId) {
         throw new BadRequestException(
-          'Cart item does not belong to this session',
+          "Cart item does not belong to this session",
         );
       }
 
@@ -399,7 +399,7 @@ export class CartService {
         `[${method}] Failed to update cart item`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to update cart item');
+      throw new InternalServerErrorException("Failed to update cart item");
     }
   }
 
@@ -428,12 +428,12 @@ export class CartService {
       });
 
       if (!cartItem) {
-        throw new NotFoundException('Cart item not found');
+        throw new NotFoundException("Cart item not found");
       }
 
       if (cartItem.cart.sessionId !== sessionId) {
         throw new BadRequestException(
-          'Cart item does not belong to this session',
+          "Cart item does not belong to this session",
         );
       }
 
@@ -464,7 +464,7 @@ export class CartService {
         `[${method}] Failed to remove cart item`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to remove cart item');
+      throw new InternalServerErrorException("Failed to remove cart item");
     }
   }
 
@@ -489,7 +489,7 @@ export class CartService {
       });
 
       if (!cart) {
-        throw new NotFoundException('Cart not found');
+        throw new NotFoundException("Cart not found");
       }
 
       await this.prisma.$transaction(async (tx) => {
@@ -501,7 +501,7 @@ export class CartService {
         // Reset cart total
         await tx.cart.update({
           where: { id: cart.id },
-          data: { subTotal: new Decimal('0') },
+          data: { subTotal: new Decimal("0") },
         });
       });
 
@@ -521,7 +521,7 @@ export class CartService {
         `[${method}] Failed to clear cart`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to clear cart');
+      throw new InternalServerErrorException("Failed to clear cart");
     }
   }
 
@@ -538,7 +538,7 @@ export class CartService {
       include: { customizations: true },
     });
 
-    let subTotal = new Decimal('0');
+    let subTotal = new Decimal("0");
 
     for (const item of cartItems) {
       // Item base price * quantity
@@ -563,7 +563,7 @@ export class CartService {
       include: {
         items: {
           include: { customizations: true },
-          orderBy: { createdAt: 'asc' },
+          orderBy: { createdAt: "asc" },
         },
       },
     });

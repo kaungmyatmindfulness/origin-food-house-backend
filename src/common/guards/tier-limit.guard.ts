@@ -4,14 +4,14 @@ import {
   ExecutionContext,
   ForbiddenException,
   Logger,
-} from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 
-import { TierService } from '../../tier/tier.service';
+import { TierService } from "../../tier/tier.service";
 import {
   TIER_LIMIT_KEY,
   TierLimitConfig,
-} from '../decorators/tier-limit.decorator';
+} from "../decorators/tier-limit.decorator";
 
 interface RequestWithStore {
   query?: { storeId?: string };
@@ -62,7 +62,7 @@ export class TierLimitGuard implements CanActivate {
         `[${method}] Tier limit check failed: No storeId in request`,
       );
       throw new ForbiddenException(
-        'Store ID is required for tier limit validation',
+        "Store ID is required for tier limit validation",
       );
     }
 

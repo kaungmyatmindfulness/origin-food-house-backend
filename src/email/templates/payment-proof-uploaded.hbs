@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Payment Proof Received - Origin Food House</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #2196F3; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="margin: 0;">Payment Proof Received</h1>
+  </div>
+
+  <div style="padding: 30px; background: #ffffff; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+    <p>Hi {{ownerName}},</p>
+
+    <p>We have received your payment proof for <strong>{{storeName}}</strong>.</p>
+
+    <div style="background: #e3f2fd; padding: 20px; border-left: 4px solid #2196F3; border-radius: 5px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #1976D2;">Payment Details:</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px 0;"><strong>Reference Number:</strong></td>
+          <td style="padding: 8px 0; font-family: monospace;">{{referenceNumber}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Tier:</strong></td>
+          <td style="padding: 8px 0;">{{requestedTier}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Amount:</strong></td>
+          <td style="padding: 8px 0;">${{amount}} USD</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><strong>Status:</strong></td>
+          <td style="padding: 8px 0; color: #FF9800;"><strong>Pending Verification</strong></td>
+        </tr>
+      </table>
+    </div>
+
+    <p><strong>What happens next?</strong></p>
+    <ul>
+      <li>Our admin team will review your payment proof</li>
+      <li>Verification typically takes less than 24 hours</li>
+      <li>You will receive an email once your payment is verified</li>
+      <li>Your subscription will be activated immediately after verification</li>
+    </ul>
+
+    <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; font-size: 14px;">
+      <p style="margin: 0;">
+        <strong>Note:</strong> If there are any issues with your payment proof, we will contact you via email.
+      </p>
+    </div>
+
+    <p style="color: #666; font-size: 14px; margin-top: 30px;">
+      If you have any questions, contact us at support@originfoodhouse.com
+    </p>
+  </div>
+
+  <div style="background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; margin-top: 20px; border-radius: 8px;">
+    &copy; {{year}} Origin Food House. All rights reserved.
+  </div>
+</body>
+</html>

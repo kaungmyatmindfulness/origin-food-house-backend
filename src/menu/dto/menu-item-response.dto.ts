@@ -1,26 +1,26 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { RoutingArea } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { RoutingArea } from "@prisma/client";
+import { Type } from "class-transformer";
 
-import { CategoryResponseDto } from './category-response.dto';
-import { CustomizationGroupResponseDto } from './customization-group-response.dto';
+import { CategoryResponseDto } from "./category-response.dto";
+import { CustomizationGroupResponseDto } from "./customization-group-response.dto";
 
 export class MenuItemResponseDto {
   @ApiProperty({ example: 147 })
   id: string;
 
-  @ApiProperty({ example: 'Generic Granite Cheese' })
+  @ApiProperty({ example: "Generic Granite Cheese" })
   name: string;
 
   @ApiPropertyOptional({
-    example: 'The lavender Bike combines Bolivia aesthetics...',
+    example: "The lavender Bike combines Bolivia aesthetics...",
     nullable: true,
   })
   description: string | null;
 
   @ApiProperty({
-    description: 'Base price, formatted as string.',
-    example: '49.11',
+    description: "Base price, formatted as string.",
+    example: "49.11",
     type: String,
     nullable: false,
   })
@@ -34,26 +34,26 @@ export class MenuItemResponseDto {
 
   @ApiProperty({
     description:
-      'Indicates if the item is temporarily hidden (e.g., out of stock).',
+      "Indicates if the item is temporarily hidden (e.g., out of stock).",
     example: false,
   })
   isHidden: boolean;
 
   @ApiProperty({
-    description: 'Indicates if the item is currently out of stock.',
+    description: "Indicates if the item is currently out of stock.",
     example: false,
   })
   isOutOfStock: boolean;
 
   @ApiProperty({
     enum: RoutingArea,
-    description: 'Kitchen routing area for this item',
+    description: "Kitchen routing area for this item",
     example: RoutingArea.GRILL,
   })
   routingArea: RoutingArea;
 
   @ApiPropertyOptional({
-    description: 'Expected preparation time in minutes',
+    description: "Expected preparation time in minutes",
     example: 15,
     type: Number,
     nullable: true,
@@ -69,10 +69,10 @@ export class MenuItemResponseDto {
   @ApiProperty({ example: 2 })
   sortOrder: number;
 
-  @ApiProperty({ description: 'Creation timestamp' })
+  @ApiProperty({ description: "Creation timestamp" })
   createdAt: Date;
 
-  @ApiProperty({ description: 'Last update timestamp' })
+  @ApiProperty({ description: "Last update timestamp" })
   updatedAt: Date;
 
   @ApiProperty({ type: () => CategoryResponseDto })

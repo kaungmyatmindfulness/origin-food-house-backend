@@ -1,11 +1,11 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CustomizationOptionResponseDto {
   @ApiProperty({ example: 737 })
   id: string;
-  @ApiProperty({ example: 'Bamboo' })
+  @ApiProperty({ example: "Bamboo" })
   name: string;
-  @ApiPropertyOptional({ type: String, nullable: true, example: '3.25' })
+  @ApiPropertyOptional({ type: String, nullable: true, example: "3.25" })
   additionalPrice: string | null;
   @ApiProperty({ example: 219 })
   customizationGroupId: string;

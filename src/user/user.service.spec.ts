@@ -2,23 +2,23 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Role, Prisma } from '@prisma/client';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Test, TestingModule } from "@nestjs/testing";
+import { Role, Prisma } from "@prisma/client";
 
-import { UserService } from './user.service';
-import { AuditLogService } from '../audit-log/audit-log.service';
-import { AuthService } from '../auth/auth.service';
+import { UserService } from "./user.service";
+import { AuditLogService } from "../audit-log/audit-log.service";
+import { AuthService } from "../auth/auth.service";
 import {
   createPrismaMock,
   PrismaMock,
-} from '../common/testing/prisma-mock.helper';
-import { EmailService } from '../email/email.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { TierService } from '../tier/tier.service';
+} from "../common/testing/prisma-mock.helper";
+import { EmailService } from "../email/email.service";
+import { PrismaService } from "../prisma/prisma.service";
+import { TierService } from "../tier/tier.service";
 
-describe('UserService', () => {
+describe("UserService", () => {
   let service: UserService;
   let prismaService: PrismaMock;
   let tierService: jest.Mocked<TierService>;
@@ -27,9 +27,9 @@ describe('UserService', () => {
   let emailService: jest.Mocked<EmailService>;
 
   const mockUser = {
-    id: '01234567-89ab-cdef-0123-456789abcdef',
-    email: 'test@example.com',
-    name: 'Test User',
+    id: "01234567-89ab-cdef-0123-456789abcdef",
+    email: "test@example.com",
+    name: "Test User",
     verified: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -44,8 +44,8 @@ describe('UserService', () => {
     updatedAt: mockUser.updatedAt,
   };
 
-  const mockStoreId = '01234567-89ab-cdef-0123-456789abcde0';
-  const mockInviterId = '01234567-89ab-cdef-0123-456789abcde1';
+  const mockStoreId = "01234567-89ab-cdef-0123-456789abcde0";
+  const mockInviterId = "01234567-89ab-cdef-0123-456789abcde1";
 
   beforeEach(async () => {
     const prismaMock = createPrismaMock();
@@ -68,7 +68,7 @@ describe('UserService', () => {
           provide: ConfigService,
           useValue: {
             get: jest.fn((key: string, defaultValue?: any) => {
-              if (key === 'NODE_ENV') return 'dev';
+              if (key === "NODE_ENV") return "dev";
               return defaultValue;
             }),
           },
@@ -107,17 +107,17 @@ describe('UserService', () => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('createUser', () => {
+  describe("createUser", () => {
     const createUserDto = {
-      email: 'newuser@example.com',
-      name: 'New User',
+      email: "newuser@example.com",
+      name: "New User",
     };
 
-    it('should create a new user (deprecated - Auth0 handles registration)', async () => {
+    it("should create a new user (deprecated - Auth0 handles registration)", async () => {
       prismaService.user.create.mockResolvedValue(mockUserPublic as any);
 
       const result = await service.createUser(createUserDto);
@@ -126,12 +126,12 @@ describe('UserService', () => {
       expect(prismaService.user.create).toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException if email already exists', async () => {
+    it("should throw BadRequestException if email already exists", async () => {
       const prismaError = new Prisma.PrismaClientKnownRequestError(
-        'Unique constraint',
+        "Unique constraint",
         {
-          code: 'P2002',
-          clientVersion: '5.0.0',
+          code: "P2002",
+          clientVersion: "5.0.0",
         },
       );
       prismaService.user.create.mockRejectedValue(prismaError);
@@ -140,38 +140,38 @@ describe('UserService', () => {
         BadRequestException,
       );
       await expect(service.createUser(createUserDto)).rejects.toThrow(
-        'An account with this email address already exists',
+        "An account with this email address already exists",
       );
     });
 
-    it('should block disposable email in production', async () => {
+    it("should block disposable email in production", async () => {
       // Skip this test as it depends on environment variable at construction time
       // and the service has already been instantiated with the current NODE_ENV
       expect(true).toBe(true);
     });
   });
 
-  describe('findByEmail', () => {
-    it('should return user without password', async () => {
+  describe("findByEmail", () => {
+    it("should return user without password", async () => {
       prismaService.user.findUnique.mockResolvedValue(mockUserPublic as any);
 
-      const result = await service.findByEmail('test@example.com');
+      const result = await service.findByEmail("test@example.com");
 
       expect(result).toBeDefined();
-      expect(result).not.toHaveProperty('password');
+      expect(result).not.toHaveProperty("password");
     });
 
-    it('should return null if user not found', async () => {
+    it("should return null if user not found", async () => {
       prismaService.user.findUnique.mockResolvedValue(null);
 
-      const result = await service.findByEmail('nonexistent@example.com');
+      const result = await service.findByEmail("nonexistent@example.com");
 
       expect(result).toBeNull();
     });
   });
 
-  describe('findById', () => {
-    it('should return user by ID', async () => {
+  describe("findById", () => {
+    it("should return user by ID", async () => {
       prismaService.user.findUnique.mockResolvedValue(mockUserPublic as any);
 
       const result = await service.findById(mockUser.id);
@@ -179,17 +179,17 @@ describe('UserService', () => {
       expect(result).toEqual(mockUserPublic);
     });
 
-    it('should return null if user not found', async () => {
+    it("should return null if user not found", async () => {
       prismaService.user.findUnique.mockResolvedValue(null);
 
-      const result = await service.findById('non-existent-id');
+      const result = await service.findById("non-existent-id");
 
       expect(result).toBeNull();
     });
   });
 
-  describe('markUserVerified', () => {
-    it('should mark user as verified', async () => {
+  describe("markUserVerified", () => {
+    it("should mark user as verified", async () => {
       const verifiedUser = { ...mockUserPublic, verified: true };
       prismaService.user.update.mockResolvedValue(verifiedUser as any);
 
@@ -206,21 +206,21 @@ describe('UserService', () => {
     });
   });
 
-  describe('addUserToStore', () => {
+  describe("addUserToStore", () => {
     const addUserDto = {
       userId: mockUser.id,
-      storeId: 'store-id',
+      storeId: "store-id",
       role: Role.ADMIN,
     };
 
     const mockUserStore = {
-      id: 'userstore-id',
+      id: "userstore-id",
       userId: mockUser.id,
-      storeId: 'store-id',
+      storeId: "store-id",
       role: Role.ADMIN,
     };
 
-    it('should add user to store successfully', async () => {
+    it("should add user to store successfully", async () => {
       prismaService.userStore.upsert.mockResolvedValue(mockUserStore as any);
 
       const result = await service.addUserToStore(addUserDto);
@@ -229,7 +229,7 @@ describe('UserService', () => {
       expect(prismaService.userStore.upsert).toHaveBeenCalled();
     });
 
-    it('should update user role if already a member', async () => {
+    it("should update user role if already a member", async () => {
       const updatedUserStore = { ...mockUserStore, role: Role.OWNER };
       prismaService.userStore.upsert.mockResolvedValue(updatedUserStore as any);
 
@@ -241,13 +241,13 @@ describe('UserService', () => {
       expect(result.role).toBe(Role.OWNER);
     });
 
-    it('should throw BadRequestException if user not found', async () => {
+    it("should throw BadRequestException if user not found", async () => {
       const prismaError = new Prisma.PrismaClientKnownRequestError(
-        'Foreign key',
+        "Foreign key",
         {
-          code: 'P2003',
-          clientVersion: '5.0.0',
-          meta: { field_name: 'userId' },
+          code: "P2003",
+          clientVersion: "5.0.0",
+          meta: { field_name: "userId" },
         },
       );
       prismaService.userStore.upsert.mockRejectedValue(prismaError);
@@ -256,17 +256,17 @@ describe('UserService', () => {
         BadRequestException,
       );
       await expect(service.addUserToStore(addUserDto)).rejects.toThrow(
-        'User with ID',
+        "User with ID",
       );
     });
 
-    it('should throw BadRequestException if store not found', async () => {
+    it("should throw BadRequestException if store not found", async () => {
       const prismaError = new Prisma.PrismaClientKnownRequestError(
-        'Foreign key',
+        "Foreign key",
         {
-          code: 'P2003',
-          clientVersion: '5.0.0',
-          meta: { field_name: 'storeId' },
+          code: "P2003",
+          clientVersion: "5.0.0",
+          meta: { field_name: "storeId" },
         },
       );
       prismaService.userStore.upsert.mockRejectedValue(prismaError);
@@ -275,20 +275,20 @@ describe('UserService', () => {
         BadRequestException,
       );
       await expect(service.addUserToStore(addUserDto)).rejects.toThrow(
-        'Store with ID',
+        "Store with ID",
       );
     });
   });
 
-  describe('getUserStores', () => {
-    it('should return all user store memberships', async () => {
+  describe("getUserStores", () => {
+    it("should return all user store memberships", async () => {
       const mockStores = [
         {
-          id: 'userstore-1',
+          id: "userstore-1",
           userId: mockUser.id,
-          storeId: 'store-1',
+          storeId: "store-1",
           role: Role.ADMIN,
-          store: { id: 'store-1', slug: 'store-slug' },
+          store: { id: "store-1", slug: "store-slug" },
         },
       ];
       prismaService.userStore.findMany.mockResolvedValue(mockStores as any);
@@ -302,7 +302,7 @@ describe('UserService', () => {
       });
     });
 
-    it('should return empty array if user has no stores', async () => {
+    it("should return empty array if user has no stores", async () => {
       prismaService.userStore.findMany.mockResolvedValue([]);
 
       const result = await service.getUserStores(mockUser.id);
@@ -311,30 +311,30 @@ describe('UserService', () => {
     });
   });
 
-  describe('findUserProfile', () => {
+  describe("findUserProfile", () => {
     const mockUserWithStores = {
       ...mockUserPublic,
       userStores: [
         {
-          id: 'userstore-1',
+          id: "userstore-1",
           userId: mockUser.id,
-          storeId: 'store-1',
+          storeId: "store-1",
           role: Role.ADMIN,
         },
       ],
     };
 
-    it('should return user profile with selected store role', async () => {
+    it("should return user profile with selected store role", async () => {
       prismaService.user.findUnique.mockResolvedValue(
         mockUserWithStores as any,
       );
 
-      const result = await service.findUserProfile(mockUser.id, 'store-1');
+      const result = await service.findUserProfile(mockUser.id, "store-1");
 
       expect(result.selectedStoreRole).toBe(Role.ADMIN);
     });
 
-    it('should return user profile without selected store role', async () => {
+    it("should return user profile without selected store role", async () => {
       prismaService.user.findUnique.mockResolvedValue(
         mockUserWithStores as any,
       );
@@ -344,35 +344,35 @@ describe('UserService', () => {
       expect(result.selectedStoreRole).toBeNull();
     });
 
-    it('should throw NotFoundException if user not found', async () => {
+    it("should throw NotFoundException if user not found", async () => {
       prismaService.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.findUserProfile('non-existent-id')).rejects.toThrow(
+      await expect(service.findUserProfile("non-existent-id")).rejects.toThrow(
         NotFoundException,
       );
     });
   });
 
-  describe('inviteStaff', () => {
-    const inviteEmail = 'newstaff@example.com';
+  describe("inviteStaff", () => {
+    const inviteEmail = "newstaff@example.com";
 
-    it('should create invitation and send email for new user', async () => {
+    it("should create invitation and send email for new user", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       tierService.checkTierLimit.mockResolvedValue({
         allowed: true,
         currentUsage: 5,
         limit: 10,
-        tier: 'FREE' as any,
+        tier: "FREE" as any,
       });
       prismaService.user.findUnique.mockResolvedValue(null);
       prismaService.staffInvitation.findUnique.mockResolvedValue(null);
       prismaService.staffInvitation.create.mockResolvedValue({
-        id: 'invitation-1',
+        id: "invitation-1",
         storeId: mockStoreId,
         email: inviteEmail,
         role: Role.SERVER,
         invitedBy: mockInviterId,
-        invitationToken: 'mock-token',
+        invitationToken: "mock-token",
         expiresAt: new Date(),
         acceptedAt: null,
         createdAt: new Date(),
@@ -392,7 +392,7 @@ describe('UserService', () => {
       );
       expect(tierService.checkTierLimit).toHaveBeenCalledWith(
         mockStoreId,
-        'staff',
+        "staff",
         1,
       );
       expect(emailService.sendStaffInvitation).toHaveBeenCalled();
@@ -400,18 +400,18 @@ describe('UserService', () => {
       expect(result?.email).toBe(inviteEmail);
     });
 
-    it('should add existing user to store without creating invitation', async () => {
+    it("should add existing user to store without creating invitation", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       tierService.checkTierLimit.mockResolvedValue({
         allowed: true,
         currentUsage: 5,
         limit: 10,
-        tier: 'FREE' as any,
+        tier: "FREE" as any,
       });
       prismaService.user.findUnique.mockResolvedValue(mockUser as any);
       prismaService.userStore.findUnique.mockResolvedValue(null);
       prismaService.userStore.upsert.mockResolvedValue({
-        id: 'userstore-1',
+        id: "userstore-1",
         userId: mockUser.id,
         storeId: mockStoreId,
         role: Role.SERVER,
@@ -431,13 +431,13 @@ describe('UserService', () => {
       );
     });
 
-    it('should throw ForbiddenException if tier limit reached', async () => {
+    it("should throw ForbiddenException if tier limit reached", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       tierService.checkTierLimit.mockResolvedValue({
         allowed: false,
         currentUsage: 10,
         limit: 10,
-        tier: 'FREE' as any,
+        tier: "FREE" as any,
       });
 
       await expect(
@@ -450,17 +450,17 @@ describe('UserService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should throw BadRequestException if user already a member', async () => {
+    it("should throw BadRequestException if user already a member", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       tierService.checkTierLimit.mockResolvedValue({
         allowed: true,
         currentUsage: 5,
         limit: 10,
-        tier: 'FREE' as any,
+        tier: "FREE" as any,
       });
       prismaService.user.findUnique.mockResolvedValue(mockUser as any);
       prismaService.userStore.findUnique.mockResolvedValue({
-        id: 'userstore-1',
+        id: "userstore-1",
         userId: mockUser.id,
         storeId: mockStoreId,
         role: Role.SERVER,
@@ -477,20 +477,20 @@ describe('UserService', () => {
     });
   });
 
-  describe('changeUserRole', () => {
-    const targetUserId = '01234567-89ab-cdef-0123-456789abcde2';
+  describe("changeUserRole", () => {
+    const targetUserId = "01234567-89ab-cdef-0123-456789abcde2";
 
-    it('should update role and log audit', async () => {
+    it("should update role and log audit", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.userStore.findUnique.mockResolvedValue({
-        id: 'userstore-1',
+        id: "userstore-1",
         userId: targetUserId,
         storeId: mockStoreId,
         role: Role.SERVER,
-        user: { ...mockUser, email: 'target@example.com' },
+        user: { ...mockUser, email: "target@example.com" },
       } as any);
       prismaService.userStore.update.mockResolvedValue({
-        id: 'userstore-1',
+        id: "userstore-1",
         userId: targetUserId,
         storeId: mockStoreId,
         role: Role.ADMIN,
@@ -512,7 +512,7 @@ describe('UserService', () => {
       expect(result.role).toBe(Role.ADMIN);
     });
 
-    it('should throw BadRequestException when changing own role', async () => {
+    it("should throw BadRequestException when changing own role", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
 
       await expect(
@@ -525,7 +525,7 @@ describe('UserService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw NotFoundException if user not found in store', async () => {
+    it("should throw NotFoundException if user not found in store", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.userStore.findUnique.mockResolvedValue(null);
 
@@ -540,16 +540,16 @@ describe('UserService', () => {
     });
   });
 
-  describe('suspendUser', () => {
-    const targetUserId = '01234567-89ab-cdef-0123-456789abcde2';
-    const suspensionReason = 'Violated company policy';
+  describe("suspendUser", () => {
+    const targetUserId = "01234567-89ab-cdef-0123-456789abcde2";
+    const suspensionReason = "Violated company policy";
 
-    it('should suspend user and log audit', async () => {
+    it("should suspend user and log audit", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.user.findUnique.mockResolvedValue({
         ...mockUser,
         id: targetUserId,
-        email: 'target@example.com',
+        email: "target@example.com",
       } as any);
       prismaService.user.update.mockResolvedValue({
         ...mockUser,
@@ -575,7 +575,7 @@ describe('UserService', () => {
       expect(result.isSuspended).toBe(true);
     });
 
-    it('should throw BadRequestException when suspending self', async () => {
+    it("should throw BadRequestException when suspending self", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
 
       await expect(
@@ -588,7 +588,7 @@ describe('UserService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw NotFoundException if user not found', async () => {
+    it("should throw NotFoundException if user not found", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.user.findUnique.mockResolvedValue(null);
 
@@ -603,15 +603,15 @@ describe('UserService', () => {
     });
   });
 
-  describe('reactivateUser', () => {
-    const targetUserId = '01234567-89ab-cdef-0123-456789abcde2';
+  describe("reactivateUser", () => {
+    const targetUserId = "01234567-89ab-cdef-0123-456789abcde2";
 
-    it('should reactivate suspended user and log audit', async () => {
+    it("should reactivate suspended user and log audit", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.user.findUnique.mockResolvedValue({
         ...mockUser,
         id: targetUserId,
-        email: 'target@example.com',
+        email: "target@example.com",
         isSuspended: true,
       } as any);
       prismaService.user.update.mockResolvedValue({
@@ -637,7 +637,7 @@ describe('UserService', () => {
       expect(result.isSuspended).toBe(false);
     });
 
-    it('should throw NotFoundException if user not found', async () => {
+    it("should throw NotFoundException if user not found", async () => {
       authService.checkStorePermission.mockResolvedValue(undefined);
       prismaService.user.findUnique.mockResolvedValue(null);
 

@@ -1,4 +1,4 @@
-import { randomBytes } from 'crypto';
+import { randomBytes } from "crypto";
 
 import {
   BadRequestException,
@@ -8,8 +8,8 @@ import {
   ForbiddenException,
   Inject,
   forwardRef,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import {
   UserStore,
   Prisma,
@@ -17,24 +17,24 @@ import {
   StaffInvitation,
   User,
   AuditAction,
-} from '@prisma/client';
-import * as disposableDomains from 'disposable-email-domains';
+} from "@prisma/client";
+import * as disposableDomains from "disposable-email-domains";
 
-import { UserProfileResponseDto } from 'src/user/dto/user-profile-response.dto';
+import { UserProfileResponseDto } from "src/user/dto/user-profile-response.dto";
 import {
   UserPublicPayload,
   userSelectPublic,
   userSelectWithStores,
   UserWithStoresPublicPayload,
-} from 'src/user/types/user-payload.types';
+} from "src/user/types/user-payload.types";
 
-import { AuditLogService } from '../audit-log/audit-log.service';
-import { AuthService } from '../auth/auth.service';
-import { EmailService } from '../email/email.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { TierService } from '../tier/tier.service';
-import { AddUserToStoreDto } from './dto/add-user-to-store.dto';
-import { CreateUserDto } from './dto/create-user.dto';
+import { AuditLogService } from "../audit-log/audit-log.service";
+import { AuthService } from "../auth/auth.service";
+import { EmailService } from "../email/email.service";
+import { PrismaService } from "../prisma/prisma.service";
+import { TierService } from "../tier/tier.service";
+import { AddUserToStoreDto } from "./dto/add-user-to-store.dto";
+import { CreateUserDto } from "./dto/create-user.dto";
 
 @Injectable()
 export class UserService {
@@ -51,8 +51,8 @@ export class UserService {
     @Inject(forwardRef(() => AuthService))
     private authService: AuthService,
   ) {
-    const nodeEnv = this.configService.get<string>('NODE_ENV', 'production');
-    this.ALLOW_DISPOSABLE_EMAILS = nodeEnv === 'dev';
+    const nodeEnv = this.configService.get<string>("NODE_ENV", "production");
+    this.ALLOW_DISPOSABLE_EMAILS = nodeEnv === "dev";
   }
 
   /**
@@ -63,17 +63,17 @@ export class UserService {
    */
   async createUser(dto: CreateUserDto): Promise<UserPublicPayload> {
     this.logger.warn(
-      'createUser called - this method is deprecated. Auth0 handles registration.',
+      "createUser called - this method is deprecated. Auth0 handles registration.",
     );
     this.logger.log(`Attempting to create user with email: ${dto.email}`);
 
-    const domain = dto.email.split('@')[1];
+    const domain = dto.email.split("@")[1];
     if (!this.ALLOW_DISPOSABLE_EMAILS && disposableDomains.includes(domain)) {
       this.logger.warn(
         `Registration blocked for disposable email domain: ${domain}`,
       );
       throw new BadRequestException(
-        'Disposable email addresses are not allowed.',
+        "Disposable email addresses are not allowed.",
       );
     }
 
@@ -92,13 +92,13 @@ export class UserService {
       // Handle unique constraint violation for email
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
+        error.code === "P2002"
       ) {
         this.logger.warn(
           `Registration failed: Email ${dto.email} already in use.`,
         );
         throw new BadRequestException(
-          'An account with this email address already exists.',
+          "An account with this email address already exists.",
         );
       }
       throw error;
@@ -173,10 +173,10 @@ export class UserService {
     } catch (error) {
       // Handle foreign key constraint violations
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2003') {
+        if (error.code === "P2003") {
           // Foreign key constraint failed
           const target = error.meta?.field_name as string;
-          if (target?.includes('userId')) {
+          if (target?.includes("userId")) {
             this.logger.warn(
               `addUserToStore failed: User ID ${dto.userId} not found.`,
             );
@@ -184,7 +184,7 @@ export class UserService {
               `User with ID ${dto.userId} not found.`,
             );
           }
-          if (target?.includes('storeId')) {
+          if (target?.includes("storeId")) {
             this.logger.warn(
               `addUserToStore failed: Store ID ${dto.storeId} not found.`,
             );
@@ -220,7 +220,7 @@ export class UserService {
     currentStoreId?: string,
   ): Promise<UserProfileResponseDto> {
     this.logger.log(
-      `Fetching profile for User ID: ${userId}, Current Store ID: ${currentStoreId ?? 'None'}`,
+      `Fetching profile for User ID: ${userId}, Current Store ID: ${currentStoreId ?? "None"}`,
     );
 
     const userProfile = await this.prisma.user.findUnique({
@@ -276,7 +276,7 @@ export class UserService {
     // Tier enforcement: Check staff limit
     const tierCheck = await this.tierService.checkTierLimit(
       storeId,
-      'staff',
+      "staff",
       1,
     );
     if (!tierCheck.allowed) {
@@ -306,7 +306,7 @@ export class UserService {
           `[${method}] User ${email} is already a member of store ${storeId}`,
         );
         throw new BadRequestException(
-          'This user is already a member of the store',
+          "This user is already a member of the store",
         );
       }
 
@@ -342,7 +342,7 @@ export class UserService {
           role,
           invitedBy: inviterUserId,
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-          invitationToken: randomBytes(32).toString('hex'),
+          invitationToken: randomBytes(32).toString("hex"),
         },
       });
 
@@ -367,7 +367,7 @@ export class UserService {
         email,
         role,
         invitedBy: inviterUserId,
-        invitationToken: randomBytes(32).toString('hex'),
+        invitationToken: randomBytes(32).toString("hex"),
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       },
     });
@@ -406,7 +406,7 @@ export class UserService {
 
     // Cannot change own role
     if (changerUserId === targetUserId) {
-      throw new BadRequestException('Cannot change your own role');
+      throw new BadRequestException("Cannot change your own role");
     }
 
     // Get current role and user details for audit logging
@@ -416,7 +416,7 @@ export class UserService {
     });
 
     if (!userStore) {
-      throw new NotFoundException('User not found in store');
+      throw new NotFoundException("User not found in store");
     }
 
     const oldRole = userStore.role;
@@ -469,7 +469,7 @@ export class UserService {
 
     // Cannot suspend self
     if (suspenderUserId === targetUserId) {
-      throw new BadRequestException('Cannot suspend yourself');
+      throw new BadRequestException("Cannot suspend yourself");
     }
 
     // Get user details
@@ -478,7 +478,7 @@ export class UserService {
     });
 
     if (!targetUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     // Update user suspension fields and increment JWT version to invalidate existing tokens
@@ -539,7 +539,7 @@ export class UserService {
     });
 
     if (!targetUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     // Update user
@@ -557,7 +557,7 @@ export class UserService {
       storeId,
       userId: reactivatorUserId,
       action: AuditAction.USER_REACTIVATED,
-      entityType: 'User',
+      entityType: "User",
       entityId: targetUserId,
       details: { targetUserEmail: targetUser.email },
       ipAddress: undefined,

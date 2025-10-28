@@ -15,14 +15,14 @@ import {
   ObjectIdentifier,
   DeleteObjectsCommandOutput,
   _Error as S3Error,
-} from '@aws-sdk/client-s3';
+} from "@aws-sdk/client-s3";
 import {
   Injectable,
   InternalServerErrorException,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class S3Service {
@@ -32,14 +32,14 @@ export class S3Service {
   private readonly region: string | undefined;
 
   constructor(private readonly configService: ConfigService) {
-    this.region = configService.get<string>('AWS_S3_REGION');
-    const accessKeyId = configService.get<string>('AWS_ACCESS_KEY_ID');
-    const secretAccessKey = configService.get<string>('AWS_SECRET_ACCESS_KEY');
-    this.bucket = configService.get<string>('AWS_S3_BUCKET');
+    this.region = configService.get<string>("AWS_S3_REGION");
+    const accessKeyId = configService.get<string>("AWS_ACCESS_KEY_ID");
+    const secretAccessKey = configService.get<string>("AWS_SECRET_ACCESS_KEY");
+    this.bucket = configService.get<string>("AWS_S3_BUCKET");
 
     if (!this.region || !accessKeyId || !secretAccessKey || !this.bucket) {
       const errorMsg =
-        'Missing one or more required S3 configuration values (AWS_S3_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET).';
+        "Missing one or more required S3 configuration values (AWS_S3_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET).";
       this.logger.error(errorMsg);
 
       throw new InternalServerErrorException(errorMsg);
@@ -59,7 +59,7 @@ export class S3Service {
     } catch (error) {
       this.logger.error(`Failed to initialize S3 Client.`, error);
       throw new InternalServerErrorException(
-        'S3 Client initialization failed.',
+        "S3 Client initialization failed.",
       );
     }
   }
@@ -106,7 +106,7 @@ export class S3Service {
       );
       return this.getObjectUrl(key);
     } catch (error) {
-      this.handleS3Error(error, 'upload', key);
+      this.handleS3Error(error, "upload", key);
     }
   }
 
@@ -131,7 +131,7 @@ export class S3Service {
       this.logger.log(`Successfully deleted file with key: ${key}.`);
       return output;
     } catch (error) {
-      this.handleS3Error(error, 'delete', key);
+      this.handleS3Error(error, "delete", key);
     }
   }
 
@@ -144,7 +144,7 @@ export class S3Service {
    */
   async listAllObjectKeys(prefix?: string): Promise<string[]> {
     this.logger.verbose(
-      `Listing all object keys with prefix "${prefix ?? 'none'}" from bucket ${this.bucket}`,
+      `Listing all object keys with prefix "${prefix ?? "none"}" from bucket ${this.bucket}`,
     );
     const keys: string[] = [];
     let continuationToken: string | undefined = undefined;
@@ -174,11 +174,11 @@ export class S3Service {
       } while (continuationToken);
 
       this.logger.log(
-        `Finished listing objects. Found ${keys.length} keys with prefix "${prefix ?? 'none'}".`,
+        `Finished listing objects. Found ${keys.length} keys with prefix "${prefix ?? "none"}".`,
       );
       return keys;
     } catch (error) {
-      this.handleS3Error(error, 'list', prefix);
+      this.handleS3Error(error, "list", prefix);
     }
   }
 
@@ -194,7 +194,7 @@ export class S3Service {
     errors: { key: string; message: string }[];
   }> {
     if (!keys || keys.length === 0) {
-      this.logger.log('[deleteFiles] No keys provided for deletion.');
+      this.logger.log("[deleteFiles] No keys provided for deletion.");
       return { deletedKeys: [], errors: [] };
     }
 
@@ -242,7 +242,7 @@ export class S3Service {
             if (err.Key) {
               const errorDetail = {
                 key: err.Key,
-                message: err.Message ?? 'Unknown S3 delete error',
+                message: err.Message ?? "Unknown S3 delete error",
               };
               allErrors.push(errorDetail);
               this.logger.error(
@@ -264,7 +264,7 @@ export class S3Service {
     } catch (error) {
       this.handleS3Error(
         error,
-        'deleteMultiple',
+        "deleteMultiple",
         `Batch starting near index ${Math.floor(keys.length / batchSize) * batchSize}`,
       );
     }
@@ -278,7 +278,7 @@ export class S3Service {
     operation: string,
     context?: string,
   ): never {
-    const message = `S3 operation '${operation}' failed${context ? ` for context: ${context}` : ''}. Error: ${error instanceof Error ? error.message : 'Unknown S3 error'}`;
+    const message = `S3 operation '${operation}' failed${context ? ` for context: ${context}` : ""}. Error: ${error instanceof Error ? error.message : "Unknown S3 error"}`;
     this.logger.error(
       message,
       error instanceof Error ? error.stack : undefined,
@@ -286,11 +286,11 @@ export class S3Service {
 
     if (error instanceof S3ServiceException) {
       if (
-        error.name === 'NoSuchKey' ||
+        error.name === "NoSuchKey" ||
         error.$metadata?.httpStatusCode === 404
       ) {
         throw new NotFoundException(
-          `S3 object not found${context ? ` for key: ${context}` : ''}.`,
+          `S3 object not found${context ? ` for key: ${context}` : ""}.`,
         );
       }
     }

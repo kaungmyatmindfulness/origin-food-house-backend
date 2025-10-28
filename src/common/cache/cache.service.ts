@@ -1,6 +1,6 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
+import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import Redis from "ioredis";
 
 /**
  * CacheService provides Redis-based caching for application data
@@ -22,7 +22,7 @@ export class CacheService implements OnModuleDestroy {
    */
   private initializeRedis(): void {
     const method = this.initializeRedis.name;
-    const redisUrl = this.configService.get<string>('REDIS_URL');
+    const redisUrl = this.configService.get<string>("REDIS_URL");
 
     if (!redisUrl) {
       this.logger.warn(
@@ -40,12 +40,12 @@ export class CacheService implements OnModuleDestroy {
         maxRetriesPerRequest: 3,
       });
 
-      this.redis.on('connect', () => {
+      this.redis.on("connect", () => {
         this.isConnected = true;
         this.logger.log(`[${method}] Redis connected successfully`);
       });
 
-      this.redis.on('error', (error) => {
+      this.redis.on("error", (error) => {
         this.isConnected = false;
         this.logger.error(
           `[${method}] Redis connection error`,
@@ -53,7 +53,7 @@ export class CacheService implements OnModuleDestroy {
         );
       });
 
-      this.redis.on('close', () => {
+      this.redis.on("close", () => {
         this.isConnected = false;
         this.logger.warn(`[${method}] Redis connection closed`);
       });
@@ -174,7 +174,7 @@ export class CacheService implements OnModuleDestroy {
   async onModuleDestroy(): Promise<void> {
     if (this.redis) {
       await this.redis.quit();
-      this.logger.log('Redis connection closed');
+      this.logger.log("Redis connection closed");
     }
   }
 }

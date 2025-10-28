@@ -1,4 +1,4 @@
-import * as crypto from 'crypto';
+import * as crypto from "crypto";
 
 import {
   Injectable,
@@ -8,20 +8,20 @@ import {
   InternalServerErrorException,
   BadRequestException,
   ForbiddenException,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   ActiveTableSession,
   SessionStatus,
   SessionType,
   Prisma,
   Role,
-} from '@prisma/client';
+} from "@prisma/client";
 
-import { AuthService } from '../auth/auth.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateManualSessionDto } from './dto/create-manual-session.dto';
-import { JoinSessionDto } from './dto/join-session.dto';
-import { UpdateSessionDto } from './dto/update-session.dto';
+import { AuthService } from "../auth/auth.service";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateManualSessionDto } from "./dto/create-manual-session.dto";
+import { JoinSessionDto } from "./dto/join-session.dto";
+import { UpdateSessionDto } from "./dto/update-session.dto";
 
 @Injectable()
 export class ActiveTableSessionService {
@@ -36,7 +36,7 @@ export class ActiveTableSessionService {
    * Generate a secure session token
    */
   private generateSessionToken(): string {
-    return crypto.randomBytes(32).toString('hex');
+    return crypto.randomBytes(32).toString("hex");
   }
 
   /**
@@ -107,7 +107,7 @@ export class ActiveTableSessionService {
         error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException(
-        'Failed to join or create session',
+        "Failed to join or create session",
       );
     }
   }
@@ -138,7 +138,7 @@ export class ActiveTableSessionService {
       // Validate sessionType is not TABLE
       if (dto.sessionType === SessionType.TABLE) {
         throw new BadRequestException(
-          'Cannot create manual session with type TABLE. Use join-by-table endpoint instead.',
+          "Cannot create manual session with type TABLE. Use join-by-table endpoint instead.",
         );
       }
 
@@ -171,7 +171,7 @@ export class ActiveTableSessionService {
           data: {
             sessionId: newSession.id,
             storeId,
-            subTotal: new Prisma.Decimal('0'),
+            subTotal: new Prisma.Decimal("0"),
           },
         });
 
@@ -213,7 +213,7 @@ export class ActiveTableSessionService {
         `[${method}] Failed to create manual session for store ${storeId}`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to create manual session');
+      throw new InternalServerErrorException("Failed to create manual session");
     }
   }
 
@@ -254,7 +254,7 @@ export class ActiveTableSessionService {
         `[${method}] Failed to find session ${sessionId}`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to find session');
+      throw new InternalServerErrorException("Failed to find session");
     }
   }
 
@@ -282,7 +282,7 @@ export class ActiveTableSessionService {
       });
 
       if (!session) {
-        throw new NotFoundException('Invalid session token');
+        throw new NotFoundException("Invalid session token");
       }
 
       return session;
@@ -295,7 +295,7 @@ export class ActiveTableSessionService {
         `[${method}] Failed to find session by token`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to find session');
+      throw new InternalServerErrorException("Failed to find session");
     }
   }
 
@@ -320,7 +320,7 @@ export class ActiveTableSessionService {
           },
         },
         orderBy: {
-          createdAt: 'desc',
+          createdAt: "desc",
         },
       });
 
@@ -330,7 +330,7 @@ export class ActiveTableSessionService {
         `[${method}] Failed to find active sessions for store ${storeId}`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to find active sessions');
+      throw new InternalServerErrorException("Failed to find active sessions");
     }
   }
 
@@ -387,14 +387,14 @@ export class ActiveTableSessionService {
           `[${method}] Prisma error updating session ${sessionId}`,
           error,
         );
-        throw new InternalServerErrorException('Failed to update session');
+        throw new InternalServerErrorException("Failed to update session");
       }
 
       this.logger.error(
         `[${method}] Failed to update session ${sessionId}`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to update session');
+      throw new InternalServerErrorException("Failed to update session");
     }
   }
 
@@ -414,7 +414,7 @@ export class ActiveTableSessionService {
       }
 
       if (session.status === SessionStatus.CLOSED) {
-        throw new BadRequestException('Session is already closed');
+        throw new BadRequestException("Session is already closed");
       }
 
       const updatedSession = await this.prisma.activeTableSession.update({
@@ -440,7 +440,7 @@ export class ActiveTableSessionService {
         `[${method}] Failed to close session ${sessionId}`,
         error instanceof Error ? error.stack : String(error),
       );
-      throw new InternalServerErrorException('Failed to close session');
+      throw new InternalServerErrorException("Failed to close session");
     }
   }
 }

@@ -1,20 +1,20 @@
-import { Injectable } from '@nestjs/common';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Injectable } from "@nestjs/common";
+import { Decimal } from "@prisma/client/runtime/library";
 import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
   ValidationArguments,
-} from 'class-validator';
+} from "class-validator";
 
-@ValidatorConstraint({ name: 'isPositiveNumericString', async: false })
+@ValidatorConstraint({ name: "isPositiveNumericString", async: false })
 @Injectable()
 export class IsNonNegativeNumericStringConstraint
   implements ValidatorConstraintInterface
 {
-  private readonly minValue = new Decimal('0.00');
+  private readonly minValue = new Decimal("0.00");
 
   validate(value: unknown, _args: ValidationArguments): boolean {
-    if (typeof value !== 'string') {
+    if (typeof value !== "string") {
       return false;
     }
 

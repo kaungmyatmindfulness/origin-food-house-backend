@@ -1,4 +1,4 @@
-import * as path from 'path';
+import * as path from "path";
 
 import {
   BadRequestException,
@@ -6,28 +6,28 @@ import {
   InternalServerErrorException,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import * as sharp from 'sharp';
-import { v4 as uuidv4 } from 'uuid';
+} from "@nestjs/common";
+import * as sharp from "sharp";
+import { v4 as uuidv4 } from "uuid";
 
-import { S3Service } from '../infra/s3.service';
+import { S3Service } from "../infra/s3.service";
 
-const IMAGE_UPLOAD_PREFIX = 'uploads/';
-const IMAGE_SUFFIX_MEDIUM = 'medium';
-const IMAGE_SUFFIX_THUMB = 'thumb';
+const IMAGE_UPLOAD_PREFIX = "uploads/";
+const IMAGE_SUFFIX_MEDIUM = "medium";
+const IMAGE_SUFFIX_THUMB = "thumb";
 const IMAGE_WIDTH_MEDIUM = 800;
 const IMAGE_WIDTH_THUMB = 200;
-const RESIZED_IMAGE_EXTENSION = '.webp';
-const RESIZED_IMAGE_CONTENT_TYPE = 'image/webp';
+const RESIZED_IMAGE_EXTENSION = ".webp";
+const RESIZED_IMAGE_CONTENT_TYPE = "image/webp";
 const SHARP_RESIZE_OPTIONS: sharp.ResizeOptions = {
-  fit: 'inside',
+  fit: "inside",
   withoutEnlargement: true,
 };
 
 const SHARP_OUTPUT_OPTIONS: sharp.WebpOptions = { quality: 80 };
 
 const ALLOWED_MIME_TYPES = /image\/(jpeg|jpg|png|webp)/;
-const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
 
 @Injectable()
 export class UploadService {
@@ -68,8 +68,8 @@ export class UploadService {
       );
 
       if (!originalWidth) {
-        this.logger.error('Original width is not defined.');
-        throw new BadRequestException('Image width is required.');
+        this.logger.error("Original width is not defined.");
+        throw new BadRequestException("Image width is required.");
       }
 
       // 1. Process and Upload Medium (as WebP) - Conditional
@@ -124,7 +124,7 @@ export class UploadService {
           `No image versions generated for upload (possibly due to small input size) for base key ${baseKeyWithoutExt}.`,
         );
         throw new BadRequestException(
-          'Image dimensions too small, no versions generated.',
+          "Image dimensions too small, no versions generated.",
         );
       }
 
@@ -141,7 +141,7 @@ export class UploadService {
           `Medium version was expected but not generated for ${baseKeyWithoutExt}. Cannot return URL.`,
         );
         throw new InternalServerErrorException(
-          'Failed to generate medium image version.',
+          "Failed to generate medium image version.",
         );
         // Or alternatively, return the thumb URL if that's acceptable:
         // const thumbKey = `${baseKeyWithoutExt}-${IMAGE_SUFFIX_THUMB}${RESIZED_IMAGE_EXTENSION}`;
@@ -161,7 +161,7 @@ export class UploadService {
       await this.deleteUploadedVersionsOnError(baseKeyWithoutExt, uploadedKeys);
       if (error instanceof BadRequestException) throw error;
       throw new InternalServerErrorException(
-        'Failed to process or upload image.',
+        "Failed to process or upload image.",
       );
     }
   }
@@ -172,7 +172,7 @@ export class UploadService {
    */
   private validateFileAndGetExtension(file: Express.Multer.File): string {
     if (!file) {
-      throw new BadRequestException('No file uploaded.');
+      throw new BadRequestException("No file uploaded.");
     }
 
     const fileExtension = path.extname(file.originalname).toLowerCase();
@@ -184,7 +184,7 @@ export class UploadService {
         `Invalid file uploaded: name=${file.originalname}, type=${file.mimetype}, ext=${fileExtension}`,
       );
       throw new BadRequestException(
-        `Invalid file type. Allowed types: ${ALLOWED_EXTENSIONS.join(', ')}. Received: ${file.mimetype}`,
+        `Invalid file type. Allowed types: ${ALLOWED_EXTENSIONS.join(", ")}. Received: ${file.mimetype}`,
       );
     }
 
@@ -276,7 +276,7 @@ export class UploadService {
       return;
     }
     this.logger.warn(
-      `Attempting cleanup for base key: ${baseKeyWithoutExt}. Deleting successfully uploaded keys: ${uploadedKeys.join(', ')}`,
+      `Attempting cleanup for base key: ${baseKeyWithoutExt}. Deleting successfully uploaded keys: ${uploadedKeys.join(", ")}`,
     );
 
     const deletePromises = uploadedKeys.map((key) =>
@@ -310,7 +310,7 @@ export class UploadService {
         `Invalid baseKey format provided for deletion: ${baseKeyWithoutExt}`,
       );
       throw new BadRequestException(
-        'Invalid image key format provided for deletion.',
+        "Invalid image key format provided for deletion.",
       );
     }
 
@@ -319,7 +319,7 @@ export class UploadService {
       `${baseKeyWithoutExt}-${IMAGE_SUFFIX_THUMB}${RESIZED_IMAGE_EXTENSION}`,
     ];
 
-    this.logger.log(`Attempting to delete keys: ${keysToDelete.join(', ')}`);
+    this.logger.log(`Attempting to delete keys: ${keysToDelete.join(", ")}`);
 
     const deletePromises = keysToDelete.map((key) =>
       this.s3Service.deleteFile(key).catch((err) => {

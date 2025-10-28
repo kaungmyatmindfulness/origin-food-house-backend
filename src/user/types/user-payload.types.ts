@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from "@prisma/client";
 
 // Define a reusable select object to exclude password and sensitive tokens
 export const userSelectPublic = Prisma.validator<Prisma.UserSelect>()({

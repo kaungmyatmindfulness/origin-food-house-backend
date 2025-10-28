@@ -5,17 +5,17 @@ import {
   BadRequestException,
   InternalServerErrorException,
   Logger,
-} from '@nestjs/common';
-import { Prisma, Category, Role } from '@prisma/client';
+} from "@nestjs/common";
+import { Prisma, Category, Role } from "@prisma/client";
 
-import { CategoryResponseDto } from 'src/category/dto/category-response.dto';
-import { StandardErrorHandler } from 'src/common/decorators/standard-error-handler.decorator';
+import { CategoryResponseDto } from "src/category/dto/category-response.dto";
+import { StandardErrorHandler } from "src/common/decorators/standard-error-handler.decorator";
 
-import { AuthService } from '../auth/auth.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateCategoryDto } from './dto/create-category.dto';
-import { SortCategoriesPayloadDto } from './dto/sort-categories-payload.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
+import { AuthService } from "../auth/auth.service";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateCategoryDto } from "./dto/create-category.dto";
+import { SortCategoriesPayloadDto } from "./dto/sort-categories-payload.dto";
+import { UpdateCategoryDto } from "./dto/update-category.dto";
 
 @Injectable()
 export class CategoryService {
@@ -25,7 +25,7 @@ export class CategoryService {
     Prisma.validator<Prisma.CategoryInclude>()({
       menuItems: {
         where: { deletedAt: null }, // todo: also include is hidden if admin use
-        orderBy: { sortOrder: 'asc' },
+        orderBy: { sortOrder: "asc" },
         include: {
           customizationGroups: {
             include: {
@@ -42,6 +42,44 @@ export class CategoryService {
   ) {}
 
   /**
+   * Maps a Prisma Category result to CategoryResponseDto.
+   * Handles type conversion for nested menuItems and Decimal values.
+   */
+  private mapToCategoryResponse(
+    category: Category & {
+      menuItems?: Array<{
+        id: string;
+        name: string;
+        description: string | null;
+        basePrice: Prisma.Decimal;
+        imageUrl: string | null;
+        sortOrder: number;
+      }>;
+    },
+  ): CategoryResponseDto {
+    const response: CategoryResponseDto = {
+      id: category.id,
+      name: category.name,
+      storeId: category.storeId,
+      sortOrder: category.sortOrder,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
+      menuItems:
+        category.menuItems && Array.isArray(category.menuItems)
+          ? category.menuItems.map((item) => ({
+              id: item.id,
+              name: item.name,
+              description: item.description,
+              basePrice: item.basePrice?.toString() ?? "0",
+              imageUrl: item.imageUrl,
+              sortOrder: item.sortOrder,
+            }))
+          : [],
+    };
+    return response;
+  }
+
+  /**
    * Creates a new category within the specified store. Requires Owner/Admin role.
    * @param userId The ID (UUID) of the user performing the action.
    * @param storeId The ID (UUID) of the store.
@@ -51,7 +89,7 @@ export class CategoryService {
    * @throws {BadRequestException} For validation errors or conflicts.
    * @throws {InternalServerErrorException} On unexpected database errors.
    */
-  @StandardErrorHandler('create category')
+  @StandardErrorHandler("create category")
   async create(
     userId: string,
     storeId: string,
@@ -112,7 +150,7 @@ export class CategoryService {
 
     if (!storeId && !storeSlug) {
       throw new BadRequestException(
-        'Either storeId or storeSlug must be provided.',
+        "Either storeId or storeSlug must be provided.",
       );
     }
 
@@ -148,13 +186,13 @@ export class CategoryService {
       const categories = await this.prisma.category.findMany({
         where: whereClause,
         include: includeClause,
-        orderBy: { sortOrder: 'asc' },
+        orderBy: { sortOrder: "asc" },
       });
 
       this.logger.verbose(
         `[${method}] Found ${categories.length} categories for Store [${identifierLog}].`,
       );
-      return categories as unknown as CategoryResponseDto[];
+      return categories.map((category) => this.mapToCategoryResponse(category));
     } catch (error) {
       if (
         error instanceof NotFoundException ||
@@ -166,7 +204,7 @@ export class CategoryService {
         `[${method}] Failed to find categories for Store [${identifierLog}].`,
         error,
       );
-      throw new InternalServerErrorException('Could not retrieve categories.');
+      throw new InternalServerErrorException("Could not retrieve categories.");
     }
   }
 
@@ -195,7 +233,7 @@ export class CategoryService {
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
+        error.code === "P2025"
       ) {
         this.logger.warn(
           `Active category ID ${categoryId} not found in Store ${storeId}.`,
@@ -208,7 +246,7 @@ export class CategoryService {
         `Failed to find category ID ${categoryId} in Store ${storeId}.`,
         error,
       );
-      throw new InternalServerErrorException('Could not retrieve category.');
+      throw new InternalServerErrorException("Could not retrieve category.");
     }
   }
 
@@ -221,7 +259,7 @@ export class CategoryService {
    * @returns The updated Category.
    * @throws {ForbiddenException} | {NotFoundException} | {InternalServerErrorException}
    */
-  @StandardErrorHandler('update category')
+  @StandardErrorHandler("update category")
   async update(
     userId: string,
     storeId: string,
@@ -286,7 +324,7 @@ export class CategoryService {
    * @returns Object containing the ID (UUID) of the deleted category.
    * @throws {ForbiddenException} | {NotFoundException} | {InternalServerErrorException}
    */
-  @StandardErrorHandler('remove category')
+  @StandardErrorHandler("remove category")
   async remove(
     userId: string,
     storeId: string,
@@ -430,7 +468,7 @@ export class CategoryService {
 
       if (updateOperations.length === 0) {
         this.logger.log(`No sort operations needed for Store ${storeId}.`);
-        return { message: 'No categories or items to reorder.' };
+        return { message: "No categories or items to reorder." };
       }
 
       this.logger.log(
@@ -442,7 +480,7 @@ export class CategoryService {
       this.logger.log(
         `Categories & menu items reordered successfully for Store ${storeId}.`,
       );
-      return { message: 'Categories & menu items reordered successfully.' };
+      return { message: "Categories & menu items reordered successfully." };
     } catch (error) {
       if (
         error instanceof ForbiddenException ||
@@ -456,7 +494,7 @@ export class CategoryService {
         error,
       );
       throw new InternalServerErrorException(
-        'Could not reorder categories and items.',
+        "Could not reorder categories and items.",
       );
     }
   }

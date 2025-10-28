@@ -5,31 +5,22 @@ import {
   BadRequestException,
   InternalServerErrorException,
   Logger,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   Prisma,
   MenuItem,
   Role,
   CustomizationGroup as PrismaCustomizationGroup,
-} from '@prisma/client';
+} from "@prisma/client";
 
-import { AuditLogService } from '../audit-log/audit-log.service';
-import { AuthService } from '../auth/auth.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { TierService } from '../tier/tier.service';
-import { CreateMenuItemDto } from './dto/create-menu-item.dto';
-import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
-import { UpsertCategoryDto } from './dto/upsert-category.dto';
-import { UpsertCustomizationGroupDto } from './dto/upsert-customization-group.dto';
-
-/**
- * Type alias representing a CustomizationGroup fetched from the database,
- * specifically including only the IDs of its customizationOptions.
- * This minimal structure is used by the syncCustomizationGroups logic.
- */
-type ExistingCustomizationGroup = PrismaCustomizationGroup & {
-  customizationOptions: Array<{ id: string }>;
-};
+import { AuditLogService } from "../audit-log/audit-log.service";
+import { AuthService } from "../auth/auth.service";
+import { PrismaService } from "../prisma/prisma.service";
+import { TierService } from "../tier/tier.service";
+import { CreateMenuItemDto } from "./dto/create-menu-item.dto";
+import { UpdateMenuItemDto } from "./dto/update-menu-item.dto";
+import { UpsertCategoryDto } from "./dto/upsert-category.dto";
+import { UpsertCustomizationGroupDto } from "./dto/upsert-customization-group.dto";
 
 @Injectable()
 export class MenuService {
@@ -50,10 +41,10 @@ export class MenuService {
   private readonly menuItemInclude = {
     category: true,
     customizationGroups: {
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
       include: {
         customizationOptions: {
-          orderBy: { name: 'asc' },
+          orderBy: { name: "asc" },
         },
       },
     },
@@ -70,7 +61,7 @@ export class MenuService {
         storeId,
         deletedAt: null,
       },
-      orderBy: [{ category: { sortOrder: 'asc' } }, { sortOrder: 'asc' }],
+      orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }],
       include: this.menuItemInclude,
     });
   }
@@ -113,7 +104,7 @@ export class MenuService {
 
     if (!dto.category?.name) {
       throw new BadRequestException(
-        'Category information (including name) is required when creating a menu item.',
+        "Category information (including name) is required when creating a menu item.",
       );
     }
 
@@ -178,7 +169,7 @@ export class MenuService {
         `Unexpected error creating menu item for store ${storeId}`,
         error,
       );
-      throw new InternalServerErrorException('Failed to create menu item.');
+      throw new InternalServerErrorException("Failed to create menu item.");
     }
   }
 
@@ -231,7 +222,7 @@ export class MenuService {
           );
           if (!dto.category.name) {
             throw new BadRequestException(
-              'Category name is required when updating category information.',
+              "Category name is required when updating category information.",
             );
           }
           newCategoryId = await this.upsertCategory(tx, dto.category, storeId);
@@ -282,12 +273,10 @@ export class MenuService {
           this.logger.debug(
             `[Transaction] Syncing customizations for item ${itemId}`,
           );
-          const existingGroups =
-            existingMenuItem.customizationGroups as unknown as ExistingCustomizationGroup[];
           await this.syncCustomizationGroups(
             tx,
             itemId,
-            existingGroups,
+            existingMenuItem.customizationGroups,
             dto.customizationGroups,
           );
         }
@@ -315,7 +304,7 @@ export class MenuService {
         `Unexpected error updating menu item ${itemId} for store ${storeId}`,
         error,
       );
-      throw new InternalServerErrorException('Failed to update menu item.');
+      throw new InternalServerErrorException("Failed to update menu item.");
     }
   }
 
@@ -389,7 +378,7 @@ export class MenuService {
         `Unexpected error deleting menu item ${itemId} for store ${storeId}`,
         error,
       );
-      throw new InternalServerErrorException('Failed to delete menu item.');
+      throw new InternalServerErrorException("Failed to delete menu item.");
     }
   }
 
@@ -445,7 +434,7 @@ export class MenuService {
     if (catDto.id) {
       if (!catDto.name) {
         throw new BadRequestException(
-          'Category name is required when updating by ID.',
+          "Category name is required when updating by ID.",
         );
       }
       const result = await tx.category.updateMany({
@@ -465,7 +454,7 @@ export class MenuService {
     } else {
       if (!catDto.name) {
         throw new BadRequestException(
-          'Category name is required to find or create a category.',
+          "Category name is required to find or create a category.",
         );
       }
 
@@ -510,7 +499,9 @@ export class MenuService {
   private async syncCustomizationGroups(
     tx: Prisma.TransactionClient,
     menuItemId: string,
-    existingGroups: ExistingCustomizationGroup[],
+    existingGroups: Array<
+      PrismaCustomizationGroup & { customizationOptions: Array<{ id: string }> }
+    >,
     groupDtos: UpsertCustomizationGroupDto[] | null | undefined,
   ): Promise<void> {
     this.logger.debug(
@@ -532,7 +523,7 @@ export class MenuService {
     if (groupsToDelete.length > 0) {
       const idsToDelete = groupsToDelete.map((g) => g.id);
       this.logger.debug(
-        `[syncCustomizationGroups] Deleting ${groupsToDelete.length} groups: ${idsToDelete.join(', ')}`,
+        `[syncCustomizationGroups] Deleting ${groupsToDelete.length} groups: ${idsToDelete.join(", ")}`,
       );
       await tx.customizationGroup.deleteMany({
         where: { id: { in: idsToDelete } },
@@ -548,7 +539,7 @@ export class MenuService {
       }
 
       const isExistingGroup =
-        typeof key === 'string' && existingGroupIds.has(key);
+        typeof key === "string" && existingGroupIds.has(key);
 
       if (isExistingGroup) {
         const groupId = key;
@@ -644,7 +635,7 @@ export class MenuService {
     if (optionsToDelete.length > 0) {
       const idsToDelete = optionsToDelete.map((o) => o.id);
       this.logger.debug(
-        `[syncCustomizationOptions] Deleting ${optionsToDelete.length} options from group ${groupId}: ${idsToDelete.join(', ')}`,
+        `[syncCustomizationOptions] Deleting ${optionsToDelete.length} options from group ${groupId}: ${idsToDelete.join(", ")}`,
       );
       await tx.customizationOption.deleteMany({
         where: { id: { in: idsToDelete } },
@@ -660,7 +651,7 @@ export class MenuService {
       }
 
       const isExistingOption =
-        typeof key === 'string' && existingOptionIds.has(key);
+        typeof key === "string" && existingOptionIds.has(key);
 
       if (isExistingOption) {
         const optionId = key;

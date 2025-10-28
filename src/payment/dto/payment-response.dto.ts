@@ -1,6 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { PaymentMethod } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { ApiProperty } from "@nestjs/swagger";
+import { PaymentMethod } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 
 export class PaymentResponseDto {
   @ApiProperty()

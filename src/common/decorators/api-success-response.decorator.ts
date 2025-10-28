@@ -1,11 +1,11 @@
-import { applyDecorators, Type, HttpStatus } from '@nestjs/common';
+import { applyDecorators, Type, HttpStatus } from "@nestjs/common";
 import {
   ApiOkResponse,
   ApiCreatedResponse,
   getSchemaPath,
-} from '@nestjs/swagger';
+} from "@nestjs/swagger";
 
-import { StandardApiResponse } from '../dto/standard-api-response.dto';
+import { StandardApiResponse } from "../dto/standard-api-response.dto";
 
 /**
  * Options for the ApiSuccessResponse decorator.
@@ -32,14 +32,14 @@ export function ApiSuccessResponse<T>(
   options?: ApiSuccessResponseOptions | string,
 ): MethodDecorator & ClassDecorator {
   const description =
-    typeof options === 'string' ? options : options?.description;
-  const isArray = typeof options === 'object' ? options.isArray : false;
+    typeof options === "string" ? options : options?.description;
+  const isArray = typeof options === "object" ? options.isArray : false;
 
   const status =
-    (typeof options === 'object' ? options.status : undefined) ?? HttpStatus.OK;
+    (typeof options === "object" ? options.status : undefined) ?? HttpStatus.OK;
 
   const dataSchema = isArray
-    ? { type: 'array', items: { $ref: getSchemaPath(model) } }
+    ? { type: "array", items: { $ref: getSchemaPath(model) } }
     : { $ref: getSchemaPath(model) };
 
   const ResponseDecorator =
@@ -47,18 +47,18 @@ export function ApiSuccessResponse<T>(
 
   return applyDecorators(
     ResponseDecorator({
-      description: description ?? 'Operation successful.',
+      description: description ?? "Operation successful.",
       schema: {
         allOf: [
           { $ref: getSchemaPath(StandardApiResponse) },
           {
             properties: {
-              status: { type: 'string', example: 'success' },
+              status: { type: "string", example: "success" },
               data: dataSchema,
-              errors: { type: 'array', nullable: true, example: null },
+              errors: { type: "array", nullable: true, example: null },
               message: {
-                type: 'string',
-                example: description ?? 'Operation successful',
+                type: "string",
+                example: description ?? "Operation successful",
               },
             },
           },

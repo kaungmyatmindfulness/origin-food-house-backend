@@ -1,10 +1,10 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { SessionStatus } from '@prisma/client';
-import { IsEnum, IsInt, IsOptional, Min } from 'class-validator';
+import { ApiProperty } from "@nestjs/swagger";
+import { SessionStatus } from "@prisma/client";
+import { IsEnum, IsInt, IsOptional, Min } from "class-validator";
 
 export class UpdateSessionDto {
   @ApiProperty({
-    description: 'Number of guests in the session',
+    description: "Number of guests in the session",
     example: 4,
     required: false,
   })
@@ -14,7 +14,7 @@ export class UpdateSessionDto {
   guestCount?: number;
 
   @ApiProperty({
-    description: 'Session status',
+    description: "Session status",
     enum: SessionStatus,
     required: false,
   })

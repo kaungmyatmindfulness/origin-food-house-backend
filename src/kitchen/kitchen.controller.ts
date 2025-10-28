@@ -7,23 +7,23 @@ import {
   Body,
   UseGuards,
   Req,
-} from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
-import { OrderStatus, Role, RoutingArea } from '@prisma/client';
+} from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from "@nestjs/swagger";
+import { OrderStatus, Role, RoutingArea } from "@prisma/client";
 
-import { AuthService } from '../auth/auth.service';
-import { RequestWithUser } from '../auth/types';
-import { KitchenOrderResponseDto } from './dto/kitchen-order-response.dto';
-import { UpdateKitchenStatusDto } from './dto/update-kitchen-status.dto';
-import { KitchenService } from './kitchen.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { StandardApiResponse } from '../common/dto/standard-api-response.dto';
+import { AuthService } from "../auth/auth.service";
+import { RequestWithUser } from "../auth/types";
+import { KitchenOrderResponseDto } from "./dto/kitchen-order-response.dto";
+import { UpdateKitchenStatusDto } from "./dto/update-kitchen-status.dto";
+import { KitchenService } from "./kitchen.service";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { StandardApiResponse } from "../common/dto/standard-api-response.dto";
 
 /**
  * Controller for Kitchen Display System (KDS) endpoints
  */
-@ApiTags('Kitchen')
-@Controller('kitchen')
+@ApiTags("Kitchen")
+@Controller("kitchen")
 @UseGuards(JwtAuthGuard)
 export class KitchenController {
   constructor(
@@ -34,36 +34,36 @@ export class KitchenController {
   /**
    * Get orders for kitchen display
    */
-  @Get('orders')
-  @ApiOperation({ summary: 'Get orders for kitchen display' })
+  @Get("orders")
+  @ApiOperation({ summary: "Get orders for kitchen display" })
   @ApiQuery({
-    name: 'storeId',
+    name: "storeId",
     required: true,
-    description: 'Store ID',
+    description: "Store ID",
     type: String,
   })
   @ApiQuery({
-    name: 'status',
+    name: "status",
     required: false,
-    description: 'Filter by order status',
+    description: "Filter by order status",
     enum: OrderStatus,
   })
   @ApiQuery({
-    name: 'routingArea',
+    name: "routingArea",
     required: false,
-    description: 'Filter by menu item routing area',
+    description: "Filter by menu item routing area",
     enum: RoutingArea,
   })
   @ApiResponse({
     status: 200,
-    description: 'Orders retrieved successfully',
+    description: "Orders retrieved successfully",
     type: [KitchenOrderResponseDto],
   })
   async getOrders(
     @Req() req: RequestWithUser,
-    @Query('storeId') storeId: string,
-    @Query('status') status?: OrderStatus,
-    @Query('routingArea') routingArea?: RoutingArea,
+    @Query("storeId") storeId: string,
+    @Query("status") status?: OrderStatus,
+    @Query("routingArea") routingArea?: RoutingArea,
   ): Promise<StandardApiResponse<KitchenOrderResponseDto[]>> {
     const userId = req.user.sub;
 
@@ -86,16 +86,16 @@ export class KitchenController {
   /**
    * Get single order details for kitchen
    */
-  @Get('orders/:orderId')
-  @ApiOperation({ summary: 'Get order details for kitchen display' })
+  @Get("orders/:orderId")
+  @ApiOperation({ summary: "Get order details for kitchen display" })
   @ApiResponse({
     status: 200,
-    description: 'Order details retrieved successfully',
+    description: "Order details retrieved successfully",
     type: KitchenOrderResponseDto,
   })
   async getOrderDetails(
     @Req() req: RequestWithUser,
-    @Param('orderId') orderId: string,
+    @Param("orderId") orderId: string,
   ): Promise<StandardApiResponse<KitchenOrderResponseDto>> {
     const userId = req.user.sub;
     const order = await this.kitchenService.getOrderDetails(orderId);
@@ -114,23 +114,23 @@ export class KitchenController {
   /**
    * Update order kitchen status
    */
-  @Patch('orders/:orderId/status')
-  @ApiOperation({ summary: 'Update order kitchen status' })
+  @Patch("orders/:orderId/status")
+  @ApiOperation({ summary: "Update order kitchen status" })
   @ApiQuery({
-    name: 'storeId',
+    name: "storeId",
     required: true,
-    description: 'Store ID',
+    description: "Store ID",
     type: String,
   })
   @ApiResponse({
     status: 200,
-    description: 'Order status updated successfully',
+    description: "Order status updated successfully",
     type: KitchenOrderResponseDto,
   })
   async updateOrderStatus(
     @Req() req: RequestWithUser,
-    @Param('orderId') orderId: string,
-    @Query('storeId') storeId: string,
+    @Param("orderId") orderId: string,
+    @Query("storeId") storeId: string,
     @Body() dto: UpdateKitchenStatusDto,
   ): Promise<StandardApiResponse<KitchenOrderResponseDto>> {
     const userId = req.user.sub;

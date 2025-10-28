@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { PaymentMethod } from '@prisma/client';
+import { ApiProperty } from "@nestjs/swagger";
+import { PaymentMethod } from "@prisma/client";
 import {
   IsEnum,
   IsInt,
@@ -7,13 +7,13 @@ import {
   IsOptional,
   IsString,
   Min,
-} from 'class-validator';
+} from "class-validator";
 
-import { IsPositiveNumericString } from '../../common/decorators/is-positive-numeric-string.decorator';
+import { IsPositiveNumericString } from "../../common/decorators/is-positive-numeric-string.decorator";
 
 export class RecordSplitPaymentDto {
   @ApiProperty({
-    description: 'Payment method',
+    description: "Payment method",
     enum: PaymentMethod,
     example: PaymentMethod.CASH,
   })
@@ -21,15 +21,15 @@ export class RecordSplitPaymentDto {
   paymentMethod: PaymentMethod;
 
   @ApiProperty({
-    description: 'Payment amount (as string for Decimal precision)',
-    example: '50.00',
+    description: "Payment amount (as string for Decimal precision)",
+    example: "50.00",
   })
   @IsPositiveNumericString()
   amount: string;
 
   @ApiProperty({
-    description: 'Amount tendered by customer (for cash payments only)',
-    example: '50.00',
+    description: "Amount tendered by customer (for cash payments only)",
+    example: "50.00",
     required: false,
   })
   @IsOptional()
@@ -37,8 +37,8 @@ export class RecordSplitPaymentDto {
   amountTendered?: string;
 
   @ApiProperty({
-    description: 'Change to return (calculated automatically for cash)',
-    example: '0.00',
+    description: "Change to return (calculated automatically for cash)",
+    example: "0.00",
     required: false,
   })
   @IsOptional()
@@ -46,15 +46,15 @@ export class RecordSplitPaymentDto {
   change?: string;
 
   @ApiProperty({
-    description: 'Split type',
-    enum: ['EVEN', 'BY_ITEM', 'CUSTOM'],
-    example: 'EVEN',
+    description: "Split type",
+    enum: ["EVEN", "BY_ITEM", "CUSTOM"],
+    example: "EVEN",
   })
-  @IsEnum(['EVEN', 'BY_ITEM', 'CUSTOM'])
-  splitType: 'EVEN' | 'BY_ITEM' | 'CUSTOM';
+  @IsEnum(["EVEN", "BY_ITEM", "CUSTOM"])
+  splitType: "EVEN" | "BY_ITEM" | "CUSTOM";
 
   @ApiProperty({
-    description: 'Guest number for this split payment (1, 2, 3, etc.)',
+    description: "Guest number for this split payment (1, 2, 3, etc.)",
     example: 1,
     minimum: 1,
   })
@@ -63,7 +63,7 @@ export class RecordSplitPaymentDto {
   guestNumber: number;
 
   @ApiProperty({
-    description: 'Split metadata (JSON object with calculation details)',
+    description: "Split metadata (JSON object with calculation details)",
     example: { guestCount: 2, assignedItems: [] },
     required: false,
   })
@@ -72,8 +72,8 @@ export class RecordSplitPaymentDto {
   splitMetadata?: Record<string, unknown>;
 
   @ApiProperty({
-    description: 'External transaction ID (for card/mobile payments)',
-    example: 'TXN123456789',
+    description: "External transaction ID (for card/mobile payments)",
+    example: "TXN123456789",
     required: false,
   })
   @IsOptional()

@@ -15,8 +15,8 @@ import {
   Get,
   UseInterceptors,
   UploadedFiles,
-} from '@nestjs/common';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
+} from "@nestjs/common";
+import { FileFieldsInterceptor } from "@nestjs/platform-express";
 import {
   ApiTags,
   ApiOperation,
@@ -26,29 +26,29 @@ import {
   ApiNotFoundResponse,
   ApiParam,
   ApiExtraModels,
-} from '@nestjs/swagger';
+} from "@nestjs/swagger";
 
-import { RequestWithUser } from 'src/auth/types';
-import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
-import { GetUser } from 'src/common/decorators/get-user.decorator';
-import { StandardApiErrorDetails } from 'src/common/dto/standard-api-error-details.dto';
-import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
-import { BusinessHoursDto } from 'src/store/dto/business-hours.dto';
-import { CreateStoreDto } from 'src/store/dto/create-store.dto';
-import { GetStoreDetailsResponseDto } from 'src/store/dto/get-store-details-response.dto';
-import { StoreInformationResponseDto } from 'src/store/dto/store-information-response.dto';
-import { StoreSettingResponseDto } from 'src/store/dto/store-setting-response.dto';
-import { UpdateLoyaltyRulesDto } from 'src/store/dto/update-loyalty-rules.dto';
-import { UpdateStoreInformationDto } from 'src/store/dto/update-store-information.dto';
-import { UpdateStoreSettingDto } from 'src/store/dto/update-store-setting.dto';
-import { UpdateTaxAndServiceChargeDto } from 'src/store/dto/update-tax-and-service-charge.dto';
+import { RequestWithUser } from "src/auth/types";
+import { ApiSuccessResponse } from "src/common/decorators/api-success-response.decorator";
+import { GetUser } from "src/common/decorators/get-user.decorator";
+import { StandardApiErrorDetails } from "src/common/dto/standard-api-error-details.dto";
+import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
+import { BusinessHoursDto } from "src/store/dto/business-hours.dto";
+import { CreateStoreDto } from "src/store/dto/create-store.dto";
+import { GetStoreDetailsResponseDto } from "src/store/dto/get-store-details-response.dto";
+import { StoreInformationResponseDto } from "src/store/dto/store-information-response.dto";
+import { StoreSettingResponseDto } from "src/store/dto/store-setting-response.dto";
+import { UpdateLoyaltyRulesDto } from "src/store/dto/update-loyalty-rules.dto";
+import { UpdateStoreInformationDto } from "src/store/dto/update-store-information.dto";
+import { UpdateStoreSettingDto } from "src/store/dto/update-store-setting.dto";
+import { UpdateTaxAndServiceChargeDto } from "src/store/dto/update-tax-and-service-charge.dto";
 
-import { InviteOrAssignRoleDto } from './dto/invite-or-assign-role.dto';
-import { StoreService } from './store.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { InviteOrAssignRoleDto } from "./dto/invite-or-assign-role.dto";
+import { StoreService } from "./store.service";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 
-@ApiTags('Stores')
-@Controller('stores')
+@ApiTags("Stores")
+@Controller("stores")
 @ApiExtraModels(
   StandardApiResponse,
   StandardApiErrorDetails,
@@ -61,21 +61,21 @@ export class StoreController {
 
   constructor(private storeService: StoreService) {}
 
-  @Get(':id')
+  @Get(":id")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Get public details for a specific store by ID' })
+  @ApiOperation({ summary: "Get public details for a specific store by ID" })
   @ApiParam({
-    name: 'id',
-    description: 'ID (UUID) of the store to retrieve',
+    name: "id",
+    description: "ID (UUID) of the store to retrieve",
     type: String,
   })
   @ApiSuccessResponse(
     GetStoreDetailsResponseDto,
-    'Store details retrieved successfully.',
+    "Store details retrieved successfully.",
   )
-  @ApiNotFoundResponse({ description: 'Store not found.' })
+  @ApiNotFoundResponse({ description: "Store not found." })
   async getStoreDetails(
-    @Param('id', ParseUUIDPipe) storeId: string,
+    @Param("id", ParseUUIDPipe) storeId: string,
   ): Promise<StandardApiResponse<GetStoreDetailsResponseDto>> {
     const method = this.getStoreDetails.name;
     this.logger.log(
@@ -84,7 +84,7 @@ export class StoreController {
     const storeDetails = await this.storeService.getStoreDetails(storeId);
     return StandardApiResponse.success(
       storeDetails as GetStoreDetailsResponseDto,
-      'Store details retrieved successfully.',
+      "Store details retrieved successfully.",
     );
   }
 
@@ -92,13 +92,13 @@ export class StoreController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiUnauthorizedResponse({
-    description: 'Unauthorized - Invalid or missing JWT.',
+    description: "Unauthorized - Invalid or missing JWT.",
   })
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create a store (creator becomes OWNER)' })
+  @ApiOperation({ summary: "Create a store (creator becomes OWNER)" })
   @ApiSuccessResponse(String, {
     status: HttpStatus.CREATED,
-    description: 'Store created successfully.',
+    description: "Store created successfully.",
   })
   async createStore(
     @Req() req: RequestWithUser,
@@ -115,24 +115,24 @@ export class StoreController {
 
     return StandardApiResponse.success(
       store,
-      'Store created successfully. You have been assigned as the OWNER.',
+      "Store created successfully. You have been assigned as the OWNER.",
     );
   }
 
-  @Put(':id/information')
+  @Put(":id/information")
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiUnauthorizedResponse({
-    description: 'Unauthorized - Invalid or missing JWT.',
+    description: "Unauthorized - Invalid or missing JWT.",
   })
-  @ApiOperation({ summary: 'Update a store details (OWNER or ADMIN only)' })
+  @ApiOperation({ summary: "Update a store details (OWNER or ADMIN only)" })
   @ApiOkResponse({
-    description: 'Store updated successfully.',
+    description: "Store updated successfully.",
     type: StandardApiResponse,
   })
   async updateStoreInformation(
     @Req() req: RequestWithUser,
-    @Query('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
+    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Body() dto: UpdateStoreInformationDto,
   ): Promise<StandardApiResponse<unknown>> {
     const userId = req.user.sub;
@@ -148,30 +148,30 @@ export class StoreController {
     );
     return StandardApiResponse.success(
       updatedStore,
-      'Store updated successfully.',
+      "Store updated successfully.",
     );
   }
 
-  @Put(':id/settings')
+  @Put(":id/settings")
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiUnauthorizedResponse({
-    description: 'Unauthorized - Invalid or missing JWT.',
+    description: "Unauthorized - Invalid or missing JWT.",
   })
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Update store settings (OWNER or ADMIN only)' })
+  @ApiOperation({ summary: "Update store settings (OWNER or ADMIN only)" })
   @ApiParam({
-    name: 'id',
-    description: 'ID (UUID) of the store whose settings to update',
+    name: "id",
+    description: "ID (UUID) of the store whose settings to update",
     type: String,
   })
   @ApiSuccessResponse(
     StoreSettingResponseDto,
-    'Store settings updated successfully.',
+    "Store settings updated successfully.",
   )
   async updateStoreSettings(
     @Req() req: RequestWithUser,
-    @Param('id', ParseUUIDPipe) storeId: string,
+    @Param("id", ParseUUIDPipe) storeId: string,
     @Body() dto: UpdateStoreSettingDto,
   ): Promise<StandardApiResponse<StoreSettingResponseDto>> {
     const userId = req.user.sub;
@@ -198,30 +198,30 @@ export class StoreController {
 
     return StandardApiResponse.success(
       mappedSettings,
-      'Store settings updated successfully.',
+      "Store settings updated successfully.",
     );
   }
 
-  @Post(':id/invite-assign-role')
+  @Post(":id/invite-assign-role")
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiUnauthorizedResponse({
-    description: 'Unauthorized - Invalid or missing JWT.',
+    description: "Unauthorized - Invalid or missing JWT.",
   })
   @ApiOperation({
     summary:
-      'Invite a new user or assign/update role for an existing user by email (Role permissions apply)',
+      "Invite a new user or assign/update role for an existing user by email (Role permissions apply)",
     description:
-      'Owner can assign any role. Admin can assign STAFF/CHEF roles. If user email doesnt exist, an invite might be implicitly handled by the service (or throw error).',
+      "Owner can assign any role. Admin can assign STAFF/CHEF roles. If user email doesnt exist, an invite might be implicitly handled by the service (or throw error).",
   })
   @ApiSuccessResponse(String, {
     status: HttpStatus.OK,
-    description: 'Role assigned successfully.',
+    description: "Role assigned successfully.",
   })
-  @ApiNotFoundResponse({ description: 'Store not found.' })
+  @ApiNotFoundResponse({ description: "Store not found." })
   async inviteOrAssignRoleByEmail(
     @Req() req: RequestWithUser,
-    @Query('storeId', new ParseUUIDPipe({ version: '7' })) storeId: string,
+    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Body() dto: InviteOrAssignRoleDto,
   ): Promise<StandardApiResponse<unknown>> {
     const requestingUserId = req.user.sub;
@@ -243,28 +243,28 @@ export class StoreController {
     return StandardApiResponse.success(result, message);
   }
 
-  @Patch(':id/settings/tax-and-service')
+  @Patch(":id/settings/tax-and-service")
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiUnauthorizedResponse({
-    description: 'Unauthorized - Invalid or missing JWT.',
+    description: "Unauthorized - Invalid or missing JWT.",
   })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Update tax and service charge rates (OWNER or ADMIN only)',
+    summary: "Update tax and service charge rates (OWNER or ADMIN only)",
   })
   @ApiParam({
-    name: 'id',
-    description: 'ID (UUID) of the store',
+    name: "id",
+    description: "ID (UUID) of the store",
     type: String,
   })
   @ApiSuccessResponse(
     StoreSettingResponseDto,
-    'Tax and service charge rates updated successfully.',
+    "Tax and service charge rates updated successfully.",
   )
   async updateTaxAndServiceCharge(
-    @GetUser('sub') userId: string,
-    @Param('id', ParseUUIDPipe) storeId: string,
+    @GetUser("sub") userId: string,
+    @Param("id", ParseUUIDPipe) storeId: string,
     @Body() dto: UpdateTaxAndServiceChargeDto,
   ): Promise<StandardApiResponse<StoreSettingResponseDto>> {
     const method = this.updateTaxAndServiceCharge.name;
@@ -291,32 +291,32 @@ export class StoreController {
 
     return StandardApiResponse.success(
       mappedSettings,
-      'Tax and service charge rates updated successfully.',
+      "Tax and service charge rates updated successfully.",
     );
   }
 
-  @Patch(':id/settings/business-hours')
+  @Patch(":id/settings/business-hours")
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiUnauthorizedResponse({
-    description: 'Unauthorized - Invalid or missing JWT.',
+    description: "Unauthorized - Invalid or missing JWT.",
   })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Update business hours (OWNER or ADMIN only)',
+    summary: "Update business hours (OWNER or ADMIN only)",
   })
   @ApiParam({
-    name: 'id',
-    description: 'ID (UUID) of the store',
+    name: "id",
+    description: "ID (UUID) of the store",
     type: String,
   })
   @ApiSuccessResponse(
     StoreSettingResponseDto,
-    'Business hours updated successfully.',
+    "Business hours updated successfully.",
   )
   async updateBusinessHours(
-    @GetUser('sub') userId: string,
-    @Param('id', ParseUUIDPipe) storeId: string,
+    @GetUser("sub") userId: string,
+    @Param("id", ParseUUIDPipe) storeId: string,
     @Body() dto: BusinessHoursDto,
   ): Promise<StandardApiResponse<StoreSettingResponseDto>> {
     const method = this.updateBusinessHours.name;
@@ -342,38 +342,38 @@ export class StoreController {
 
     return StandardApiResponse.success(
       mappedSettings,
-      'Business hours updated successfully.',
+      "Business hours updated successfully.",
     );
   }
 
-  @Post(':id/settings/branding')
+  @Post(":id/settings/branding")
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiUnauthorizedResponse({
-    description: 'Unauthorized - Invalid or missing JWT.',
+    description: "Unauthorized - Invalid or missing JWT.",
   })
   @UseInterceptors(
     FileFieldsInterceptor([
-      { name: 'logo', maxCount: 1 },
-      { name: 'cover', maxCount: 1 },
+      { name: "logo", maxCount: 1 },
+      { name: "cover", maxCount: 1 },
     ]),
   )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Upload branding images (logo and/or cover) (OWNER or ADMIN only)',
+    summary: "Upload branding images (logo and/or cover) (OWNER or ADMIN only)",
   })
   @ApiParam({
-    name: 'id',
-    description: 'ID (UUID) of the store',
+    name: "id",
+    description: "ID (UUID) of the store",
     type: String,
   })
   @ApiSuccessResponse(
     StoreInformationResponseDto,
-    'Branding uploaded successfully.',
+    "Branding uploaded successfully.",
   )
   async uploadBranding(
-    @GetUser('sub') userId: string,
-    @Param('id', ParseUUIDPipe) storeId: string,
+    @GetUser("sub") userId: string,
+    @Param("id", ParseUUIDPipe) storeId: string,
     @UploadedFiles()
     files: { logo?: Express.Multer.File[]; cover?: Express.Multer.File[] },
   ): Promise<StandardApiResponse<StoreInformationResponseDto>> {
@@ -391,32 +391,32 @@ export class StoreController {
 
     return StandardApiResponse.success(
       information as StoreInformationResponseDto,
-      'Branding uploaded successfully.',
+      "Branding uploaded successfully.",
     );
   }
 
-  @Patch(':id/settings/loyalty-rules')
+  @Patch(":id/settings/loyalty-rules")
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiUnauthorizedResponse({
-    description: 'Unauthorized - Invalid or missing JWT.',
+    description: "Unauthorized - Invalid or missing JWT.",
   })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Update loyalty program rules (OWNER only)',
+    summary: "Update loyalty program rules (OWNER only)",
   })
   @ApiParam({
-    name: 'id',
-    description: 'ID (UUID) of the store',
+    name: "id",
+    description: "ID (UUID) of the store",
     type: String,
   })
   @ApiSuccessResponse(
     StoreSettingResponseDto,
-    'Loyalty rules updated successfully.',
+    "Loyalty rules updated successfully.",
   )
   async updateLoyaltyRules(
-    @GetUser('sub') userId: string,
-    @Param('id', ParseUUIDPipe) storeId: string,
+    @GetUser("sub") userId: string,
+    @Param("id", ParseUUIDPipe) storeId: string,
     @Body() dto: UpdateLoyaltyRulesDto,
   ): Promise<StandardApiResponse<StoreSettingResponseDto>> {
     const method = this.updateLoyaltyRules.name;
@@ -444,7 +444,7 @@ export class StoreController {
 
     return StandardApiResponse.success(
       mappedSettings,
-      'Loyalty rules updated successfully.',
+      "Loyalty rules updated successfully.",
     );
   }
 }

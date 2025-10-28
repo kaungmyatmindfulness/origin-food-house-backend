@@ -1,29 +1,29 @@
-import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Role } from '@prisma/client';
+import { UnauthorizedException, ForbiddenException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
+import { Test, TestingModule } from "@nestjs/testing";
+import { Role } from "@prisma/client";
 
-import { AuthService } from './auth.service';
-import { Auth0Service } from './services/auth0.service';
+import { AuthService } from "./auth.service";
+import { Auth0Service } from "./services/auth0.service";
 import {
   createPrismaMock,
   PrismaMock,
-} from '../common/testing/prisma-mock.helper';
-import { PrismaService } from '../prisma/prisma.service';
-import { UserService } from '../user/user.service';
+} from "../common/testing/prisma-mock.helper";
+import { PrismaService } from "../prisma/prisma.service";
+import { UserService } from "../user/user.service";
 
-describe('AuthService', () => {
+describe("AuthService", () => {
   let service: AuthService;
   let userService: jest.Mocked<UserService>;
   let jwtService: jest.Mocked<JwtService>;
   let prismaService: PrismaMock;
 
   const mockUser = {
-    id: '01234567-89ab-cdef-0123-456789abcdef',
-    email: 'test@example.com',
-    password: '$2b$12$hashedpassword',
-    name: 'Test User',
+    id: "01234567-89ab-cdef-0123-456789abcdef",
+    email: "test@example.com",
+    password: "$2b$12$hashedpassword",
+    name: "Test User",
     auth0Id: null,
     isEmailVerified: true,
     verified: true,
@@ -92,13 +92,13 @@ describe('AuthService', () => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('generateAccessTokenNoStore', () => {
-    it('should generate JWT token with user ID', async () => {
-      const mockToken = 'mock.jwt.token';
+  describe("generateAccessTokenNoStore", () => {
+    it("should generate JWT token with user ID", async () => {
+      const mockToken = "mock.jwt.token";
       jwtService.sign.mockReturnValue(mockToken);
       prismaService.user.findUnique.mockResolvedValue({
         ...mockUser,
@@ -112,23 +112,23 @@ describe('AuthService', () => {
       expect(result).toBe(mockToken);
       expect(jwtService.sign).toHaveBeenCalledWith(
         { sub: mockUser.id, jwtVersion: 0 },
-        { expiresIn: '1d' },
+        { expiresIn: "1d" },
       );
     });
   });
 
-  describe('generateAccessTokenWithStore', () => {
+  describe("generateAccessTokenWithStore", () => {
     const mockMembership = {
-      id: 'membership-id',
+      id: "membership-id",
       userId: mockUser.id,
-      storeId: 'store-id',
+      storeId: "store-id",
       role: Role.ADMIN,
       user: mockUser,
       store: {} as any,
     };
 
-    it('should generate JWT token with store context', async () => {
-      const mockToken = 'mock.jwt.token';
+    it("should generate JWT token with store context", async () => {
+      const mockToken = "mock.jwt.token";
       userService.getUserStores.mockResolvedValue([mockMembership]);
       jwtService.sign.mockReturnValue(mockToken);
       prismaService.user.findUnique.mockResolvedValue({
@@ -138,101 +138,101 @@ describe('AuthService', () => {
 
       const result = await service.generateAccessTokenWithStore(
         mockUser.id,
-        'store-id',
+        "store-id",
       );
 
       expect(result).toBe(mockToken);
       expect(jwtService.sign).toHaveBeenCalledWith(
-        { sub: mockUser.id, storeId: 'store-id', jwtVersion: 0 },
-        { expiresIn: '1d' },
+        { sub: mockUser.id, storeId: "store-id", jwtVersion: 0 },
+        { expiresIn: "1d" },
       );
     });
 
-    it('should throw NotFoundException when user has no memberships', async () => {
+    it("should throw NotFoundException when user has no memberships", async () => {
       userService.getUserStores.mockResolvedValue([] as any);
 
       await expect(
-        service.generateAccessTokenWithStore(mockUser.id, 'store-id'),
+        service.generateAccessTokenWithStore(mockUser.id, "store-id"),
       ).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should throw UnauthorizedException when user is not member of specified store', async () => {
+    it("should throw UnauthorizedException when user is not member of specified store", async () => {
       const otherStoreMembership = {
         ...mockMembership,
-        storeId: 'other-store-id',
+        storeId: "other-store-id",
       };
       userService.getUserStores.mockResolvedValue([otherStoreMembership]);
 
       await expect(
-        service.generateAccessTokenWithStore(mockUser.id, 'store-id'),
+        service.generateAccessTokenWithStore(mockUser.id, "store-id"),
       ).rejects.toThrow(UnauthorizedException);
     });
   });
 
-  describe('getUserStoreRole', () => {
-    it('should return user role for valid membership', async () => {
+  describe("getUserStoreRole", () => {
+    it("should return user role for valid membership", async () => {
       prismaService.userStore.findUnique.mockResolvedValue({
-        id: 'membership-id',
+        id: "membership-id",
         userId: mockUser.id,
-        storeId: 'store-id',
+        storeId: "store-id",
         role: Role.ADMIN,
       });
 
-      const result = await service.getUserStoreRole(mockUser.id, 'store-id');
+      const result = await service.getUserStoreRole(mockUser.id, "store-id");
 
       expect(result).toBe(Role.ADMIN);
     });
 
-    it('should throw ForbiddenException when user is not member', async () => {
+    it("should throw ForbiddenException when user is not member", async () => {
       prismaService.userStore.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.getUserStoreRole(mockUser.id, 'store-id'),
+        service.getUserStoreRole(mockUser.id, "store-id"),
       ).rejects.toThrow(ForbiddenException);
     });
   });
 
-  describe('checkPermission', () => {
-    it('should not throw when role is authorized', () => {
+  describe("checkPermission", () => {
+    it("should not throw when role is authorized", () => {
       expect(() => {
         service.checkPermission(Role.ADMIN, [Role.ADMIN, Role.OWNER]);
       }).not.toThrow();
     });
 
-    it('should throw ForbiddenException when role is not authorized', () => {
+    it("should throw ForbiddenException when role is not authorized", () => {
       expect(() => {
         service.checkPermission(Role.SERVER, [Role.ADMIN, Role.OWNER]);
       }).toThrow(ForbiddenException);
     });
   });
 
-  describe('checkStorePermission', () => {
-    it('should pass when user has required role', async () => {
+  describe("checkStorePermission", () => {
+    it("should pass when user has required role", async () => {
       prismaService.userStore.findUnique.mockResolvedValue({
-        id: 'membership-id',
+        id: "membership-id",
         userId: mockUser.id,
-        storeId: 'store-id',
+        storeId: "store-id",
         role: Role.OWNER,
       });
 
       await expect(
-        service.checkStorePermission(mockUser.id, 'store-id', [
+        service.checkStorePermission(mockUser.id, "store-id", [
           Role.OWNER,
           Role.ADMIN,
         ]),
       ).resolves.not.toThrow();
     });
 
-    it('should throw ForbiddenException when user lacks required role', async () => {
+    it("should throw ForbiddenException when user lacks required role", async () => {
       prismaService.userStore.findUnique.mockResolvedValue({
-        id: 'membership-id',
+        id: "membership-id",
         userId: mockUser.id,
-        storeId: 'store-id',
+        storeId: "store-id",
         role: Role.SERVER,
       });
 
       await expect(
-        service.checkStorePermission(mockUser.id, 'store-id', [
+        service.checkStorePermission(mockUser.id, "store-id", [
           Role.OWNER,
           Role.ADMIN,
         ]),

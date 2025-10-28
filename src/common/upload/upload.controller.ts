@@ -9,8 +9,8 @@ import {
   MaxFileSizeValidator,
   Logger,
   HttpStatus,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import {
   ApiTags,
   ApiOperation,
@@ -19,59 +19,59 @@ import {
   ApiConsumes,
   ApiBody,
   ApiExtraModels,
-} from '@nestjs/swagger';
-import { Express } from 'express';
+} from "@nestjs/swagger";
+import { Express } from "express";
 
-import { ApiSuccessResponse } from 'src/common/decorators/api-success-response.decorator';
-import { StandardApiResponse } from 'src/common/dto/standard-api-response.dto';
-import { imageFileFilter } from 'src/common/utils/file-filter.utils';
+import { ApiSuccessResponse } from "src/common/decorators/api-success-response.decorator";
+import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
+import { imageFileFilter } from "src/common/utils/file-filter.utils";
 
-import { UploadImageResponseDto } from './dto/upload-image-response.dto';
-import { UploadService } from './upload.service';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { UploadImageResponseDto } from "./dto/upload-image-response.dto";
+import { UploadService } from "./upload.service";
+import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB;
 
-@ApiTags('Upload')
-@Controller('upload')
+@ApiTags("Upload")
+@Controller("upload")
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
-@ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized.' })
+@ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: "Unauthorized." })
 @ApiExtraModels(UploadImageResponseDto)
 export class UploadController {
   private readonly logger = new Logger(UploadController.name);
 
   constructor(private readonly uploadService: UploadService) {}
 
-  @Post('image')
+  @Post("image")
   @UseInterceptors(
-    FileInterceptor('file', {
+    FileInterceptor("file", {
       limits: { fileSize: MAX_IMAGE_SIZE_BYTES },
       fileFilter: imageFileFilter,
     }),
   )
-  @ApiOperation({ summary: 'Upload an image file' })
-  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: "Upload an image file" })
+  @ApiConsumes("multipart/form-data")
   @ApiBody({
-    description: 'Image file to upload (jpg, jpeg, png, webp)',
+    description: "Image file to upload (jpg, jpeg, png, webp)",
     required: true,
     schema: {
-      type: 'object',
+      type: "object",
       properties: {
         file: {
-          type: 'string',
-          format: 'binary',
+          type: "string",
+          format: "binary",
         },
       },
     },
   })
-  @ApiSuccessResponse(UploadImageResponseDto, 'Image uploaded successfully')
+  @ApiSuccessResponse(UploadImageResponseDto, "Image uploaded successfully")
   async uploadImage(
     @UploadedFile(
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: MAX_IMAGE_SIZE_BYTES }),
-          new FileTypeValidator({ fileType: '.(png|jpeg|jpg|webp)' }),
+          new FileTypeValidator({ fileType: ".(png|jpeg|jpg|webp)" }),
         ],
       }),
     )
@@ -86,7 +86,7 @@ export class UploadController {
 
     return StandardApiResponse.success(
       { imageUrl: mediumImageUrl },
-      'Image uploaded successfully',
+      "Image uploaded successfully",
     );
   }
 }
