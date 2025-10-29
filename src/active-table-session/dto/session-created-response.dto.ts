@@ -2,10 +2,10 @@ import { ApiProperty } from "@nestjs/swagger";
 import { SessionStatus } from "@prisma/client";
 
 /**
- * Response DTO for session queries
- * SECURITY: Session token is EXCLUDED for security (only provided on creation)
+ * Response DTO for session creation
+ * SECURITY: Session token is ONLY returned on session creation, never on subsequent queries
  */
-export class SessionResponseDto {
+export class SessionCreatedResponseDto {
   @ApiProperty({ description: "Session ID" })
   id: string;
 
@@ -20,6 +20,12 @@ export class SessionResponseDto {
 
   @ApiProperty({ description: "Number of guests" })
   guestCount: number;
+
+  @ApiProperty({
+    description:
+      "Session token for authentication - ONLY provided on session creation",
+  })
+  sessionToken: string;
 
   @ApiProperty({ description: "Closed timestamp", nullable: true })
   closedAt: Date | null;

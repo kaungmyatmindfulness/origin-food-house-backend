@@ -5,6 +5,7 @@ import {
   BadRequestException,
   InternalServerErrorException,
   ForbiddenException,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { Prisma, OrderStatus, DiscountType, Role } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -32,10 +33,13 @@ export class OrderService {
 
   /**
    * Checkout cart and create order
+   * SECURITY FIX: Added authentication to prevent unauthorized order creation
    */
   async checkoutCart(
     sessionId: string,
     dto: CheckoutCartDto,
+    sessionToken?: string,
+    userId?: string,
   ): Promise<OrderResponseDto> {
     const method = this.checkoutCart.name;
 
@@ -59,6 +63,37 @@ export class OrderService {
 
       if (session.status === "CLOSED") {
         throw new BadRequestException("Session is already closed");
+      }
+
+      if (!session.table) {
+        throw new BadRequestException("Session has no associated table");
+      }
+
+      // SECURITY FIX: Validate session ownership (customer with session token)
+      if (sessionToken && session.sessionToken !== sessionToken) {
+        this.logger.warn(
+          `[${method}] Invalid session token for checkout on session ${sessionId}`,
+        );
+        throw new ForbiddenException("Invalid session token");
+      }
+
+      // SECURITY FIX: Validate staff store permission (staff with JWT)
+      if (userId) {
+        await this.authService.checkStorePermission(
+          userId,
+          session.table.storeId,
+          [Role.OWNER, Role.ADMIN, Role.SERVER, Role.CASHIER, Role.CHEF],
+        );
+      }
+
+      // SECURITY FIX: Require at least one auth method
+      if (!sessionToken && !userId) {
+        this.logger.warn(
+          `[${method}] No authentication provided for checkout on session ${sessionId}`,
+        );
+        throw new UnauthorizedException(
+          "Authentication required: Provide session token or JWT",
+        );
       }
 
       // Get cart with items

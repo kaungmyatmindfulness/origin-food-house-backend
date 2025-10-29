@@ -35,6 +35,8 @@ export class AuditLogService {
           entityType: dto.entityType,
           entityId: dto.entityId,
           details: dto.details as Prisma.InputJsonValue,
+          ipAddress: dto.ipAddress,
+          userAgent: dto.userAgent,
         },
       });
 

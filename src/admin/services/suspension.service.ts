@@ -4,7 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from "@nestjs/common";
-import { Prisma, SuspensionStatus } from "@prisma/client";
+import { SuspensionStatus } from "@prisma/client";
 
 import { PrismaService } from "src/prisma/prisma.service";
 

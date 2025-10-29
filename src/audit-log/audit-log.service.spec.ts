@@ -77,7 +77,16 @@ describe("AuditLogService", () => {
 
       // Assert
       expect(prismaService.auditLog.create).toHaveBeenCalledWith({
-        data: dto,
+        data: {
+          userId: dto.userId,
+          storeId: dto.storeId,
+          action: dto.action,
+          entityType: dto.entityType,
+          entityId: dto.entityId,
+          details: dto.details,
+          ipAddress: dto.ipAddress,
+          userAgent: dto.userAgent,
+        },
       });
       expect(result.storeId).toBe(mockStoreId);
       expect(result.action).toBe(AuditAction.MENU_PRICE_CHANGED);
@@ -169,14 +178,16 @@ describe("AuditLogService", () => {
 
       // Assert
       expect(prismaService.auditLog.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
+        data: {
           storeId: mockStoreId,
           userId: mockUserId,
           action: AuditAction.STORE_SETTING_CHANGED,
           entityType: "StoreSetting",
+          entityId: mockStoreId,
+          details: { field: "taxRate", oldValue: "7", newValue: "10" },
           ipAddress: "192.168.1.1",
           userAgent: "Mozilla/5.0",
-        }),
+        },
       });
     });
 

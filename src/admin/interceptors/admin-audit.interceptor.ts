@@ -5,11 +5,25 @@ import {
   CallHandler,
   Logger,
 } from "@nestjs/common";
-import { AdminActionType } from "@prisma/client";
+import { AdminActionType, AdminUser } from "@prisma/client";
 import { Observable } from "rxjs";
 import { tap } from "rxjs/operators";
 
 import { AdminAuditService } from "../services/admin-audit.service";
+
+interface AdminRequest {
+  adminUser?: AdminUser;
+  method: string;
+  url: string;
+  params: Record<string, string>;
+  body: Record<string, unknown>;
+  query: Record<string, unknown>;
+  ip: string;
+  headers: {
+    "user-agent"?: string;
+    [key: string]: string | undefined;
+  };
+}
 
 @Injectable()
 export class AdminAuditInterceptor implements NestInterceptor {
@@ -18,7 +32,7 @@ export class AdminAuditInterceptor implements NestInterceptor {
   constructor(private adminAudit: AdminAuditService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<AdminRequest>();
     const { adminUser } = request;
     const { method } = request;
     const path = request.url;
@@ -40,7 +54,7 @@ export class AdminAuditInterceptor implements NestInterceptor {
             this.adminAudit
               .log({
                 adminUserId: adminUser.id,
-                actionType: action as AdminActionType,
+                actionType: action,
                 targetType,
                 targetId,
                 details: JSON.stringify({
@@ -48,7 +62,7 @@ export class AdminAuditInterceptor implements NestInterceptor {
                   query: request.query,
                 }),
                 ipAddress: request.ip,
-                userAgent: request.headers["user-agent"],
+                userAgent: request.headers["user-agent"] ?? "unknown",
               })
               .catch((error) => {
                 this.logger.error("Failed to log admin action", error);
@@ -59,20 +73,33 @@ export class AdminAuditInterceptor implements NestInterceptor {
     );
   }
 
-  private getActionFromPath(path: string, method: string): string {
-    if (path.includes("/suspend")) return "SUSPEND";
-    if (path.includes("/ban")) return "BAN";
-    if (path.includes("/reactivate")) return "REACTIVATE";
-    if (path.includes("/verify")) return "VERIFY_PAYMENT";
-    if (path.includes("/reject")) return "REJECT_PAYMENT";
-    if (path.includes("/downgrade")) return "DOWNGRADE_TIER";
-    if (path.includes("/password-reset")) return "FORCE_PASSWORD_RESET";
+  private getActionFromPath(path: string, _method: string): AdminActionType {
+    if (path.includes("/stores") && path.includes("/suspend")) {
+      return AdminActionType.STORE_SUSPENDED;
+    }
+    if (path.includes("/stores") && path.includes("/ban")) {
+      return AdminActionType.STORE_BANNED;
+    }
+    if (path.includes("/stores") && path.includes("/reactivate")) {
+      return AdminActionType.STORE_REACTIVATED;
+    }
+    if (path.includes("/users") && path.includes("/suspend")) {
+      return AdminActionType.USER_SUSPENDED;
+    }
+    if (path.includes("/users") && path.includes("/ban")) {
+      return AdminActionType.USER_BANNED;
+    }
+    if (path.includes("/users") && path.includes("/reactivate")) {
+      return AdminActionType.USER_REACTIVATED;
+    }
+    if (path.includes("/verify")) {
+      return AdminActionType.PAYMENT_VERIFIED;
+    }
+    if (path.includes("/reject")) {
+      return AdminActionType.PAYMENT_REJECTED;
+    }
 
-    if (method === "POST") return "CREATE";
-    if (method === "PUT" || method === "PATCH") return "UPDATE";
-    if (method === "DELETE") return "DELETE";
-
-    return "UNKNOWN";
+    return AdminActionType.STORE_SETTINGS_OVERRIDDEN;
   }
 
   private getTargetFromPath(

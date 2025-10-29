@@ -4,7 +4,6 @@ import {
   Get,
   Body,
   Param,
-  Query,
   UseGuards,
   Logger,
   HttpCode,
@@ -19,7 +18,6 @@ import {
   ApiOperation,
   ApiBearerAuth,
   ApiParam,
-  ApiQuery,
   ApiConsumes,
 } from "@nestjs/swagger";
 import { Role } from "@prisma/client";

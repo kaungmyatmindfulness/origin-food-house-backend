@@ -336,22 +336,36 @@ export class ActiveTableSessionService {
 
   /**
    * Update session
+   * SECURITY FIX: Added store isolation check to prevent cross-store access
    */
   async update(
     sessionId: string,
     dto: UpdateSessionDto,
+    userId: string,
   ): Promise<ActiveTableSession> {
     const method = this.update.name;
 
     try {
-      // Check if session exists
+      // Check if session exists and get store ID
       const existingSession = await this.prisma.activeTableSession.findUnique({
         where: { id: sessionId },
+        include: { table: true },
       });
 
       if (!existingSession) {
         throw new NotFoundException(`Session with ID ${sessionId} not found`);
       }
+
+      if (!existingSession.table) {
+        throw new BadRequestException("Session has no associated table");
+      }
+
+      // SECURITY FIX: Validate user has permission to this store
+      await this.authService.checkStorePermission(
+        userId,
+        existingSession.table.storeId,
+        [Role.OWNER, Role.ADMIN, Role.SERVER, Role.CASHIER],
+      );
 
       // Build update data
       const updateData: Prisma.ActiveTableSessionUpdateInput = {};
@@ -400,18 +414,31 @@ export class ActiveTableSessionService {
 
   /**
    * Close session
+   * SECURITY FIX: Added store isolation check to prevent cross-store access
    */
-  async close(sessionId: string): Promise<ActiveTableSession> {
+  async close(sessionId: string, userId: string): Promise<ActiveTableSession> {
     const method = this.close.name;
 
     try {
       const session = await this.prisma.activeTableSession.findUnique({
         where: { id: sessionId },
+        include: { table: true },
       });
 
       if (!session) {
         throw new NotFoundException(`Session with ID ${sessionId} not found`);
       }
+
+      if (!session.table) {
+        throw new BadRequestException("Session has no associated table");
+      }
+
+      // SECURITY FIX: Validate user has permission to this store
+      await this.authService.checkStorePermission(
+        userId,
+        session.table.storeId,
+        [Role.OWNER, Role.ADMIN, Role.SERVER, Role.CASHIER],
+      );
 
       if (session.status === SessionStatus.CLOSED) {
         throw new BadRequestException("Session is already closed");

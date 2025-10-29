@@ -7,9 +7,11 @@ import {
   Body,
   Param,
   Query,
+  Headers,
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -18,6 +20,7 @@ import {
   ApiBearerAuth,
   ApiParam,
   ApiQuery,
+  ApiHeader,
 } from "@nestjs/swagger";
 
 import { ApplyDiscountDto } from "./dto/apply-discount.dto";
@@ -40,8 +43,15 @@ export class OrderController {
   @Post("checkout")
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary: "Checkout cart and create order (SOS)",
-    description: "Converts cart to order and clears the cart",
+    summary: "Checkout cart and create order",
+    description:
+      "Converts cart to order and clears the cart. SECURITY FIX: Requires session token (customers) or JWT (staff)",
+  })
+  @ApiHeader({
+    name: "x-session-token",
+    description:
+      "Session token for customer authentication (optional if JWT provided)",
+    required: false,
   })
   @ApiQuery({ name: "sessionId", description: "Active table session ID" })
   @ApiResponse({
@@ -49,13 +59,29 @@ export class OrderController {
     description: "Order created successfully",
     type: OrderResponseDto,
   })
+  @ApiResponse({
+    status: 401,
+    description: "Authentication required: Provide session token or JWT",
+  })
+  @ApiResponse({
+    status: 403,
+    description: "Invalid session token or insufficient permissions",
+  })
   @ApiResponse({ status: 400, description: "Cart is empty or invalid" })
   @ApiResponse({ status: 404, description: "Session or cart not found" })
   async checkout(
     @Query("sessionId") sessionId: string,
     @Body() dto: CheckoutCartDto,
+    @Headers("x-session-token") sessionToken?: string,
+    @Req() req?: { user?: { sub: string } },
   ): Promise<StandardApiResponse<OrderResponseDto>> {
-    const order = await this.orderService.checkoutCart(sessionId, dto);
+    const userId = req?.user?.sub;
+    const order = await this.orderService.checkoutCart(
+      sessionId,
+      dto,
+      sessionToken,
+      userId,
+    );
     return StandardApiResponse.success(order);
   }
 

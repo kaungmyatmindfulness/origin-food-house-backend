@@ -90,6 +90,7 @@ export class TableService {
     const where: Prisma.TableWhereInput = {
       storeId,
       name,
+      deletedAt: null, // Only check among active tables
       id: excludeTableId ? { not: excludeTableId } : undefined,
     };
     const conflictingTable = await tx.table.findFirst({
@@ -146,23 +147,22 @@ export class TableService {
       throw new NotFoundException(`Store with ID ${storeId} not found.`);
     }
     const tables = await this.prisma.table.findMany({
-      where: { storeId },
-      // Fetch potentially unsorted or rely on default DB order
+      where: { storeId, deletedAt: null },
     });
     // Apply natural sort
     tables.sort((a, b) => naturalCompare(a.name || "", b.name || ""));
     this.logger.log(
-      `Found and sorted ${tables.length} tables for Store ${storeId}`,
+      `Found and sorted ${tables.length} active tables for Store ${storeId}`,
     );
     return tables;
   }
 
-  /** Finds a single table ensuring it belongs to the store */
+  /** Finds a single active table ensuring it belongs to the store and is not deleted */
   @StandardErrorHandler("find table")
   async findOne(storeId: string, tableId: string): Promise<Table> {
-    // Use findFirstOrThrow for combined check
+    // Use findFirstOrThrow for combined check (includes soft delete filter)
     const table = await this.prisma.table.findFirstOrThrow({
-      where: { id: tableId, storeId },
+      where: { id: tableId, storeId, deletedAt: null },
     });
     return table;
   }
@@ -228,10 +228,8 @@ export class TableService {
   }
 
   /**
-   * Deletes a single table
-   * NOTE: Currently performs HARD DELETE as Table schema lacks deletedAt field.
-   * TODO: Add deletedAt field to Table schema and implement soft delete pattern.
-   * See CLAUDE.md Architectural Principle #4 for soft delete requirements.
+   * Soft deletes a single table by setting deletedAt timestamp.
+   * Follows CLAUDE.md Architectural Principle #4 for audit trail preservation.
    */
   async deleteTable(
     userId: string,
@@ -242,13 +240,16 @@ export class TableService {
       Role.OWNER,
       Role.ADMIN,
     ]);
-    // Ensure table exists (findOne handles NotFound)
+    // Ensure table exists and is not already deleted
     await this.findOne(storeId, tableId);
 
     try {
-      await this.prisma.table.delete({ where: { id: tableId } });
+      await this.prisma.table.update({
+        where: { id: tableId },
+        data: { deletedAt: new Date() },
+      });
       this.logger.log(
-        `Table ${tableId} deleted successfully by User ${userId}`,
+        `Table ${tableId} soft deleted successfully by User ${userId}`,
       );
 
       // Broadcast table deletion to all staff in store
@@ -263,14 +264,12 @@ export class TableService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2025"
       ) {
-        // Should be caught by findOne, but handle defensively
         throw new NotFoundException(
           `Table with ID ${tableId} not found during delete.`,
         );
       }
-      // Handle other potential errors (like unexpected FK issues if schema changes)
       this.logger.error(
-        `Failed to delete table ${tableId} from Store ${storeId}`,
+        `Failed to soft delete table ${tableId} from Store ${storeId}`,
         error,
       );
       throw new InternalServerErrorException("Could not delete table.");
@@ -278,9 +277,8 @@ export class TableService {
   }
 
   /**
-   * Synchronizes tables for a store: Upserts based on input, deletes others.
-   * NOTE: Currently performs HARD DELETE on removed tables as schema lacks deletedAt.
-   * TODO: Add deletedAt field to Table schema and implement soft delete pattern.
+   * Synchronizes tables for a store: Upserts based on input, soft deletes others.
+   * Follows CLAUDE.md Architectural Principle #4 for soft delete pattern.
    */
   async syncTables(
     userId: string,
@@ -318,9 +316,9 @@ export class TableService {
     try {
       const finalTables = await this.prisma.$transaction(
         async (tx) => {
-          // Get current tables
+          // Get current active tables (not soft deleted)
           const currentTables = await tx.table.findMany({
-            where: { storeId },
+            where: { storeId, deletedAt: null },
             select: { id: true, name: true },
           });
           const currentTableMap = new Map(
@@ -370,24 +368,27 @@ export class TableService {
             }
           } // End loop
 
-          // Identify and delete unused tables
+          // Identify and soft delete unused tables
           const idsToDelete = currentTables
             .map((t) => t.id)
             .filter((id) => !processedTableIds.has(id));
 
           if (idsToDelete.length > 0) {
             this.logger.log(
-              `[${method}] Identified ${idsToDelete.length} tables to delete for Store ${storeId}: [${idsToDelete.join(", ")}]`,
+              `[${method}] Identified ${idsToDelete.length} tables to soft delete for Store ${storeId}: [${idsToDelete.join(", ")}]`,
             );
-            await tx.table.deleteMany({ where: { id: { in: idsToDelete } } });
+            await tx.table.updateMany({
+              where: { id: { in: idsToDelete } },
+              data: { deletedAt: new Date() },
+            });
             this.logger.log(
-              `[${method}] Deleted ${idsToDelete.length} unused tables for Store ${storeId}.`,
+              `[${method}] Soft deleted ${idsToDelete.length} unused tables for Store ${storeId}.`,
             );
           }
 
-          // Return the final state AFTER upserts and deletes
+          // Return the final state AFTER upserts and soft deletes (only active tables)
           const finalTableList = await tx.table.findMany({
-            where: { storeId },
+            where: { storeId, deletedAt: null },
           });
           // Apply natural sort outside transaction
           finalTableList.sort((a, b) =>

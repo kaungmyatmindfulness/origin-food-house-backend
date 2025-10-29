@@ -317,7 +317,11 @@ describe("OrderService", () => {
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
 
         // Act
-        const result = await service.checkoutCart(mockSessionId, checkoutDto);
+        const result = await service.checkoutCart(
+          mockSessionId,
+          checkoutDto,
+          "token-123",
+        );
 
         // Assert
         expect(result).toBeDefined();
@@ -366,7 +370,11 @@ describe("OrderService", () => {
         } as any);
 
         // Act
-        const result = await service.checkoutCart(mockSessionId, checkoutDto);
+        const result = await service.checkoutCart(
+          mockSessionId,
+          checkoutDto,
+          "token-123",
+        );
 
         // Assert
         expect(result.orderNumber).toBe("20251022-006");
@@ -397,7 +405,7 @@ describe("OrderService", () => {
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
 
         // Act
-        await service.checkoutCart(mockSessionId, checkoutDto);
+        await service.checkoutCart(mockSessionId, checkoutDto, "token-123");
 
         // Assert - Verify order items created
         expect(mockTransaction.orderItem.create).toHaveBeenCalledTimes(2);
@@ -459,7 +467,7 @@ describe("OrderService", () => {
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
 
         // Act
-        await service.checkoutCart(mockSessionId, checkoutDto);
+        await service.checkoutCart(mockSessionId, checkoutDto, "token-123");
 
         // Assert
         expect(mockTransaction.cartItem.deleteMany).toHaveBeenCalledWith({
@@ -488,7 +496,7 @@ describe("OrderService", () => {
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
 
         // Act
-        await service.checkoutCart(mockSessionId, checkoutDto);
+        await service.checkoutCart(mockSessionId, checkoutDto, "token-123");
 
         // Assert
         expect(kitchenGateway.broadcastNewOrder).toHaveBeenCalledWith(
@@ -524,6 +532,7 @@ describe("OrderService", () => {
         const result = await service.checkoutCart(
           mockSessionId,
           customCheckoutDto,
+          "token-123",
         );
 
         // Assert
@@ -569,7 +578,11 @@ describe("OrderService", () => {
         } as any);
 
         // Act
-        const result = await service.checkoutCart(mockSessionId, checkoutDto);
+        const result = await service.checkoutCart(
+          mockSessionId,
+          checkoutDto,
+          "token-123",
+        );
 
         // Assert
         expect(result.vatAmount).toEqual(new Decimal("7.00"));
@@ -607,7 +620,11 @@ describe("OrderService", () => {
         } as any);
 
         // Act
-        const result = await service.checkoutCart(mockSessionId, checkoutDto);
+        const result = await service.checkoutCart(
+          mockSessionId,
+          checkoutDto,
+          "token-123",
+        );
 
         // Assert
         expect(result.serviceChargeAmount).toEqual(new Decimal("10.00"));
@@ -652,7 +669,11 @@ describe("OrderService", () => {
         } as any);
 
         // Act
-        const result = await service.checkoutCart(mockSessionId, checkoutDto);
+        const result = await service.checkoutCart(
+          mockSessionId,
+          checkoutDto,
+          "token-123",
+        );
 
         // Assert
         expect(result.grandTotal).toEqual(new Decimal("117.00"));
@@ -698,7 +719,11 @@ describe("OrderService", () => {
         } as any);
 
         // Act
-        const result = await service.checkoutCart(mockSessionId, checkoutDto);
+        const result = await service.checkoutCart(
+          mockSessionId,
+          checkoutDto,
+          "token-123",
+        );
 
         // Assert
         expect(result.vatAmount).toEqual(new Decimal("0"));
@@ -752,7 +777,11 @@ describe("OrderService", () => {
         } as any);
 
         // Act
-        const result = await service.checkoutCart(mockSessionId, checkoutDto);
+        const result = await service.checkoutCart(
+          mockSessionId,
+          checkoutDto,
+          "token-123",
+        );
 
         // Assert
         expect(result.subTotal).toEqual(new Decimal("69.93"));
@@ -773,7 +802,7 @@ describe("OrderService", () => {
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
 
         // Act
-        await service.checkoutCart(mockSessionId, checkoutDto);
+        await service.checkoutCart(mockSessionId, checkoutDto, "token-123");
 
         // Assert
         expect(mockTransaction.order.create).toHaveBeenCalledWith({
@@ -796,7 +825,7 @@ describe("OrderService", () => {
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
 
         // Act
-        await service.checkoutCart(mockSessionId, checkoutDto);
+        await service.checkoutCart(mockSessionId, checkoutDto, "token-123");
 
         // Assert
         expect(mockTransaction.order.create).toHaveBeenCalledWith({
@@ -833,7 +862,7 @@ describe("OrderService", () => {
         prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
 
         // Act
-        await service.checkoutCart(mockSessionId, checkoutDto);
+        await service.checkoutCart(mockSessionId, checkoutDto, "token-123");
 
         // Assert
         expect(mockTransaction.order.create).toHaveBeenCalledWith({
@@ -852,7 +881,7 @@ describe("OrderService", () => {
 
         // Act & Assert
         await expect(
-          service.checkoutCart(mockSessionId, checkoutDto),
+          service.checkoutCart(mockSessionId, checkoutDto, "token-123"),
         ).rejects.toThrow(NotFoundException);
         await expect(
           service.checkoutCart(mockSessionId, checkoutDto),
@@ -867,7 +896,7 @@ describe("OrderService", () => {
 
         // Act & Assert
         await expect(
-          service.checkoutCart(mockSessionId, checkoutDto),
+          service.checkoutCart(mockSessionId, checkoutDto, "token-123"),
         ).rejects.toThrow(BadRequestException);
         await expect(
           service.checkoutCart(mockSessionId, checkoutDto),
@@ -883,10 +912,10 @@ describe("OrderService", () => {
 
         // Act & Assert
         await expect(
-          service.checkoutCart(mockSessionId, checkoutDto),
+          service.checkoutCart(mockSessionId, checkoutDto, "token-123"),
         ).rejects.toThrow(NotFoundException);
         await expect(
-          service.checkoutCart(mockSessionId, checkoutDto),
+          service.checkoutCart(mockSessionId, checkoutDto, "token-123"),
         ).rejects.toThrow("Cart not found");
       });
 
@@ -899,10 +928,10 @@ describe("OrderService", () => {
 
         // Act & Assert
         await expect(
-          service.checkoutCart(mockSessionId, checkoutDto),
+          service.checkoutCart(mockSessionId, checkoutDto, "token-123"),
         ).rejects.toThrow(BadRequestException);
         await expect(
-          service.checkoutCart(mockSessionId, checkoutDto),
+          service.checkoutCart(mockSessionId, checkoutDto, "token-123"),
         ).rejects.toThrow("Cart is empty");
       });
     });
@@ -922,7 +951,7 @@ describe("OrderService", () => {
 
         // Act & Assert
         await expect(
-          service.checkoutCart(mockSessionId, checkoutDto),
+          service.checkoutCart(mockSessionId, checkoutDto, "token-123"),
         ).rejects.toThrow(InternalServerErrorException);
 
         // Verify cart was NOT cleared (transaction rollback)
@@ -945,7 +974,7 @@ describe("OrderService", () => {
 
         // Act & Assert
         await expect(
-          service.checkoutCart(mockSessionId, checkoutDto),
+          service.checkoutCart(mockSessionId, checkoutDto, "token-123"),
         ).rejects.toThrow(InternalServerErrorException);
       });
 
@@ -963,7 +992,7 @@ describe("OrderService", () => {
 
         // Act
         try {
-          await service.checkoutCart(mockSessionId, checkoutDto);
+          await service.checkoutCart(mockSessionId, checkoutDto, "token-123");
         } catch (_error) {
           // Expected to throw
         }
@@ -1704,7 +1733,11 @@ describe("OrderService", () => {
       } as any);
 
       // Act
-      const result = await service.checkoutCart(mockSessionId, checkoutDto);
+      const result = await service.checkoutCart(
+        mockSessionId,
+        checkoutDto,
+        "token-123",
+      );
 
       // Assert
       expect(result.orderNumber).toMatch(/^\d{8}-\d{3}$/);
@@ -1738,7 +1771,11 @@ describe("OrderService", () => {
       } as any);
 
       // Act
-      const result = await service.checkoutCart(mockSessionId, checkoutDto);
+      const result = await service.checkoutCart(
+        mockSessionId,
+        checkoutDto,
+        "token-123",
+      );
 
       // Assert
       expect(result.orderNumber).toBe("20251022-011");
@@ -1778,7 +1815,11 @@ describe("OrderService", () => {
         } as any);
 
         // Act
-        const result = await service.checkoutCart(mockSessionId, checkoutDto);
+        const result = await service.checkoutCart(
+          mockSessionId,
+          checkoutDto,
+          "token-123",
+        );
 
         // Assert
         expect(result.orderNumber).toBe(`20251022-${testCase.expected}`);
@@ -1805,7 +1846,7 @@ describe("OrderService", () => {
       prismaService.order.findUnique.mockResolvedValue(mockOrder as any);
 
       // Act
-      await service.checkoutCart(mockSessionId, checkoutDto);
+      await service.checkoutCart(mockSessionId, checkoutDto, "token-123");
 
       // Assert
       expect(mockTransaction.order.count).toHaveBeenCalledWith({

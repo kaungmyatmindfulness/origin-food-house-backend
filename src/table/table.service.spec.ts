@@ -41,6 +41,7 @@ describe("TableService", () => {
     table: {
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
       delete: jest.fn(),
       deleteMany: jest.fn(),
       findFirst: jest.fn(),
@@ -197,7 +198,7 @@ describe("TableService", () => {
 
       expect(result).toEqual(mockTable);
       expect(prismaService.table.findFirstOrThrow).toHaveBeenCalledWith({
-        where: { id: mockTableId, storeId: mockStoreId },
+        where: { id: mockTableId, storeId: mockStoreId, deletedAt: null },
       });
     });
 
@@ -269,8 +270,11 @@ describe("TableService", () => {
       prismaService.table.findFirstOrThrow.mockResolvedValue(mockTable as any);
     });
 
-    it("should delete table successfully", async () => {
-      prismaService.table.delete.mockResolvedValue(mockTable as any);
+    it("should soft delete table successfully", async () => {
+      prismaService.table.update.mockResolvedValue({
+        ...mockTable,
+        deletedAt: new Date(),
+      } as any);
 
       const result = await service.deleteTable(
         mockUserId,
@@ -279,8 +283,9 @@ describe("TableService", () => {
       );
 
       expect(result).toEqual({ id: mockTableId, deleted: true });
-      expect(prismaService.table.delete).toHaveBeenCalledWith({
+      expect(prismaService.table.update).toHaveBeenCalledWith({
         where: { id: mockTableId },
+        data: { deletedAt: expect.any(Date) },
       });
       expect(tableGateway.broadcastTableDeleted).toHaveBeenCalledWith(
         mockStoreId,
@@ -307,7 +312,7 @@ describe("TableService", () => {
     it("should sync tables successfully", async () => {
       const currentTables = [
         { id: "table-1", name: "Old T-1" },
-        { id: "table-3", name: "T-3" }, // Will be deleted
+        { id: "table-3", name: "T-3" }, // Will be soft deleted
       ];
 
       mockTransaction.table.findMany.mockResolvedValueOnce(
@@ -322,7 +327,7 @@ describe("TableService", () => {
         id: "table-2",
         name: "T-2",
       } as any);
-      mockTransaction.table.deleteMany.mockResolvedValue({ count: 1 } as any);
+      mockTransaction.table.updateMany.mockResolvedValue({ count: 1 } as any);
       mockTransaction.table.findMany.mockResolvedValueOnce([
         { id: "table-1", name: "T-1" },
         { id: "table-2", name: "T-2" },
@@ -331,8 +336,9 @@ describe("TableService", () => {
       const result = await service.syncTables(mockUserId, mockStoreId, syncDto);
 
       expect(result).toHaveLength(2);
-      expect(mockTransaction.table.deleteMany).toHaveBeenCalledWith({
+      expect(mockTransaction.table.updateMany).toHaveBeenCalledWith({
         where: { id: { in: ["table-3"] } },
+        data: { deletedAt: expect.any(Date) },
       });
     });
 

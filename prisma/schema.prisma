@@ -205,13 +205,15 @@ model Table {
   currentStatus TableStatus @default(VACANT)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @default(now()) @updatedAt
+  deletedAt     DateTime?
   store         Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   activeTableSessions ActiveTableSession[]
 
-  @@unique([storeId, name])
+  @@unique([storeId, name, deletedAt])
   @@index([storeId, name])
   @@index([storeId, currentStatus])
+  @@index([deletedAt])
 }
 
 model ActiveTableSession {

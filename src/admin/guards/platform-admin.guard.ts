@@ -5,8 +5,17 @@ import {
   ForbiddenException,
   Logger,
 } from "@nestjs/common";
+import { AdminUser } from "@prisma/client";
 
 import { PrismaService } from "src/prisma/prisma.service";
+
+interface RequestWithUser {
+  user?: {
+    sub: string;
+    [key: string]: unknown;
+  };
+  adminUser?: AdminUser;
+}
 
 @Injectable()
 export class PlatformAdminGuard implements CanActivate {
@@ -15,7 +24,7 @@ export class PlatformAdminGuard implements CanActivate {
   constructor(private prisma: PrismaService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
     const userId = request.user?.sub;
 
     if (!userId) {
