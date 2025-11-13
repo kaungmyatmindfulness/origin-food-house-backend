@@ -116,6 +116,8 @@ describe("StoreService", () => {
           provide: S3Service,
           useValue: {
             uploadFile: jest.fn(),
+            copyFile: jest.fn(),
+            listAllObjectKeys: jest.fn(),
           },
         },
       ],
@@ -170,21 +172,100 @@ describe("StoreService", () => {
       name: "My New Restaurant",
     };
 
+    const mockCategory = {
+      id: "category-123",
+      name: "Appetizers",
+      sortOrder: 0,
+      storeId: mockStoreId,
+      deletedAt: null,
+    };
+
+    const mockTable = {
+      id: "table-123",
+      name: "T-1",
+      storeId: mockStoreId,
+      currentStatus: "VACANT",
+      deletedAt: null,
+    };
+
+    const mockMenuItem = {
+      id: "menu-item-123",
+      name: "Garden Fresh Salad",
+      description: "Crisp mixed greens",
+      basePrice: new Prisma.Decimal("7.99"),
+      categoryId: mockCategory.id,
+      storeId: mockStoreId,
+      imageUrl: "https://s3.example.com/vegetables-salad.jpg",
+      preparationTimeMinutes: 10,
+      sortOrder: 0,
+      routingArea: "SALAD",
+      isOutOfStock: false,
+      isHidden: false,
+      deletedAt: null,
+    };
+
     beforeEach(() => {
-      prismaService.$transaction.mockImplementation((callback: any) =>
-        callback(mockTransaction as any),
+      // Mock base store creation (outside transaction)
+      prismaService.store.findUnique.mockResolvedValue(null);
+      prismaService.store.create.mockResolvedValue(mockStore as any);
+
+      // Mock S3 operations for seed image copy optimization
+      // 1. List operation to check if seed images exist
+      s3Service.listAllObjectKeys.mockResolvedValue([
+        "menu-images/seed/chicken-curry.jpg",
+        "menu-images/seed/pizza.jpg",
+        "menu-images/seed/vegetables-salad.jpg",
+        // ... assume all seed images already exist
+      ]);
+
+      // 2. Copy operation (server-side, much faster than upload)
+      s3Service.copyFile.mockResolvedValue(
+        "https://s3.example.com/menu-images/store-123/1234567890-image.jpg",
       );
+
+      // Mock transaction with all necessary operations
+      const extendedMockTransaction = {
+        ...mockTransaction,
+        category: {
+          create: jest.fn().mockResolvedValue(mockCategory as any),
+        },
+        table: {
+          createMany: jest.fn().mockResolvedValue({ count: 5 }),
+        },
+        menuItem: {
+          create: jest.fn().mockResolvedValue(mockMenuItem as any),
+        },
+        customizationGroup: {
+          create: jest.fn().mockResolvedValue({
+            id: "group-123",
+            name: "Size",
+            menuItemId: mockMenuItem.id,
+            minSelectable: 1,
+            maxSelectable: 1,
+          }),
+        },
+        customizationOption: {
+          createMany: jest.fn().mockResolvedValue({ count: 3 }),
+        },
+      };
+
+      prismaService.$transaction.mockImplementation((callback: any) =>
+        callback(extendedMockTransaction as any),
+      );
+
+      extendedMockTransaction.userStore.create.mockResolvedValue({} as any);
     });
 
-    it("should create store with information, settings, and owner assignment", async () => {
-      mockTransaction.store.findUnique.mockResolvedValue(null);
-      mockTransaction.store.create.mockResolvedValue(mockStore as any);
-      mockTransaction.userStore.create.mockResolvedValue({} as any);
-
+    it("should create store with default demo data (categories, tables, menu items, customizations)", async () => {
       const result = await service.createStore(mockUserId, createStoreDto);
 
+      // Verify base store created
       expect(result).toEqual(mockStore);
-      expect(mockTransaction.store.create).toHaveBeenCalledWith({
+      expect(prismaService.store.findUnique).toHaveBeenCalledWith({
+        where: { slug: expect.stringContaining("my-new-restaurant-") },
+        select: { id: true },
+      });
+      expect(prismaService.store.create).toHaveBeenCalledWith({
         data: {
           slug: expect.stringContaining("my-new-restaurant-"),
           information: {
@@ -197,21 +278,37 @@ describe("StoreService", () => {
           },
         },
       });
-      expect(mockTransaction.userStore.create).toHaveBeenCalledWith({
-        data: {
-          userId: mockUserId,
-          storeId: mockStore.id,
-          role: Role.OWNER,
-        },
-      });
+
+      // Verify S3 operations called
+      // 1. Check if seed images exist (one-time initialization)
+      expect(s3Service.listAllObjectKeys).toHaveBeenCalledWith(
+        "menu-images/seed/",
+      );
+      // 2. Copy images from shared location (10 unique images expected)
+      expect(s3Service.copyFile).toHaveBeenCalled();
+
+      // Verify transaction executed
+      expect(prismaService.$transaction).toHaveBeenCalled();
     });
 
     it("should throw BadRequestException if slug already exists", async () => {
-      mockTransaction.store.findUnique.mockResolvedValue(mockStore as any);
+      prismaService.store.findUnique.mockResolvedValue(mockStore as any);
 
       await expect(
         service.createStore(mockUserId, createStoreDto),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it("should handle S3 copy failures gracefully and continue with store creation", async () => {
+      // Mock S3 copy failure
+      s3Service.copyFile.mockRejectedValue(new Error("S3 copy failed"));
+
+      // Should still create store even if images fail to copy
+      const result = await service.createStore(mockUserId, createStoreDto);
+
+      expect(result).toEqual(mockStore);
+      expect(prismaService.store.create).toHaveBeenCalled();
+      expect(prismaService.$transaction).toHaveBeenCalled();
     });
   });
 

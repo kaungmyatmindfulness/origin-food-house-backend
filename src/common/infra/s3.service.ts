@@ -15,6 +15,9 @@ import {
   ObjectIdentifier,
   DeleteObjectsCommandOutput,
   _Error as S3Error,
+  CopyObjectCommand,
+  CopyObjectCommandInput,
+  CopyObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import {
   Injectable,
@@ -107,6 +110,37 @@ export class S3Service {
       return this.getObjectUrl(key);
     } catch (error) {
       this.handleS3Error(error, "upload", key);
+    }
+  }
+
+  /**
+   * Copies an existing S3 object to a new location within the same bucket.
+   * This is a server-side operation that doesn't require downloading/uploading data.
+   * Much faster and cheaper than uploading a new file.
+   * @param sourceKey The source object key to copy from.
+   * @param destinationKey The destination object key to copy to.
+   * @returns The public URL of the copied object (destination).
+   * @throws {NotFoundException | InternalServerErrorException} On S3 API errors.
+   */
+  async copyFile(sourceKey: string, destinationKey: string): Promise<string> {
+    this.logger.log(
+      `Copying file in S3. Source: ${sourceKey}, Destination: ${destinationKey}, Bucket: ${this.bucket}`,
+    );
+    const commandInput: CopyObjectCommandInput = {
+      Bucket: this.bucket,
+      CopySource: `${this.bucket}/${sourceKey}`,
+      Key: destinationKey,
+    };
+    const command = new CopyObjectCommand(commandInput);
+
+    try {
+      const output: CopyObjectCommandOutput = await this.s3Client.send(command);
+      this.logger.log(
+        `Successfully copied file from ${sourceKey} to ${destinationKey}. ETag: ${output.CopyObjectResult?.ETag}`,
+      );
+      return this.getObjectUrl(destinationKey);
+    } catch (error) {
+      this.handleS3Error(error, "copy", `${sourceKey} -> ${destinationKey}`);
     }
   }
 

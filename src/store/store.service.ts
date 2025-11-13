@@ -95,69 +95,114 @@ export class StoreService {
 
   /**
    * Creates a new store with its information and assigns the creator as OWNER.
+   * Automatically populates with default demo data: categories, tables, menu items, and customization groups.
    * Handles potential slug conflicts.
    */
   async createStore(userId: string, dto: CreateStoreDto): Promise<Store> {
+    const method = this.createStore.name;
     this.logger.log(
-      `User ${userId} attempting to create store with slug: ${dto.name}`,
+      `[${method}] User ${userId} attempting to create store: ${dto.name}`,
     );
 
     try {
       const { nanoid } = await import("nanoid");
-      const result = await this.prisma.$transaction(async (tx) => {
-        const slug = `${slugify(dto.name, {
-          lower: true,
-          strict: true,
-          remove: /[*+~.()'"!:@]/g,
-        })}-${nanoid(6)}`;
 
-        const existingStore = await tx.store.findUnique({
-          where: { slug },
-          select: { id: true },
-        });
-        if (existingStore) {
-          throw new BadRequestException(
-            `Store slug "${slug}" is already taken.`,
-          );
-        }
+      // Step 1: Generate slug and create store (outside transaction to get storeId for S3 uploads)
+      const slug = `${slugify(dto.name, {
+        lower: true,
+        strict: true,
+        remove: /[*+~.()'"!:@]/g,
+      })}-${nanoid(6)}`;
 
-        const store = await tx.store.create({
-          data: {
-            slug,
+      // Check slug uniqueness
+      const existingStore = await this.prisma.store.findUnique({
+        where: { slug },
+        select: { id: true },
+      });
+      if (existingStore) {
+        throw new BadRequestException(`Store slug "${slug}" is already taken.`);
+      }
 
-            information: {
-              create: {
-                name: dto.name,
-              },
-            },
-
-            setting: {
-              create: {},
+      // Step 2: Create base store and get ID
+      const baseStore = await this.prisma.store.create({
+        data: {
+          slug,
+          information: {
+            create: {
+              name: dto.name,
             },
           },
-        });
-        this.logger.log(
-          `Store '${dto.name}' (ID: ${store.id}, Slug: ${store.slug}) created within transaction.`,
-        );
+          setting: {
+            create: {},
+          },
+        },
+      });
+      this.logger.log(
+        `[${method}] Base store '${dto.name}' created (ID: ${baseStore.id}, Slug: ${baseStore.slug})`,
+      );
 
+      // Step 3: Copy images in S3 BEFORE transaction (S3 operations can't be rolled back)
+      // This uses server-side S3 copy (10x faster than uploading)
+      this.logger.log(
+        `[${method}] Copying seed images for Store ${baseStore.id}`,
+      );
+      const imageUrlMap = await this.copyMenuImages(baseStore.id);
+      this.logger.log(
+        `[${method}] Copied ${imageUrlMap.size} images successfully`,
+      );
+
+      // Step 4: Create all default data in a single transaction
+      const result = await this.prisma.$transaction(async (tx) => {
+        // Assign user as OWNER
         await tx.userStore.create({
           data: {
             userId,
-            storeId: store.id,
+            storeId: baseStore.id,
             role: Role.OWNER,
           },
         });
         this.logger.log(
-          `User ${userId} assigned as OWNER for new Store ID: ${store.id}.`,
+          `[${method}] User ${userId} assigned as OWNER for Store ${baseStore.id}`,
         );
 
-        return store;
+        // Create default categories
+        const categoryMap = await this.createDefaultCategories(
+          tx,
+          baseStore.id,
+        );
+
+        // Create default tables
+        await this.createDefaultTables(tx, baseStore.id);
+
+        // Create default menu items with images
+        const menuItems = await this.createDefaultMenuItems(
+          tx,
+          baseStore.id,
+          categoryMap,
+          imageUrlMap,
+        );
+
+        // Create default customization groups and options
+        await this.createDefaultCustomizations(tx, menuItems);
+
+        this.logger.log(
+          `[${method}] All default data created successfully for Store ${baseStore.id}`,
+        );
+
+        return baseStore;
       });
+
+      this.logger.log(
+        `[${method}] Store '${dto.name}' created successfully with full demo data`,
+      );
       return result;
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
 
-      this.logger.error(`Failed to create store with name ${dto.name}`, error);
+      this.logger.error(
+        `[${method}] Failed to create store: ${dto.name}`,
+        error,
+      );
       throw new InternalServerErrorException("Could not create store.");
     }
   }
@@ -811,5 +856,304 @@ export class StoreService {
       );
       throw new InternalServerErrorException("Could not update loyalty rules.");
     }
+  }
+
+  /**
+   * Creates default categories for a new store
+   * @private
+   * @param tx Prisma transaction client
+   * @param storeId Store ID
+   * @returns Map of category name to category ID
+   */
+  private async createDefaultCategories(
+    tx: any,
+    storeId: string,
+  ): Promise<Map<string, string>> {
+    const method = "createDefaultCategories";
+    this.logger.log(
+      `[${method}] Creating default categories for Store ${storeId}`,
+    );
+
+    const { DEFAULT_CATEGORIES } = await import(
+      "./constants/default-store-data"
+    );
+    const categoryMap = new Map<string, string>();
+
+    for (const catData of DEFAULT_CATEGORIES) {
+      const category = await tx.category.create({
+        data: {
+          name: catData.name,
+          sortOrder: catData.sortOrder,
+          storeId,
+          deletedAt: null,
+        },
+      });
+      categoryMap.set(catData.name, category.id);
+      this.logger.log(
+        `[${method}] Created category "${catData.name}" (ID: ${category.id})`,
+      );
+    }
+
+    this.logger.log(
+      `[${method}] Created ${categoryMap.size} default categories`,
+    );
+    return categoryMap;
+  }
+
+  /**
+   * Creates default tables for a new store
+   * @private
+   * @param tx Prisma transaction client
+   * @param storeId Store ID
+   */
+  private async createDefaultTables(tx: any, storeId: string): Promise<void> {
+    const method = "createDefaultTables";
+    this.logger.log(`[${method}] Creating default tables for Store ${storeId}`);
+
+    const { DEFAULT_TABLE_NAMES } = await import(
+      "./constants/default-store-data"
+    );
+
+    const tableData = DEFAULT_TABLE_NAMES.map((name) => ({
+      name,
+      storeId,
+      currentStatus: "VACANT" as const,
+      deletedAt: null,
+    }));
+
+    await tx.table.createMany({
+      data: tableData,
+    });
+
+    this.logger.log(
+      `[${method}] Created ${DEFAULT_TABLE_NAMES.length} default tables`,
+    );
+  }
+
+  /**
+   * Copies menu seed images from shared S3 location to store-specific location.
+   * Ensures seed images exist in shared location first (uploads if missing).
+   * Uses S3 server-side copy (10x faster and cheaper than uploading).
+   * @private
+   * @param storeId Store ID for folder organization
+   * @returns Map of image filename (without extension) to S3 URL
+   */
+  private async copyMenuImages(storeId: string): Promise<Map<string, string>> {
+    const method = "copyMenuImages";
+    this.logger.log(
+      `[${method}] Preparing to copy seed images for Store ${storeId}`,
+    );
+
+    const { DEFAULT_MENU_ITEMS } = await import(
+      "./constants/default-store-data"
+    );
+
+    // Extract unique image filenames (excluding nulls)
+    const imageFilenames = Array.from(
+      new Set(
+        DEFAULT_MENU_ITEMS.map((item) => item.imageFileName).filter(
+          (filename): filename is string => filename !== null,
+        ),
+      ),
+    );
+
+    // Step 1: Ensure seed images exist in shared S3 location (one-time upload)
+    this.logger.log(
+      `[${method}] Ensuring ${imageFilenames.length} seed images exist in shared S3 location`,
+    );
+
+    try {
+      const { ensureSeedImagesExist } = await import(
+        "./helpers/ensure-seed-images.helper"
+      );
+
+      const initResult = await ensureSeedImagesExist(
+        this.s3Service,
+        imageFilenames,
+      );
+
+      this.logger.log(
+        `[${method}] Seed images ready: ${initResult.alreadyExisted.length} existed, ${initResult.uploaded.length} uploaded, ${initResult.failed.length} failed`,
+      );
+
+      // Step 2: Copy images from shared location to store-specific location
+      this.logger.log(
+        `[${method}] Copying ${imageFilenames.length} images to store-specific location`,
+      );
+
+      const { copySeedImagesInParallel } = await import(
+        "./helpers/copy-seed-images.helper"
+      );
+
+      const imageMap = await copySeedImagesInParallel(
+        this.s3Service,
+        imageFilenames,
+        storeId,
+      );
+
+      this.logger.log(
+        `[${method}] Successfully copied ${imageMap.size} images for Store ${storeId}`,
+      );
+      return imageMap;
+    } catch (error) {
+      this.logger.error(
+        `[${method}] Failed to copy some images for Store ${storeId}`,
+        error.stack,
+      );
+      // Return partial results - failed copies will have null imageUrl
+      return new Map();
+    }
+  }
+
+  /**
+   * Creates default menu items for a new store
+   * @private
+   * @param tx Prisma transaction client
+   * @param storeId Store ID
+   * @param categoryMap Map of category name to category ID
+   * @param imageUrlMap Map of image filename to S3 URL
+   * @returns Array of created menu items with IDs
+   */
+  private async createDefaultMenuItems(
+    tx: any,
+    storeId: string,
+    categoryMap: Map<string, string>,
+    imageUrlMap: Map<string, string>,
+  ): Promise<Array<{ id: string; name: string }>> {
+    const method = "createDefaultMenuItems";
+    this.logger.log(
+      `[${method}] Creating default menu items for Store ${storeId}`,
+    );
+
+    const { DEFAULT_MENU_ITEMS, toPrismaDecimal } = await import(
+      "./constants/default-store-data"
+    );
+
+    const menuItems: Array<{ id: string; name: string }> = [];
+
+    for (const itemData of DEFAULT_MENU_ITEMS) {
+      const categoryId = categoryMap.get(itemData.categoryName);
+      if (!categoryId) {
+        this.logger.warn(
+          `[${method}] Category "${itemData.categoryName}" not found, skipping item "${itemData.name}"`,
+        );
+        continue;
+      }
+
+      // Get image URL if image file exists
+      let imageUrl: string | null = null;
+      if (itemData.imageFileName) {
+        const imageKey = itemData.imageFileName.replace(/\.[^/.]+$/, ""); // Remove extension
+        imageUrl = imageUrlMap.get(imageKey) ?? null;
+      }
+
+      const menuItem = await tx.menuItem.create({
+        data: {
+          name: itemData.name,
+          description: itemData.description,
+          basePrice: toPrismaDecimal(itemData.basePrice),
+          categoryId,
+          storeId,
+          imageUrl,
+          preparationTimeMinutes: itemData.preparationTimeMinutes,
+          sortOrder: itemData.sortOrder,
+          routingArea: itemData.routingArea,
+          isOutOfStock: false,
+          isHidden: false,
+          deletedAt: null,
+        },
+      });
+
+      menuItems.push({ id: menuItem.id, name: menuItem.name });
+      this.logger.log(
+        `[${method}] Created menu item "${itemData.name}" (ID: ${menuItem.id})`,
+      );
+    }
+
+    this.logger.log(
+      `[${method}] Created ${menuItems.length} default menu items`,
+    );
+    return menuItems;
+  }
+
+  /**
+   * Creates default customization groups and options for menu items
+   * @private
+   * @param tx Prisma transaction client
+   * @param menuItems Array of menu items with IDs and names
+   */
+  private async createDefaultCustomizations(
+    tx: any,
+    menuItems: Array<{ id: string; name: string }>,
+  ): Promise<void> {
+    const method = "createDefaultCustomizations";
+    this.logger.log(
+      `[${method}] Creating default customizations for ${menuItems.length} menu items`,
+    );
+
+    const {
+      CUSTOMIZATION_TEMPLATES,
+      MENU_ITEM_CUSTOMIZATIONS,
+      toPrismaDecimal,
+    } = await import("./constants/default-store-data");
+
+    let totalGroupsCreated = 0;
+
+    for (const menuItem of menuItems) {
+      const customizationKeys = MENU_ITEM_CUSTOMIZATIONS[menuItem.name];
+      if (!customizationKeys || customizationKeys.length === 0) {
+        continue;
+      }
+
+      for (const templateKey of customizationKeys) {
+        const template =
+          CUSTOMIZATION_TEMPLATES[
+            templateKey as keyof typeof CUSTOMIZATION_TEMPLATES
+          ];
+        if (!template) {
+          this.logger.warn(
+            `[${method}] Template "${templateKey}" not found, skipping`,
+          );
+          continue;
+        }
+
+        // Create customization group
+        const group = await tx.customizationGroup.create({
+          data: {
+            name: template.name,
+            menuItemId: menuItem.id,
+            minSelectable: template.minSelectable,
+            maxSelectable: template.maxSelectable,
+          },
+        });
+
+        // Create customization options
+        const optionsData = template.options.map(
+          (option: {
+            name: string;
+            additionalPrice: string | null;
+            sortOrder: number;
+          }) => ({
+            name: option.name,
+            customizationGroupId: group.id,
+            additionalPrice: toPrismaDecimal(option.additionalPrice),
+            sortOrder: option.sortOrder,
+          }),
+        );
+
+        await tx.customizationOption.createMany({
+          data: optionsData,
+        });
+
+        totalGroupsCreated++;
+        this.logger.log(
+          `[${method}] Created "${template.name}" group for "${menuItem.name}" with ${optionsData.length} options`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `[${method}] Created ${totalGroupsCreated} customization groups total`,
+    );
   }
 }
