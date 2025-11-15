@@ -1,1164 +1,1726 @@
 # CLAUDE.md
 
-**Purpose:** Establish development standards, architectural guardrails, and clean code practices for Origin Food House.
-**Audience:** Claude Code and human contributors working within this repository.
-**Last Updated:** October 2025
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 📋 Recent Updates
+## Overview
 
-### January 2025 - Auth0 Exclusive Authentication
+Origin Food House Backend is a **multi-tenant restaurant management platform** built with NestJS, Prisma ORM, and PostgreSQL. The system supports POS (Point of Sale) operations, Kitchen Display Systems (KDS), customer self-ordering via QR codes, payment processing, and subscription management.
 
-**BREAKING CHANGE:** Local email/password authentication has been completely removed.
-
-**What Changed:**
-
-- ❌ Removed `POST /auth/login` endpoint (local authentication)
-- ❌ Removed `AuthService.validateUser()` method
-- ❌ Removed email/password validation logic
-- ❌ Removed `password` field from User schema
-- ❌ Removed `verificationToken`, `verificationExpiry`, `resetToken`, `resetTokenExpiry` fields
-- ❌ Removed password-related methods from UserService
-- ✅ Auth0 is now the **only** authentication method for staff users
-- ✅ Session-based auth remains for customer orders (table sessions)
-- ✅ Database no longer stores any password data
-
-**Migration Notes:**
-
-- All staff users must authenticate via Auth0
-- Existing users synced automatically on first Auth0 login
-- Frontend must implement Auth0 SDK for login flow
-- No password data is stored in the database
-- Email verification and password reset handled by Auth0
-
-**Why This Change:**
-
-- Improved security through delegated authentication
-- Eliminated password storage and management overhead
-- Simplified authentication logic and reduced attack surface
-- Better user experience with SSO, social login, MFA support
-- Compliance with modern authentication best practices
-- Reduced database footprint and security liability
+**Status**: Development (v0.0.1) - NOT production-ready due to critical security vulnerabilities and test failures.
 
 ---
 
-### October 2025 - Codebase Audit & Documentation Update
+## Development Commands
 
-**Comprehensive audit completed to align documentation with actual implementation:**
+### Essential Commands
 
-**Infrastructure Updates:**
-- ✅ Simplified Docker setup: docker-compose.yml now provides infrastructure only
-- ✅ Removed Dockerfile.dev and docker-compose.dev.yml (native development preferred)
-- ✅ Production Dockerfile optimized with multi-stage build and health checks
+```bash
+# Setup & Installation
+npm install                 # Install dependencies
+cp .env.example .env        # Configure environment (REQUIRED: Auth0 credentials)
+npm run docker:up           # Start PostgreSQL database
+npm run migrate:db          # Run database migrations
+npm run generate:db         # Generate Prisma client
+npm run seed:db             # Seed database with demo data
 
-**Module Expansion:**
-- ✅ Added PaymentModule (53.75% test coverage)
-- ✅ Added KitchenModule with WebSocket gateway (56% coverage)
-- ✅ Added ReportModule for analytics (0% coverage - needs tests)
-- ✅ Total modules increased from 11 to 14 domain modules
+# Development
+npm run dev                 # Start dev server with hot reload (port 3000)
+npm run typecheck           # Type check without emitting
 
-**Testing Status:**
-- ✅ 320 tests across 11 test suites (up from 257 tests)
-- ✅ OrderModule leads with 78.02% coverage
-- ⚠️ Average coverage ~44% (below initial 80% target)
-- ❌ Critical gaps: ReportModule (0%), EmailModule (15.78%), ActiveTableSession (18.83%)
+# Code Quality (MUST PASS before commit)
+npm run format              # Format code with Prettier
+npm run lint                # Lint and auto-fix with ESLint
+npm run build               # Build for production (validates compilation)
 
-**Database Schema:**
-- ✅ Expanded from 8 to 19 models
-- ✅ Added Refund, CartItem, OrderItem customization tracking
-- ✅ All entities support soft deletes and audit trails
+# Testing
+npm test                    # Run all unit tests
+npm run test:watch          # Run tests in watch mode
+npm run test:cov            # Run tests with coverage report
+npm run test:e2e            # Run end-to-end tests
 
-**Dependencies Updated:**
-- NestJS: v11.1.6
-- Prisma: v6.17.1
-- Jest: v30.2.0
-- Socket.io: v4.8.1
-- AWS SDK: v3.908.0
+# Database Management
+npm run studio:db           # Open Prisma Studio (database GUI)
+npm run reset:db            # Reset database (destructive)
+```
+
+### Quality Gates (Every Completion)
+
+Before marking ANY task as complete, you MUST run these commands in sequence and ALL must succeed:
+
+```bash
+npm run format              # 1. Format code
+npm run lint                # 2. Lint passes
+npm run typecheck           # 3. Type check passes
+npm test                    # 4. All tests pass
+npm run build               # 5. Build succeeds
+```
+
+**CRITICAL**: If any of these commands fail, the task is NOT complete. Fix all errors before proceeding.
 
 ---
 
-## 🧩 Project Context
+## Clean Code Rules
 
-**Origin Food House** is a **multi-tenant restaurant management platform**.
-It manages **stores, menus, tables, sessions, orders, and payments** across multiple tenants.
-The backend is built with **NestJS**, **Prisma ORM**, and **PostgreSQL**; it follows a **modular, domain-driven architecture** with clean separation between layers.
+### 1. TypeScript Strictness
 
-### Technology Stack
-
-- **Framework:** NestJS v11.1.6 (Node.js)
-- **Database:** PostgreSQL 16 with Prisma ORM v6.17.1
-- **Authentication:** JWT + Auth0 integration (OAuth2/OpenID Connect)
-- **Real-time:** WebSockets via Socket.io v4.8.1
-- **Storage:** AWS S3 (via @aws-sdk/client-s3 v3.908.0)
-- **Testing:** Jest v30.2.0 - 11 test suites, 320 tests
-- **Code Quality:** ESLint v9.37.0, Prettier v3.6.2, Husky v9.1.7 pre-commit hooks
-
----
-
-## ⚙️ Development Commands
-
-### Database
-
-```bash
-npm run migrate:db      # Run Prisma migrations
-npm run generate:db     # Generate Prisma client
-npm run studio:db       # Open Prisma Studio
-npm run seed:db         # Seed demo data (kraft@originfoodhouse.com)
-npm run reset:db        # Reset database (wipe + migrate)
-npm run drop:db         # Drop schema completely
-```
-
-### App Lifecycle
-
-```bash
-npm run dev             # Start development server
-npm run build           # Build for production
-npm run start:prod      # Run production server
-npm run lint            # Run ESLint autofix
-npm run format          # Prettier code formatting
-```
-
-### Testing
-
-```bash
-npm run test            # Run unit tests
-npm run test:watch      # Watch mode
-npm run test:cov        # Coverage report
-npm run test:e2e        # End-to-end tests
-```
-
-### Docker (Local Development - Infrastructure Only)
-
-```bash
-npm run docker:up       # Start PostgreSQL and infrastructure services
-npm run docker:down     # Stop all services
-npm run docker:logs     # View container logs
-npm run docker:ps       # Check container status
-npm run docker:clean    # Remove containers and volumes
-```
-
-**Note:** Docker Compose provides only infrastructure services (PostgreSQL). Run the app natively during development.
-
----
-
-## 🧠 Architectural Principles
-
-### 1. **Domain Isolation**
-
-Each module (Auth, Store, Menu, etc.) owns its data and logic.
-Never reach across modules without an explicit interface or service contract.
-
-**✅ DO:**
+**ALWAYS enforce strict typing:**
 
 ```typescript
-// Use injected services
-constructor(private authService: AuthService) {}
+// L BAD - implicit any, unsafe operations
+function processData(data) {
+  return data.items.map(item => item.value);
+}
+
+//  GOOD - explicit types, null safety
+function processData(data: DataResponse): ProcessedItem[] {
+  if (!data?.items) {
+    throw new BadRequestException('Items array is required');
+  }
+  return data.items.map((item) => item.value);
+}
 ```
 
-**❌ DON'T:**
+**Rules:**
+- NEVER use `any` type (ESLint warns, but fix it)
+- NEVER use non-null assertion (`!`) without null check first
+- ALWAYS handle null/undefined cases explicitly
+- ALWAYS use optional chaining (`?.`) and nullish coalescing (`??`)
+- ALWAYS validate external data (user input, API responses)
+- ALWAYS use explicit & narrow types (use union types like `'OWNER' | 'ADMIN'` instead of `string`)
+- ALWAYS use discriminated unions for type-safe branching logic
+- ALWAYS make fields `readonly` when they shouldn't be reassigned
+- PREFER composition over inheritance (use dependency injection, not class hierarchies)
+- PREFER default values over optional parameters: `function getConfig(env = 'dev')` instead of `env?: string`
+
+**Type Safety Patterns:**
 
 ```typescript
-// Direct Prisma calls across domains
-await this.prisma.userStore.findMany(); // In non-auth module
+// ✅ GOOD - Narrow union types instead of string
+type UserRole = 'OWNER' | 'ADMIN' | 'CHEF' | 'CASHIER' | 'SERVER';
+type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'COMPLETED';
+
+// ✅ GOOD - Discriminated unions for type-safe branching
+type PaymentResult =
+  | { success: true; transactionId: string }
+  | { success: false; error: string };
+
+function handlePayment(result: PaymentResult) {
+  if (result.success) {
+    // TypeScript knows transactionId exists here
+    this.logger.log(`Payment successful: ${result.transactionId}`);
+  } else {
+    // TypeScript knows error exists here
+    this.logger.error(`Payment failed: ${result.error}`);
+  }
+}
+
+// ✅ GOOD - Readonly for immutability
+class CreateOrderDto {
+  readonly items: readonly OrderItemDto[];
+  readonly storeId: string;
+}
+
+// ✅ GOOD - Pure functions for business logic (no side effects)
+// Side effects belong in services, not logic helpers
+function calculateOrderTotal(items: OrderItem[]): Decimal {
+  return items.reduce(
+    (sum, item) => sum.add(item.price.mul(item.quantity)),
+    new Decimal(0),
+  );
+}
 ```
 
-### 2. **Store-Scoped Data**
+### 2. Error Handling
 
-Every persistent entity includes `storeId`.
-Always query with:
+**ALWAYS use typed exceptions and standardized patterns:**
 
 ```typescript
-where: { storeId, deletedAt: null }
+// L BAD - generic errors, no logging
+async findUser(id: string) {
+  const user = await this.prisma.user.findUnique({ where: { id } });
+  if (!user) throw new Error('Not found');
+  return user;
+}
+
+//  GOOD - typed exceptions, structured logging, error context
+async findUser(id: string): Promise<User> {
+  const method = this.findUser.name;
+  this.logger.log(`[${method}] Fetching user with ID: ${id}`);
+
+  try {
+    return await this.prisma.user.findUniqueOrThrow({
+      where: { id },
+    });
+  } catch (error) {
+    this.logger.error(
+      `[${method}] Failed to fetch user ${id}`,
+      getErrorDetails(error),
+    );
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    throw new InternalServerErrorException(
+      'An unexpected error occurred while fetching user',
+    );
+  }
+}
 ```
 
-**Implementation Pattern:**
+**Rules:**
+- ALWAYS use NestJS exception classes (`NotFoundException`, `BadRequestException`, etc.)
+- ALWAYS log errors with context (method name, relevant IDs, error details)
+- ALWAYS use `getErrorDetails(error)` utility for error logging
+- ALWAYS catch Prisma errors and convert to HTTP exceptions
+- ALWAYS provide user-friendly error messages (never expose internal details)
+
+### 3. Logging Standards
+
+**ALWAYS use structured logging with method context:**
 
 ```typescript
-// Service method pattern
-async findMenuItems(storeId: string): Promise<MenuItem[]> {
-  return this.prisma.menuItem.findMany({
-    where: {
-      storeId,
-      deletedAt: null,
-      isHidden: false
-    },
-    orderBy: { sortOrder: 'asc' }
+// L BAD - no context, inconsistent format
+this.logger.log('Creating store');
+this.logger.log(`Store created: ${store.id}`);
+
+//  GOOD - method name prefix, operation tracking
+async createStore(userId: string, dto: CreateStoreDto): Promise<Store> {
+  const method = this.createStore.name;
+  this.logger.log(`[${method}] Creating store for user ${userId}`);
+
+  try {
+    const store = await this.prisma.store.create({ data: dto });
+    this.logger.log(`[${method}] Store created successfully: ${store.id}`);
+    return store;
+  } catch (error) {
+    this.logger.error(`[${method}] Store creation failed`, getErrorDetails(error));
+    throw error;
+  }
+}
+```
+
+**Rules:**
+- ALWAYS prefix logs with `[${method}]` using `const method = this.methodName.name`
+- ALWAYS log at method entry with key parameters (user ID, entity ID)
+- ALWAYS log success with created/updated entity IDs
+- ALWAYS log errors with `getErrorDetails(error)` utility
+- NEVER use `console.log` (ESLint error) - use `this.logger` instead
+
+### 4. Database Operations
+
+**ALWAYS use transactions for multi-step operations:**
+
+```typescript
+// L BAD - non-atomic operations, data inconsistency risk
+async createStore(userId: string, dto: CreateStoreDto) {
+  const store = await this.prisma.store.create({ data: { slug: dto.slug } });
+  await this.prisma.storeInformation.create({ data: { storeId: store.id, ...dto } });
+  await this.prisma.userStore.create({ data: { userId, storeId: store.id, role: 'OWNER' } });
+  return store;
+}
+
+//  GOOD - atomic transaction, rollback on failure
+async createStore(userId: string, dto: CreateStoreDto): Promise<Store> {
+  const method = this.createStore.name;
+
+  return await this.prisma.$transaction(async (tx) => {
+    const store = await tx.store.create({
+      data: { slug: dto.slug },
+    });
+
+    await tx.storeInformation.create({
+      data: { storeId: store.id, ...dto },
+    });
+
+    await tx.userStore.create({
+      data: { userId, storeId: store.id, role: 'OWNER' },
+    });
+
+    this.logger.log(`[${method}] Store created: ${store.id}`);
+    return store;
   });
 }
 ```
 
-### 3. **Transactional Integrity**
+**Rules:**
+- ALWAYS use `$transaction` for operations creating multiple related entities
+- ALWAYS use `findUniqueOrThrow` instead of `findUnique` + null check when entity must exist
+- ALWAYS include `where: { deletedAt: null }` for soft-deleted entities
+- ALWAYS use Decimal type for monetary values (prices, amounts)
+- ALWAYS add indexes for foreign keys and frequently queried fields
 
-For multi-step writes, wrap all operations in Prisma transactions:
+### 5. Authentication & Authorization
 
-```typescript
-await this.prisma.$transaction(async (tx) => {
-  const store = await tx.store.create({ ... });
-  await tx.storeInformation.create({ ... });
-  await tx.storeSetting.create({ ... });
-  await tx.userStore.create({ ... });
-  return store;
-});
-```
-
-**Transaction Patterns:**
-
-- Use `$transaction` for related writes
-- Pass transaction client (`tx`) to nested functions
-- Handle rollback scenarios explicitly
-- Set appropriate isolation levels for critical operations
-
-### 4. **Soft Deletes**
-
-Never delete rows. Mark them instead:
+**ALWAYS validate user permissions before operations:**
 
 ```typescript
-update({ where: { id }, data: { deletedAt: new Date() } });
-```
+// L BAD - no authorization, direct operation
+@Patch(':id')
+async updateStore(@Param('id') storeId: string, @Body() dto: UpdateStoreDto) {
+  return this.storeService.update(storeId, dto);
+}
 
-**Query Pattern:**
+//  GOOD - JWT auth, role-based access control, ownership verification
+@Patch(':id')
+@UseGuards(JwtAuthGuard)
+@ApiOperation({ summary: 'Update store information (OWNER/ADMIN only)' })
+async updateStore(
+  @Param('id') storeId: string,
+  @GetUser('userId') userId: string,
+  @Body() dto: UpdateStoreDto,
+) {
+  // Service method verifies OWNER/ADMIN role
+  return this.storeService.update(userId, storeId, dto);
+}
 
-```typescript
-// Repository pattern for soft deletes
-class CategoryRepository {
-  findActive(storeId: string) {
-    return this.prisma.category.findMany({
-      where: { storeId, deletedAt: null },
-    });
-  }
-
-  softDelete(id: string) {
-    return this.prisma.category.update({
-      where: { id },
-      data: { deletedAt: new Date() },
-    });
-  }
+// In service:
+async update(userId: string, storeId: string, dto: UpdateStoreDto) {
+  await this.checkUserRole(userId, storeId, ['OWNER', 'ADMIN']);
+  // ... update logic
 }
 ```
 
-### 5. **Monetary Values**
+**Rules:**
+- ALWAYS use `@UseGuards(JwtAuthGuard)` on protected routes
+- ALWAYS verify user role before privileged operations (use `checkUserRole` helper)
+- ALWAYS validate store membership before accessing store data
+- ALWAYS use `@GetUser('userId')` decorator to extract authenticated user
+- ALWAYS use session tokens OR JWT for cart/order operations (dual auth support)
+- NEVER expose session tokens in API responses (security vulnerability)
 
-Always use `Prisma.Decimal` and string constructors to avoid float errors:
+### 6. Input Validation
 
-```typescript
-// ✅ Correct
-price: new Prisma.Decimal('9.99');
-vatRate: new Prisma.Decimal('0.07');
-
-// ❌ Wrong - float precision issues
-price: new Prisma.Decimal(9.99);
-```
-
-**Calculation Pattern:**
+**ALWAYS validate all DTOs with class-validator:**
 
 ```typescript
-import { Decimal } from '@prisma/client/runtime/library';
-
-const subtotal = new Decimal(item.basePrice).mul(item.quantity).toFixed(2);
-```
-
-### 6. **Access Control**
-
-Every store mutation must validate role-based access:
-
-```typescript
-await this.authService.checkStorePermission(userId, storeId, [
-  Role.OWNER,
-  Role.ADMIN,
-]);
-```
-
-**Role Hierarchy:**
-
-- **OWNER:** Full access, can transfer ownership
-- **ADMIN:** Manage store, users, and settings
-- **CHEF:** Manage orders and menu items
-- **CASHIER:** Handle payments and orders
-- **SERVER:** Take orders and manage tables
-
----
-
-## 🧱 Core Modules & Responsibilities
-
-| Module                       | Responsibility                                  | Test Coverage |
-| ---------------------------- | ----------------------------------------------- | ------------- |
-| **AuthModule**               | Auth0 integration, JWT generation, RBAC         | 23.83%        |
-| **StoreModule**              | Store management, user roles                    | 53.10%        |
-| **MenuModule**               | Menu items, customization groups                | 56.41%        |
-| **CategoryModule**           | Category CRUD + sorting                         | 59.48%        |
-| **TableModule**              | Table entities per store                        | 62.10%        |
-| **ActiveTableSessionModule** | Session management & real-time dining           | 18.83%        |
-| **OrderModule**              | Orders, VAT/service charge logic                | 78.02%        |
-| **CartModule**               | Cart + checkout handling                        | 49.07%        |
-| **PaymentModule**            | Payment recording, refund processing            | 53.75%        |
-| **KitchenModule**            | Kitchen Display System (KDS), order status      | 56.00%        |
-| **ReportModule**             | Sales reports, analytics, business intelligence | 0.00%         |
-| **UserModule**               | User profiles, memberships, Auth0 sync          | 60.86%        |
-| **EmailModule**              | Email notifications (Auth0 handles auth emails) | 15.78%        |
-| **CommonModule**             | Decorators, error handler, pagination, logger   | Varies        |
-
-**Total:** 14 domain modules + infrastructure services
-
----
-
-## 🧰 Infrastructure Services
-
-- **PrismaService:** Transaction-safe DB client with connection pooling
-- **S3Service:** AWS S3 file storage and retrieval with Sharp image processing
-- **UploadService:** File upload handling with validation and size limits
-- **CleanupService:** Scheduled removal of orphaned S3 assets
-- **Auth0Service:** Auth0 Management API integration for user sync
-
----
-
-## 🧩 Database Schema Highlights
-
-**19 Models:** `User`, `Store`, `UserStore`, `StoreInformation`, `StoreSetting`, `Category`, `MenuItem`, `CustomizationGroup`, `CustomizationOption`, `Table`, `ActiveTableSession`, `Cart`, `CartItem`, `CartItemCustomization`, `Order`, `OrderItem`, `OrderItemCustomization`, `Payment`, `Refund`
-
-**Key Relationships:**
-- `Store` ↔ `User` (many-to-many via `UserStore`)
-- `Store` → `StoreInformation`, `StoreSetting` (one-to-one)
-- `Category` → `MenuItem` (one-to-many)
-- `MenuItem` → `CustomizationGroup` → `CustomizationOption` (nested one-to-many)
-- `Table` → `ActiveTableSession` (one-to-many)
-- `ActiveTableSession` → `Cart` → `CartItem` → `CartItemCustomization`
-- `Order` → `OrderItem` → `OrderItemCustomization`
-- `Order` → `Payment` → `Refund`
-
-**Design Patterns:**
-- All business entities support soft deletes (`deletedAt` timestamp)
-- All monetary values use `Decimal` type for precision
-- Multi-tenancy enforced via `storeId` foreign key
-- Audit trails with `createdAt` and `updatedAt` timestamps
-
----
-
-## 🔐 Security Standards
-
-### ⚠️ Authentication Model
-
-**This application uses Auth0 exclusively for authentication. There is NO local email/password login.**
-
-- All authentication flows go through Auth0 (OAuth2/OpenID Connect)
-- Internal JWTs are generated after Auth0 token validation
-- No password data is stored in the database
-- Session-based auth used for customer ordering (table sessions)
-
----
-
-## 🔑 Authentication Flow (Auth0 Only)
-
-### Staff Authentication (POS App)
-
-```
-1. User clicks "Login with Auth0" in frontend
-2. Frontend redirects to Auth0 Universal Login
-3. User authenticates via Auth0 (email/password, social, SSO, etc.)
-4. Auth0 redirects back with access token
-5. Frontend calls POST /auth/auth0/validate with Auth0 token
-6. Backend:
-   - Validates token via Auth0 JWKS
-   - Syncs user to local database (create/update)
-   - Generates internal JWT (no store context yet)
-   - Sets HttpOnly cookie
-7. User selects store via POST /auth/login/store
-8. Backend:
-   - Validates user membership in store
-   - Generates store-scoped JWT (includes storeId, role)
-   - Updates HttpOnly cookie
-9. User authenticated with store context
-```
-
-### Customer Authentication (SOS App)
-
-```
-1. Customer scans QR code on table
-2. Frontend calls POST /active-table-sessions/join-by-table/:tableId
-3. Backend:
-   - Creates/joins session for table
-   - Generates session-scoped JWT
-   - Returns session token
-4. Customer can order with session context (no Auth0 required)
-```
-
-### Available Auth Endpoints
-
-| Endpoint               | Method | Description                     | Auth Required |
-| ---------------------- | ------ | ------------------------------- | ------------- |
-| `/auth/auth0/config`   | GET    | Get Auth0 configuration         | No            |
-| `/auth/auth0/validate` | POST   | Validate Auth0 token, sync user | No            |
-| `/auth/login/store`    | POST   | Select store after Auth0 login  | Yes (JWT)     |
-| `/auth/auth0/profile`  | GET    | Get user profile                | Yes (Auth0)   |
-
----
-
-### Authentication & Authorization
-
-- **Auth0 Integration:** Primary authentication via OAuth2/OpenID Connect
-- **Internal JWT Strategy:** Access tokens expire in 1 day (generated after Auth0 validation)
-- **RBAC:** Role-based access control per store
-- **Session Management:** Secure cookie handling with httpOnly flag
-- **No Local Authentication:** Email/password login removed - Auth0 only
-- **User Sync:** Auth0 users automatically synced to local database on first login
-
-### API Security
-
-- **Authentication:** Auth0 tokens validated via JWKS
-- **Rate Limiting:** 60 requests/minute per IP
-- **Input Validation:** All DTOs validated with class-validator
-- **SQL Injection:** Use Prisma parameterized queries only
-- **XSS Prevention:** Sanitize all user inputs
-- **CORS:** Configure allowed origins explicitly
-- **Headers:** Implement security headers (CSP, X-Frame-Options, etc.)
-
-### Data Protection
-
-- **Store Isolation:** Multi-tenancy enforced at query level
-- **Soft Deletes:** Maintain audit trail, no hard deletes
-- **PII Handling:** Encrypt sensitive data at rest
-- **File Upload:**
-  - Validate MIME types
-  - Limit file sizes (10MB default)
-  - Scan for malware before S3 upload
-  - Generate unique filenames to prevent collisions
-
-### Error Handling Security
-
-```typescript
-// Never expose internal details
-catch (error) {
-  this.logger.error('Internal error', error);
-  throw new InternalServerErrorException('An error occurred');
-}
-```
-
----
-
-## 🧭 Clean Code Guardrails
-
-### Configuration
-
-- Use `@nestjs/config` with `ConfigService` for all environment variable access
-- **NEVER** access `process.env` directly in application code (security best practice)
-- Validate environment variables at application startup
-- Maintain separate `.env` files per environment (not committed to git)
-- Use configuration namespaces via `registerAs()` for domain-specific config
-
-**Current Configuration Files:**
-- `src/auth/config/auth0.config.ts` - Auth0 OAuth2/OIDC settings
-
-**Configuration Pattern:**
-
-```typescript
-// auth/config/auth0.config.ts
-export default registerAs(
-  'auth0',
-  (): Auth0Config => ({
-    domain: process.env.AUTH0_DOMAIN ?? '',
-    clientId: process.env.AUTH0_CLIENT_ID ?? '',
-    clientSecret: process.env.AUTH0_CLIENT_SECRET ?? '',
-    audience: process.env.AUTH0_AUDIENCE ?? '',
-    issuer: process.env.AUTH0_ISSUER ?? '',
-  }),
-);
-
-// In modules
-@Module({
-  imports: [ConfigModule.forFeature(auth0Config)],
-})
-
-// In services
-constructor(@Inject('auth0') private auth0Config: Auth0Config) {}
-```
-
-### Modules
-
-- Each module should own exactly one domain.
-- Use `forFeature()` pattern for scoped providers.
-- Export only necessary services.
-- Follow the module structure pattern:
-
-```typescript
-@Module({
-  imports: [
-    /* Dependencies */
-  ],
-  controllers: [StoreController],
-  providers: [StoreService, StoreRepository],
-  exports: [StoreService], // Only export what's needed
-})
-export class StoreModule {}
-```
-
-### Repositories
-
-- No direct Prisma calls in controllers.
-- Encapsulate persistence logic:
-
-```typescript
-export class UserRepository {
-  constructor(private prisma: PrismaService) {}
-  findByEmail(email: string) {
-    return this.prisma.user.findUnique({ where: { email } });
-  }
-}
-```
-
-### Controllers
-
-- Keep controllers thin. No business logic.
-- Always return typed DTOs.
-- Use decorators for exception filtering and validation.
-
-### DTOs
-
-- Use `class-transformer` for input normalization.
-- Example:
-
-```typescript
-export class ChooseStoreDto {
-  @IsUUID()
-  @IsNotEmpty()
+// L BAD - no validation, unsafe input
+export class CreateMenuItemDto {
+  name: string;
+  price: number;
   storeId: string;
 }
 
-export class UpdateStoreDto {
-  @IsOptional()
+//  GOOD - comprehensive validation, API documentation
+export class CreateMenuItemDto {
+  @ApiProperty({ description: 'Menu item name', example: 'Margherita Pizza' })
   @IsString()
+  @IsNotEmpty()
   @MinLength(1)
-  name?: string;
+  @MaxLength(100)
+  name: string;
 
-  @IsOptional()
+  @ApiProperty({ description: 'Price in store currency', example: 12.99 })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  price: number;
+
+  @ApiProperty({ description: 'Store UUID', example: 'abc123...' })
+  @IsUUID()
+  storeId: string;
+
+  @ApiPropertyOptional({ description: 'Item description' })
   @IsString()
+  @IsOptional()
+  @MaxLength(500)
   description?: string;
 }
 ```
 
-### Error Handling
+**Rules:**
+- ALWAYS use class-validator decorators on all DTO properties
+- ALWAYS add `@ApiProperty` or `@ApiPropertyOptional` for Swagger docs
+- ALWAYS validate string lengths (`@MinLength`, `@MaxLength`)
+- ALWAYS validate number ranges (`@Min`, `@Max`, `maxDecimalPlaces` for decimals)
+- ALWAYS use `@IsUUID` for ID fields, `@IsEmail` for emails
+- ALWAYS mark optional fields with `@IsOptional()` and `?` type
 
-Map Prisma errors explicitly:
+### 7. API Documentation
+
+**ALWAYS document endpoints with Swagger decorators:**
 
 ```typescript
-catch (error) {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    switch (error.code) {
-      case 'P2002':
-        throw new ConflictException('Duplicate record');
-      case 'P2025':
-        throw new NotFoundException('Record not found');
-      case 'P2003':
-        throw new BadRequestException('Foreign key constraint failed');
-      default:
-        this.logger.error('Database error', error);
-        throw new InternalServerErrorException('Database operation failed');
-    }
-  }
-  throw error;
+// L BAD - no documentation, unclear response
+@Get(':id')
+async getStore(@Param('id') id: string) {
+  return this.storeService.findOne(id);
+}
+
+//  GOOD - documented operation, response schema, error cases
+@Get(':id')
+@Public() // Custom decorator indicating no auth required
+@ApiOperation({ summary: 'Get public store details' })
+@ApiParam({ name: 'id', description: 'Store UUID' })
+@ApiOkResponse({
+  description: 'Store details retrieved successfully',
+  type: StoreResponseDto,
+})
+@ApiNotFoundResponse({ description: 'Store not found' })
+async getStore(@Param('id') id: string): Promise<StoreResponseDto> {
+  return this.storeService.findOne(id);
 }
 ```
 
-Never expose stack traces or internal error messages.
+**Rules:**
+- ALWAYS use `@ApiOperation` to describe endpoint purpose
+- ALWAYS use `@ApiParam`, `@ApiQuery`, `@ApiBody` for input documentation
+- ALWAYS use `@ApiOkResponse`, `@ApiCreatedResponse` with DTO types
+- ALWAYS document error responses (`@ApiNotFoundResponse`, `@ApiBadRequestResponse`, etc.)
+- ALWAYS create response DTOs (don't expose Prisma entities directly)
 
-### Error Response Standards
+### 8. Testing Requirements
 
-```typescript
-// Service layer - detailed logging
-this.logger.error(`[${method}] Failed to create store`, {
-  userId,
-  storeName: dto.name,
-  error: error.message,
-  stack: error.stack,
-});
-
-// Client response - generic message
-throw new InternalServerErrorException('Could not create store');
-```
-
-### Logging
-
-- Use NestJS `Logger` service for consistency.
-- Log structured data with contextual information.
-- Follow log levels appropriately:
-
-```typescript
-export class StoreService {
-  private readonly logger = new Logger(StoreService.name);
-
-  async createStore(userId: string, dto: CreateStoreDto) {
-    const method = this.createStore.name;
-
-    // Info level for normal operations
-    this.logger.log(`[${method}] User ${userId} creating store: ${dto.name}`);
-
-    try {
-      // ... operation
-      this.logger.log(`[${method}] Store created successfully`);
-    } catch (error) {
-      // Error level for failures
-      this.logger.error(`[${method}] Failed to create store`, error.stack);
-      // Warn level for business logic issues
-      this.logger.warn(`[${method}] Duplicate store name attempted`);
-    }
-  }
-}
-```
-
-### Testing
-
-- Mock Prisma in service tests using the helper pattern:
-- Use test fixtures and builders for consistent test data.
-- Maintain >80% coverage on core modules.
-
-```typescript
-// common/testing/prisma-mock.helper.ts
-export const createPrismaMock = () => ({
-  store: {
-    findUnique: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-  },
-  $transaction: jest.fn((callback) => callback(mockTransaction)),
-});
-
-// In tests
-beforeEach(() => {
-  const prismaMock = createPrismaMock();
-  // ... setup
-});
-```
-
-### Test Organization
+**ALWAYS write tests for new code (target: 85% coverage):**
 
 ```typescript
 describe('StoreService', () => {
+  let service: StoreService;
+  let prismaMock: ReturnType<typeof createPrismaMock>;
+
+  beforeEach(async () => {
+    prismaMock = createPrismaMock();
+
+    const module = await Test.createTestingModule({
+      providers: [
+        StoreService,
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: AuthService, useValue: mockAuthService },
+        { provide: AuditLogService, useValue: mockAuditService },
+      ],
+    }).compile();
+
+    service = module.get<StoreService>(StoreService);
+  });
+
   describe('createStore', () => {
-    it('should create store with default settings', async () => {});
-    it('should throw BadRequestException for duplicate slug', async () => {});
-    it('should rollback transaction on failure', async () => {});
+    it('should create store with information and settings in transaction', async () => {
+      const dto: CreateStoreDto = { name: 'Test Store', slug: 'test-store' };
+      const userId = 'user-123';
+
+      prismaMock.$transaction.mockImplementation((callback) =>
+        callback(prismaMock)
+      );
+
+      const result = await service.createStore(userId, dto);
+
+      expect(result).toBeDefined();
+      expect(prismaMock.store.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ slug: dto.slug }) })
+      );
+    });
+
+    it('should throw BadRequestException for duplicate slug', async () => {
+      prismaMock.$transaction.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint', {
+          code: 'P2002',
+          clientVersion: '5.0.0',
+        })
+      );
+
+      await expect(service.createStore('user-123', dto)).rejects.toThrow(
+        BadRequestException
+      );
+    });
   });
 });
 ```
 
-### Performance
-
-- Always use Prisma `select` or `include` to minimize data.
-- Paginate all list queries.
-- Add DB indexes for heavy read fields.
-- Use `Promise.all` for concurrent DB reads.
-
-### Pagination Pattern
-
-```typescript
-const [items, total] = await Promise.all([
-  this.prisma.item.findMany({ skip, take, where, orderBy }),
-  this.prisma.item.count({ where }),
-]);
-return PaginatedResponseDto.create(items, total, page, limit);
-```
+**Rules:**
+- ALWAYS write unit tests for service methods (aim for 85%+ coverage)
+- ALWAYS mock Prisma with `createPrismaMock()` helper
+- ALWAYS test both success and error cases
+- ALWAYS test transaction rollback on failures
+- ALWAYS test authorization checks
+- ALWAYS test input validation via DTO tests
 
 ---
 
-## 🧪 Testing Strategy & Current Status
+## NestJS Architecture Rules
 
-### Testing Approach
+### Module Organization
 
-1. **Unit Tests** — Validate isolated service logic with mocked dependencies
-2. **Integration Tests** — Test module interactions with mocked I/O
-3. **E2E Tests** — Full request-to-response validation using test DB
+**ALWAYS keep modules small and domain-focused:**
 
-### Current Test Statistics (October 2025)
+```
+✅ GOOD - Domain-focused modules
+src/
+├── auth/           # Authentication & authorization
+├── store/          # Store management
+├── menu/           # Menu items & pricing
+├── order/          # Order processing
+├── payment/        # Payment & refunds
+├── kitchen/        # Kitchen Display System
+├── subscription/   # Billing & tiers
+└── common/         # Shared utilities
 
-- **Total Test Suites:** 11 suites
-- **Total Tests:** 320 tests (all passing ✅)
-- **Overall Coverage:** ~44% average across all modules
+❌ BAD - Technical-focused modules
+src/
+├── controllers/
+├── services/
+├── repositories/
+└── helpers/
+```
 
-**Module-Level Coverage:**
+**Each module MUST contain:**
+- **Controller** (HTTP endpoints)
+- **Service** (business logic & use cases)
+- **DTOs** (input/output contracts)
+- **Module file** (dependency wiring)
+- **Tests** (unit & integration tests)
 
-| Priority | Module                | Coverage | Status             | Action Needed              |
-| -------- | --------------------- | -------- | ------------------ | -------------------------- |
-| 🔴 HIGH  | ReportModule          | 0.00%    | ❌ No tests        | Create comprehensive tests |
-| 🔴 HIGH  | EmailModule           | 15.78%   | ⚠️ Minimal         | Add email template tests   |
-| 🔴 HIGH  | ActiveTableSession    | 18.83%   | ⚠️ Minimal         | Add session lifecycle tests|
-| 🟡 MED   | AuthModule            | 23.83%   | ⚠️ Partial         | Add Auth0 integration tests|
-| 🟡 MED   | CartModule            | 49.07%   | ⚠️ Moderate        | Add WebSocket tests        |
-| 🟢 LOW   | StoreModule           | 53.10%   | ✅ Moderate        | Maintain coverage          |
-| 🟢 LOW   | PaymentModule         | 53.75%   | ✅ Moderate        | Add refund scenario tests  |
-| 🟢 LOW   | KitchenModule         | 56.00%   | ✅ Moderate        | Add gateway tests          |
-| 🟢 LOW   | MenuModule            | 56.41%   | ✅ Moderate        | Maintain coverage          |
-| 🟢 LOW   | CategoryModule        | 59.48%   | ✅ Good            | Maintain coverage          |
-| 🟢 LOW   | UserModule            | 60.86%   | ✅ Good            | Maintain coverage          |
-| 🟢 LOW   | TableModule           | 62.10%   | ✅ Good            | Maintain coverage          |
-| ✅ DONE  | OrderModule           | 78.02%   | ✅ Excellent       | Production ready           |
+**Optional but recommended:**
+- **Gateway** (WebSocket for real-time features)
+- **Types** (custom TypeScript types)
+- **Constants** (module-specific constants)
 
-**Key Gaps:**
-- No E2E tests for critical user flows
-- WebSocket/real-time functionality undertested
-- Report generation module completely untested
-- Auth0 integration relies on manual testing
+### Controller Best Practices
 
-**Testing Tools:**
-- Jest v30.2.0 with ts-jest for TypeScript support
-- Prisma mock helper (`createPrismaMock()`) for service tests
-- Supertest for E2E HTTP request testing
-
----
-
-## 🎯 Code Quality Standards
-
-### ESLint Rules
-
-Key enforced rules:
-
-- `@typescript-eslint/no-explicit-any`: Warn (off in tests)
-- `@typescript-eslint/no-floating-promises`: Error
-- `@typescript-eslint/prefer-nullish-coalescing`: Error
-- `@typescript-eslint/return-await`: Always await in try-catch
-- `no-console`: Error (use Logger instead)
-- `import/order`: Alphabetized and grouped
-
-### Naming Conventions
-
-- **Files:** `kebab-case.ts` (e.g., `store.service.ts`)
-- **Classes:** `PascalCase` (e.g., `StoreService`)
-- **Interfaces:** `PascalCase` with no `I` prefix
-- **Methods:** `camelCase` (e.g., `createStore`)
-- **DTOs:** Suffix with `Dto` (e.g., `CreateStoreDto`)
-- **Constants:** `UPPER_SNAKE_CASE`
-
-### Async/Await Patterns
+**Controllers MUST NOT contain business logic:**
 
 ```typescript
-// ✅ Correct - always await in try-catch
-try {
-  return await this.prisma.store.create({ data });
-} catch (error) {
-  // Handle error
-}
-
-// ❌ Wrong - missing await
-try {
-  return this.prisma.store.create({ data });
-} catch (error) {
-  // Won't catch async errors!
-}
-```
-
-## 🚨 Anti-Patterns to Avoid
-
-### Code Smells
-
-- ❌ Direct `process.env` access (use ConfigService)
-- ❌ Business logic in controllers (use services)
-- ❌ Raw Prisma calls outside services
-- ❌ Hard deletes (use soft deletes)
-- ❌ Console logs (use Logger service)
-- ❌ Unvalidated DTOs (always use decorators)
-- ❌ Query overfetching (use `select`/`include`)
-- ❌ Tight coupling between modules
-- ❌ Floating promises (always await or handle)
-- ❌ Magic numbers/strings (use constants)
-- ❌ Nested callbacks (use async/await)
-- ❌ Global state mutations
-
-### Authentication Anti-Patterns
-
-- ❌ Creating local password authentication (use Auth0 only)
-- ❌ Storing passwords in the database (Auth0 handles authentication)
-- ❌ Implementing custom JWT validation (use Auth0 JWKS)
-- ❌ Bypassing Auth0 for staff authentication
-- ❌ Using Auth0 for customer orders (use session-based auth)
-
-### Database Anti-Patterns
-
-- ❌ N+1 queries (use includes/joins)
-- ❌ Missing indexes on frequently queried fields
-- ❌ Transactions without rollback handling
-- ❌ Direct SQL queries (use Prisma)
-- ❌ Missing store isolation checks
-
----
-
-## 🛠️ Development Workflow
-
-### 🚦 MANDATORY Task Completion Guardrails
-
-**CRITICAL**: Every backend task MUST pass ALL quality gates before being marked complete. No exceptions.
-
-#### Quality Gate Execution Order
-
-Run these checks in order for EVERY task:
-
-```bash
-# Step 1: Code Formatting (MUST pass)
-npm run format
-
-# Step 2: Linting (MUST pass - 0 errors, auto-fix enabled)
-npm run lint
-
-# Step 3: Type Checking (MUST pass - 0 errors)
-npx tsc --noEmit
-
-# Step 4: Tests (MUST pass - all 320+ tests)
-npm run test
-
-# Step 5: Build (MUST succeed)
-npm run build
-
-# Step 6: Database (if schema changed)
-npm run generate:db  # After schema.prisma changes
-npm run migrate:db   # To create migration (dev only)
-```
-
-#### Test Coverage Requirements
-
-**Critical Modules** (≥85% coverage MANDATORY):
-- CartModule, OrderModule, PaymentModule
-- MenuModule, CategoryModule, TableModule
-- UserModule, AuthModule
-
-**New Code Requirements**:
-- ✅ New service methods: **100% test coverage**
-- ✅ Financial calculations: **Decimal precision tests**
-- ✅ Security operations: **RBAC validation tests**
-- ✅ Database transactions: **Rollback scenario tests**
-
-#### Task NOT Complete Until
-
-**Code Quality:**
-- ✅ All 320+ tests pass
-- ✅ Build completes without errors
-- ✅ Linting shows 0 errors
-- ✅ Type checking shows 0 errors
-- ✅ Code is formatted (Prettier)
-
-**Testing:**
-- ✅ New tests added for new functionality
-- ✅ Test coverage meets requirements (≥85% for critical modules)
-- ✅ Edge cases covered
-- ✅ Error scenarios tested
-
-**Architecture & Security:**
-- ✅ No `process.env` direct access (use ConfigService)
-- ✅ Store isolation enforced (`storeId` + `deletedAt: null`)
-- ✅ RBAC permissions validated
-- ✅ DTOs have validation decorators
-- ✅ Errors mapped properly (no internal exposure)
-- ✅ Structured logging used (Logger service)
-- ✅ Soft deletes implemented (no hard deletes)
-
-**Database (if applicable):**
-- ✅ Schema changes have migrations
-- ✅ Prisma client regenerated
-- ✅ Seed data updated (if needed)
-- ✅ Foreign key constraints verified
-
-#### When Quality Gates Fail
-
-**If ANY check fails:**
-
-1. ❌ **DO NOT** mark task as complete
-2. 🔧 **FIX** the failing check immediately
-3. 🔄 **RE-RUN** ALL quality gates from Step 1
-4. ✅ **VERIFY** all checks pass before proceeding
-
-**Common Failure Resolutions:**
-
-| Failure | Resolution |
-|---------|-----------|
-| Format fails | Run `npm run format` and commit changes |
-| Lint errors | Fix errors manually or use `npm run lint` (has --fix) |
-| Type errors | Fix TypeScript errors, check imports, verify types |
-| Tests fail | Debug failed tests, update mocks, fix logic |
-| Build fails | Check syntax errors, missing dependencies |
-| Coverage low | Add tests for uncovered branches |
-
-#### Automated Verification Script
-
-**Copy-paste this to verify ALL backend quality gates:**
-
-```bash
-#!/bin/bash
-set -e  # Exit on first error
-
-echo "🔍 Running Backend Quality Gates..."
-
-echo "Step 1/5: Formatting..."
-npm run format || { echo "❌ Format failed"; exit 1; }
-
-echo "Step 2/5: Linting..."
-npm run lint || { echo "❌ Lint failed"; exit 1; }
-
-echo "Step 3/5: Type Checking..."
-npx tsc --noEmit || { echo "❌ Type check failed"; exit 1; }
-
-echo "Step 4/5: Tests..."
-npm run test || { echo "❌ Tests failed"; exit 1; }
-
-echo "Step 5/5: Build..."
-npm run build || { echo "❌ Build failed"; exit 1; }
-
-echo ""
-echo "✅✅✅ ALL BACKEND QUALITY GATES PASSED ✅✅✅"
-echo "Task is ready for completion!"
-```
-
-#### Task Completion Certification
-
-**Before marking ANY backend task complete, certify:**
-
-```
-✅ All 5 quality gate steps passed
-✅ Code formatted, linted, type-safe
-✅ All 320+ tests pass
-✅ Build succeeds
-✅ Test coverage ≥85% (critical modules)
-✅ New tests added for new functionality
-✅ Security requirements enforced
-✅ Architecture patterns followed
-✅ Database migrations created (if schema changed)
-✅ No `process.env` direct access
-✅ ConfigService used for environment variables
-✅ RBAC permissions validated
-✅ Soft deletes implemented
-✅ Structured logging used
-
-BACKEND TASK COMPLETION VERIFIED ✅
-```
-
-**RULE**: If you cannot certify ALL items above, the task is NOT complete.
-
-### Code Review Standards
-
-Ensure your code:
-
-- ✅ Follows all architectural principles
-- ✅ Has appropriate test coverage (≥85% for critical modules)
-- ✅ Includes proper error handling
-- ✅ Uses structured logging (Logger service)
-- ✅ Validates all inputs (class-validator decorators)
-- ✅ Maintains store isolation (storeId filtering)
-- ✅ Documents complex logic (JSDoc comments)
-- ✅ Handles edge cases (tested)
-- ✅ Uses ConfigService (never process.env)
-- ✅ Implements soft deletes (deletedAt timestamp)
-
-### Git Commit Standards
-
-```bash
-# Format: <type>(<scope>): <subject>
-feat(auth): add Auth0 integration
-fix(store): resolve duplicate slug issue
-refactor(menu): improve query performance
-test(cart): add unit tests for checkout
-docs(api): update Swagger documentation
-```
-
-## 🔍 Common Patterns & Solutions
-
-### Multi-tenant Query Pattern
-
-```typescript
-async findStoreData(userId: string, storeId: string) {
-  // Always verify membership first
-  await this.authService.checkStorePermission(userId, storeId, [Role.ADMIN]);
-
-  // Then query with store isolation
-  return this.prisma.menuItem.findMany({
-    where: { storeId, deletedAt: null }
+// ❌ BAD - Business logic in controller
+@Post()
+async createUser(@Body() body: any) {
+  const hashed = await bcrypt.hash(body.password, 10);
+  const user = await this.prisma.user.create({
+    data: { ...body, password: hashed },
   });
+  return user;
+}
+
+// ✅ GOOD - Controller delegates to service
+@Post()
+@UseGuards(JwtAuthGuard)
+@ApiOperation({ summary: 'Create new user' })
+@ApiCreatedResponse({ type: UserResponseDto })
+async createUser(
+  @Body() dto: CreateUserDto,
+  @GetUser('userId') currentUserId: string,
+): Promise<UserResponseDto> {
+  return this.userService.create(currentUserId, dto);
 }
 ```
 
-### File Upload Pattern
+**Controller responsibilities (ONLY):**
+1. Request validation (automatic via DTOs)
+2. Authentication/authorization (via guards)
+3. Call appropriate service method
+4. Return response (with proper HTTP status codes)
+
+**Controllers MUST NOT:**
+- Access database directly (use services)
+- Contain business logic (delegate to services)
+- Hash passwords, calculate totals, etc. (belongs in services)
+- Handle errors manually (use exception filters)
+
+### Service Layer Best Practices
+
+**Services MUST be stateless:**
 
 ```typescript
-@Post('upload')
-@UseInterceptors(FileInterceptor('file', {
-  storage: multer.memoryStorage(),
-  fileFilter: imageFileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB
-}))
-async uploadFile(@UploadedFile() file: Express.Multer.File) {
-  const url = await this.s3Service.uploadFile(file);
-  return { url };
+// ❌ BAD - Stateful service (caching, mutable state)
+@Injectable()
+export class StoreService {
+  private cachedStores = new Map(); // ❌ Don't do this
+
+  async findOne(id: string) {
+    if (this.cachedStores.has(id)) {
+      return this.cachedStores.get(id);
+    }
+    const store = await this.prisma.store.findUnique({ where: { id } });
+    this.cachedStores.set(id, store);
+    return store;
+  }
 }
-```
 
-### WebSocket Events Pattern
+// ✅ GOOD - Stateless service, caching externalized
+@Injectable()
+export class StoreService {
+  constructor(
+    private prisma: PrismaService,
+    private cacheService: CacheService, // Use Redis for caching
+  ) {}
 
-```typescript
-@WebSocketGateway()
-export class OrderGateway {
-  @SubscribeMessage('order:update')
-  handleOrderUpdate(@MessageBody() data: UpdateOrderDto) {
-    // Validate, process, and emit to relevant rooms
-    this.server.to(`store-${data.storeId}`).emit('order:updated', data);
+  async findOne(id: string): Promise<Store> {
+    const cacheKey = `store:${id}`;
+    const cached = await this.cacheService.get<Store>(cacheKey);
+    if (cached) return cached;
+
+    const store = await this.prisma.store.findUniqueOrThrow({ where: { id } });
+    await this.cacheService.set(cacheKey, store, 300); // 5 min TTL
+    return store;
   }
 }
 ```
 
-## 🧱 Philosophy
+**Service responsibilities:**
+- Orchestrate business logic
+- Manage transactions
+- Enforce domain rules
+- Call Prisma for persistence
+- Emit events for side effects
 
-This codebase should:
+**Services MUST:**
+- Be injected (never use `new StoreService()`)
+- Return DTOs or mapped objects (not always Prisma entities directly, but acceptable in this project)
+- Handle all error cases with typed exceptions
+- Use transactions for multi-step operations
 
-- Read like a **well-designed system**, not an accident that compiles.
-- Prioritize **correctness**, **clarity**, and **maintainability** over speed.
-- Enable any engineer—human or AI—to safely extend it without context loss.
-- Follow **SOLID principles** and **clean architecture** patterns.
-- Be **testable**, **scalable**, and **observable**.
+### Dependency Injection Best Practices
 
-## 📋 Implementation Checklist
+**ALWAYS use constructor injection:**
 
-For every task:
+```typescript
+// ✅ CORRECT - Constructor injection
+@Injectable()
+export class OrderService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
+}
 
-1. ☐ Understand the business requirement
-2. ☐ Design the solution following architectural principles
-3. ☐ Write tests first (TDD approach when possible)
-4. ☐ Implement the feature
-5. ☐ Add proper logging and error handling
-6. ☐ Update API documentation
-7. ☐ Run linter and formatter
-8. ☐ Ensure all tests pass
-9. ☐ Build the project successfully
-10. ☐ Verify no regression in existing features
+// ❌ INCORRECT - No static helpers or singletons
+export class OrderHelper {
+  static calculateTotal(items: OrderItem[]) { // ❌ Don't do this
+    // ...
+  }
+}
 
-## ⚠️ Critical Reminders
+// ✅ CORRECT - Injectable utility service
+@Injectable()
+export class OrderCalculationService {
+  calculateTotal(items: OrderItem[]): Decimal {
+    // ...
+  }
+}
+```
 
-- **NEVER** commit sensitive data (.env files, credentials)
-- **ALWAYS** validate user input and sanitize outputs
-- **ENSURE** store isolation in multi-tenant operations
-- **USE** transactions for multi-step database operations
-- **IMPLEMENT** proper rate limiting on public endpoints
-- **MAINTAIN** backward compatibility when updating APIs
-- **DOCUMENT** breaking changes in migration guides
+**Injection patterns in this project:**
+- Use `PrismaService` directly (no repository abstraction layer)
+- Use `ConfigService` for all environment variables (never `process.env` directly)
+- Inject all dependencies through constructor (no property injection)
 
-## 📚 Additional Resources
+### Avoiding Circular Dependencies
 
-- [NestJS Documentation](https://docs.nestjs.com)
-- [Prisma Documentation](https://www.prisma.io/docs)
-- [Auth0 Integration Guide](https://auth0.com/docs)
-- [TypeScript Best Practices](https://www.typescriptlang.org/docs/handbook/declaration-files/do-s-and-don-ts.html)
+**NEVER use `forwardRef()` - refactor instead:**
+
+```typescript
+// ❌ BAD - Circular dependency
+@Module({
+  imports: [forwardRef(() => StoreModule)],
+})
+export class UserModule {}
+
+// ✅ GOOD - Extract shared logic to common module
+@Module({
+  imports: [CommonModule], // Both User and Store import Common
+})
+export class UserModule {}
+```
+
+**Strategies to avoid circular dependencies:**
+1. Extract shared logic to a common/shared module
+2. Use events (EventEmitter) for cross-module communication
+3. Restructure modules to have clear dependency direction
+4. Consider if modules are too tightly coupled (design smell)
+
+## Architecture Patterns
+
+### Multi-Tenancy
+
+**Store Isolation**: All data operations MUST be scoped to a specific store.
+
+```typescript
+//  CORRECT - Store-scoped query
+async getMenuItems(storeId: string) {
+  return this.prisma.menuItem.findMany({
+    where: {
+      storeId,
+      deletedAt: null,
+    },
+  });
+}
+
+// L INCORRECT - Cross-store data leak
+async getMenuItems() {
+  return this.prisma.menuItem.findMany(); // Returns items from ALL stores
+}
+```
+
+**Rules:**
+- ALWAYS filter by `storeId` in queries
+- ALWAYS verify user has access to the store before operations
+- ALWAYS include store context in audit logs
+
+### Soft Deletes
+
+**NEVER hard delete records** - use soft deletes for audit trails:
+
+```typescript
+//  CORRECT - Soft delete
+async deleteMenuItem(id: string) {
+  return this.prisma.menuItem.update({
+    where: { id },
+    data: { deletedAt: new Date() },
+  });
+}
+
+// L INCORRECT - Hard delete (loses audit trail)
+async deleteMenuItem(id: string) {
+  return this.prisma.menuItem.delete({ where: { id } });
+}
+```
+
+**Rules:**
+- ALWAYS use `deletedAt` timestamp for deletions
+- ALWAYS exclude soft-deleted records with `where: { deletedAt: null }`
+- NEVER use `prisma.model.delete()` except for test cleanup
+
+### Real-Time Features (WebSocket)
+
+**CRITICAL SECURITY**: WebSocket gateways MUST authenticate connections.
+
+```typescript
+// L CRITICAL VULNERABILITY - No authentication (existing code has this issue)
+@WebSocketGateway()
+export class CartGateway {
+  @SubscribeMessage('cart:add')
+  async handleAddItem(client: Socket, data: any) {
+    // Anyone can manipulate any cart!
+  }
+}
+
+//  CORRECT - Authenticated WebSocket (MUST implement)
+@WebSocketGateway()
+export class CartGateway implements OnGatewayConnection {
+  async handleConnection(client: Socket) {
+    const token = client.handshake.auth.token;
+    if (!token) {
+      client.disconnect();
+      return;
+    }
+
+    const user = await this.authService.validateToken(token);
+    if (!user) {
+      client.disconnect();
+      return;
+    }
+
+    client.data.userId = user.id;
+  }
+
+  @SubscribeMessage('cart:add')
+  async handleAddItem(client: Socket, data: AddCartItemDto) {
+    const userId = client.data.userId;
+    // ... validated operation
+  }
+}
+```
+
+**Rules:**
+- ALWAYS validate authentication in `handleConnection`
+- ALWAYS disconnect unauthenticated clients
+- ALWAYS validate DTOs for WebSocket messages
+- ALWAYS emit to specific rooms (session-based or store-based)
+
+### Role-Based Access Control (RBAC)
+
+**5 Roles**: OWNER, ADMIN, CHEF, CASHIER, SERVER
+
+```typescript
+// Role hierarchy and permissions
+const ROLE_PERMISSIONS = {
+  OWNER: ['*'], // Full access
+  ADMIN: ['store:update', 'user:invite', 'menu:manage', 'settings:update'],
+  CHEF: ['menu:manage', 'order:view', 'order:update-status'],
+  CASHIER: ['order:view', 'payment:create', 'payment:refund'],
+  SERVER: ['order:create', 'table:manage'],
+};
+
+//  Usage in service
+async updateStoreSettings(userId: string, storeId: string, dto: UpdateSettingsDto) {
+  await this.checkUserRole(userId, storeId, ['OWNER', 'ADMIN']);
+  // ... update logic
+}
+```
+
+**Rules:**
+- ALWAYS verify role before privileged operations
+- ALWAYS use `checkUserRole` helper method
+- OWNER and ADMIN can manage store settings
+- CHEF can update menu and order statuses
+- CASHIER can process payments
+- SERVER can create orders and manage tables
 
 ---
 
-**Remember:** Quality over velocity. A well-architected solution today saves debugging time tomorrow.
+## Critical Security Patterns
+
+### Known Vulnerabilities (DO NOT REPLICATE)
+
+**P0 Critical Issues** - See [Security Audit](docs/security-audit/2025-10-28-comprehensive-security-audit.md):
+
+1. **WebSocket Authentication Bypass** (CVSS 9.1)
+   - Location: `src/cart/cart.gateway.ts`
+   - Issue: No authentication guards
+   - Fix: Implement `handleConnection` with token validation
+
+2. **Session Token Exposure** (CVSS 8.9)
+   - Location: `src/active-table-session/active-table-session.controller.ts`
+   - Issue: Returns `sessionToken` in API response
+   - Fix: Remove `sessionToken` from response DTOs, return only in Set-Cookie header
+
+3. **Checkout Authentication Bypass** (CVSS 8.6)
+   - Location: `src/cart/cart.controller.ts:checkout`
+   - Issue: Missing authentication guard
+   - Fix: Add `@UseGuards(JwtAuthGuard)` or session token validation
+
+4. **Missing Store Isolation** (CVSS 7.8)
+   - Location: `src/active-table-session/active-table-session.service.ts`
+   - Issue: No `storeId` validation
+   - Fix: Always verify `tableId` belongs to user's `storeId`
+
+### Secure Patterns
+
+**ALWAYS follow these security patterns:**
+
+```typescript
+// 1. Validate store ownership
+async checkStoreMembership(userId: string, storeId: string): Promise<void> {
+  const membership = await this.prisma.userStore.findFirst({
+    where: { userId, storeId },
+  });
+
+  if (!membership) {
+    throw new ForbiddenException('Access denied to this store');
+  }
+}
+
+// 2. Sanitize DTOs before database operations
+class CreateMenuItemDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  @Transform(({ value }) => value.trim()) // Sanitize input
+  name: string;
+}
+
+// 3. Use parameterized queries (Prisma does this automatically)
+// L NEVER construct raw SQL with string interpolation
+await prisma.$queryRaw`SELECT * FROM users WHERE id = ${userId}`; // SQL injection risk
+
+//  ALWAYS use Prisma's typed queries
+await prisma.user.findUnique({ where: { id: userId } });
+
+// 4. Hash sensitive data
+import * as bcrypt from 'bcrypt';
+const hashedPassword = await bcrypt.hash(password, 10);
+
+// 5. Validate file uploads
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+  throw new BadRequestException('Invalid file type');
+}
+```
 
 ---
 
-## 🔄 Authentication Architecture Summary
+## Code Style & Formatting
 
-### Current State (January 2025)
+### Prettier Configuration
 
+**Implicit configuration** (using Prettier defaults):
+- Single quotes for strings
+- 2 spaces indentation
+- Semicolons required
+- Trailing commas in multi-line
+
+### ESLint Rules (Key Enforcements)
+
+```typescript
+// 1. Nullish coalescing over OR
+const value = config ?? 'default'; // 
+const value = config || 'default'; // L
+
+// 2. Optional chaining
+const name = user?.profile?.name; // 
+const name = user && user.profile && user.profile.name; // L
+
+// 3. No floating promises
+await this.service.doSomething(); // 
+this.service.doSomething(); // L ESLint error
+
+// 4. Prefer const
+const items = []; // 
+let items = []; // L (if never reassigned)
+
+// 5. Template literals
+const message = `User ${userId} created`; // 
+const message = 'User ' + userId + ' created'; // L
+
+// 6. Import order (enforced by eslint-plugin-import)
+// 1. Built-in modules (fs, path)
+// 2. External modules (@nestjs/common)
+// 3. Internal modules (src/...)
+// 4. Parent/sibling imports (../, ./)
+// With blank lines between groups, alphabetically sorted
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Authentication Flow                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  Staff Users (POS App)                                       │
-│  ─────────────────────                                       │
-│  1. Auth0 Universal Login                                    │
-│  2. OAuth2/OIDC Flow                                         │
-│  3. Token Validation (JWKS)                                  │
-│  4. User Sync to DB                                          │
-│  5. Internal JWT Generation                                  │
-│  6. Store Selection                                          │
-│  7. Store-Scoped JWT                                         │
-│                                                               │
-│  Customers (SOS App)                                         │
-│  ────────────────────                                        │
-│  1. QR Code Scan                                             │
-│  2. Table Session Creation                                   │
-│  3. Session JWT                                              │
-│  4. Order Placement                                          │
-│                                                               │
-│  ⚠️  NO LOCAL PASSWORD AUTHENTICATION                        │
-│                                                               │
-└─────────────────────────────────────────────────────────────┘
+
+### Naming Conventions
+
+```typescript
+// Classes: PascalCase
+class StoreService {}
+class CreateStoreDto {}
+
+// Interfaces/Types: PascalCase with descriptive names
+interface StoreWithDetails {}
+type TransactionClient = ...;
+
+// Constants: UPPER_SNAKE_CASE
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const ALLOWED_ROLES = ['OWNER', 'ADMIN'] as const;
+
+// Variables/Functions: camelCase
+const userId = 'abc123';
+async function createStore() {}
+
+// Private methods: camelCase with descriptive names
+private async validateStoreAccess() {}
+
+// Boolean variables: is/has/can prefix
+const isAuthenticated = true;
+const hasPermission = false;
+const canDelete = user.role === 'OWNER';
+
+// Enum values: UPPER_CASE (Prisma convention)
+enum Role {
+  OWNER = 'OWNER',
+  ADMIN = 'ADMIN',
+  CHEF = 'CHEF',
+}
+
+// Database fields: camelCase (Prisma convention)
+model User {
+  firstName String  // camelCase
+  lastName  String
+  createdAt DateTime
+}
 ```
 
-### Authentication Strategies
-
-| Strategy          | File                | Usage                           | Status     |
-| ----------------- | ------------------- | ------------------------------- | ---------- |
-| Auth0Strategy     | `auth0.strategy.ts` | Validates Auth0 tokens via JWKS | ✅ Active  |
-| JwtStrategy       | `jwt.strategy.ts`   | Validates internal JWTs         | ✅ Active  |
-| ~~LocalStrategy~~ | ~~Removed~~         | ~~Email/password validation~~   | ❌ Removed |
-
-### Key Implementation Files
-
+**File naming conventions:**
 ```
-src/auth/
-├── auth.controller.ts         # Auth endpoints (Auth0 only)
-├── auth.service.ts           # Auth logic, user sync, JWT generation
-├── auth.module.ts            # Module configuration
-├── strategies/
-│   └── auth0.strategy.ts     # Auth0 token validation
-├── jwt.strategy.ts           # Internal JWT validation
-├── services/
-│   └── auth0.service.ts      # Auth0 API integration
-└── guards/
-    ├── auth0.guard.ts        # Auth0 route protection
-    ├── jwt-auth.guard.ts     # JWT route protection
-    └── ws-jwt.guard.ts       # WebSocket JWT validation
+✅ CORRECT naming patterns:
+store.service.ts           # Service
+store.controller.ts        # Controller
+store.module.ts            # Module
+store.service.spec.ts      # Unit test
+create-store.dto.ts        # DTO (kebab-case)
+store-response.dto.ts      # Response DTO
+jwt-auth.guard.ts          # Guard
+roles.decorator.ts         # Decorator
+prisma-mock.helper.ts      # Test helper
+
+❌ INCORRECT patterns:
+StoreService.ts            # Don't use PascalCase for files
+store_service.ts           # Don't use snake_case
+storeService.ts            # Don't use camelCase
 ```
 
 ---
 
-## 🐳 Docker & Deployment
+## File Structure & Organization
 
-### Local Development Setup
+### Module Structure
 
-The project uses Docker Compose **only for infrastructure services** (PostgreSQL). The application runs natively on your machine for better developer experience.
+```
+src/
+   <feature>/
+      dto/                      # Data Transfer Objects
+         create-<entity>.dto.ts
+         update-<entity>.dto.ts
+         <entity>-response.dto.ts
+      <feature>.controller.ts   # API endpoints
+      <feature>.service.ts      # Business logic
+      <feature>.service.spec.ts # Unit tests
+      <feature>.module.ts       # NestJS module
+      <feature>.gateway.ts      # WebSocket (if applicable)
+   common/                       # Shared utilities
+      decorators/               # Custom decorators
+      guards/                   # Auth guards
+      utils/                    # Helper functions
+      testing/                  # Test utilities
+   prisma/
+       schema.prisma             # Database schema
+       migrations/               # Migration files
+       seed.ts                   # Seed data
+```
 
-**docker-compose.yml** (Local Development):
-- Provides PostgreSQL 16 Alpine container
-- Exposes port 5432 for database connections
-- Includes health checks for service readiness
-- Persists data in named volume `postgres-data`
+### Import Path Rules
 
-**Usage:**
+```typescript
+//  CORRECT - Use absolute paths with 'src/' prefix
+import { PrismaService } from 'src/prisma/prisma.service';
+import { AuthService } from 'src/auth/auth.service';
+
+// L INCORRECT - Relative paths for cross-module imports
+import { PrismaService } from '../../prisma/prisma.service';
+```
+
+---
+
+## Documentation Requirements
+
+### JSDoc Comments
+
+**ALWAYS document public methods:**
+
+```typescript
+/**
+ * Creates a new store with initial information and settings.
+ *
+ * This operation is transactional - if any step fails, all changes are rolled back.
+ * The creating user is automatically assigned as OWNER.
+ *
+ * @param userId - Auth0 ID of the user creating the store
+ * @param dto - Store creation data (name, slug, contact info)
+ * @returns Created store with nested information and settings
+ * @throws {BadRequestException} If slug is already taken
+ * @throws {InternalServerErrorException} On unexpected database errors
+ */
+async createStore(
+  userId: string,
+  dto: CreateStoreDto,
+): Promise<StoreWithDetailsPayload> {
+  // Implementation...
+}
+```
+
+**Rules:**
+- ALWAYS document public service methods
+- ALWAYS describe parameters with `@param`
+- ALWAYS describe return value with `@returns`
+- ALWAYS document exceptions with `@throws`
+- ALWAYS explain complex business logic in comments
+
+---
+
+## PostgreSQL Best Practices
+
+### Schema Design Rules
+
+**ALWAYS use proper field types:**
+
+```prisma
+// ✅ CORRECT - This project's pattern (uuid(7) for shorter UUIDs)
+model User {
+  id        String   @id @default(uuid(7))
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+// ✅ CORRECT - Use ENUM for finite sets
+enum Role {
+  OWNER
+  ADMIN
+  CHEF
+  CASHIER
+  SERVER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+// ✅ CORRECT - Use Decimal for monetary values (not Float)
+model Order {
+  subtotal      Decimal @db.Decimal(10, 2)
+  vatAmount     Decimal @db.Decimal(10, 2)
+  serviceCharge Decimal @db.Decimal(10, 2)
+  total         Decimal @db.Decimal(10, 2)
+}
+
+// ✅ CORRECT - Soft delete pattern
+model MenuItem {
+  id        String    @id @default(uuid(7))
+  name      String
+  deletedAt DateTime? // Null = active, non-null = deleted
+}
+```
+
+**Rules:**
+- ALWAYS use `uuid(7)` for primary keys (this project's standard, not `gen_random_uuid()`)
+- ALWAYS use `DateTime` fields (Prisma handles timezone conversion)
+- ALWAYS use Prisma ENUMs instead of raw strings for finite sets
+- ALWAYS use `Decimal` type for prices, amounts, financial calculations
+- ALWAYS include `createdAt` and `updatedAt` for audit trails
+- ALWAYS use `deletedAt: DateTime?` for soft deletes (not boolean flags)
+
+### Indexing Best Practices
+
+**ALWAYS index foreign keys and frequently queried fields:**
+
+```prisma
+model Order {
+  id        String   @id @default(uuid(7))
+  storeId   String
+  userId    String
+  status    OrderStatus
+  createdAt DateTime @default(now())
+
+  store Store @relation(fields: [storeId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  // ✅ Index foreign keys for JOIN performance
+  @@index([storeId])
+  @@index([userId])
+
+  // ✅ Index frequently filtered fields
+  @@index([status])
+
+  // ✅ Composite index for common query patterns
+  @@index([storeId, status, createdAt])
+
+  // ✅ Partial index for soft deletes (if applicable)
+  @@index([storeId], where: { deletedAt: null })
+}
+```
+
+**Indexing rules:**
+- ALWAYS index foreign keys (`storeId`, `userId`, etc.)
+- ALWAYS index fields used in `WHERE` clauses frequently
+- CREATE composite indexes with filter columns first, then sort columns
+- CREATE partial indexes for soft-deleted entities when appropriate
+- AVOID over-indexing (each index has write cost)
+
+### Transaction Best Practices
+
+**ALWAYS use transactions for multi-step operations:**
+
+```typescript
+// ✅ CORRECT - Atomic transaction
+async createStore(userId: string, dto: CreateStoreDto): Promise<Store> {
+  return await this.prisma.$transaction(async (tx) => {
+    const store = await tx.store.create({
+      data: { slug: dto.slug },
+    });
+
+    await tx.storeInformation.create({
+      data: { storeId: store.id, name: dto.name, ...dto },
+    });
+
+    await tx.storeSetting.create({
+      data: { storeId: store.id, currency: 'USD', vatRate: 0 },
+    });
+
+    await tx.userStore.create({
+      data: { userId, storeId: store.id, role: 'OWNER' },
+    });
+
+    return store;
+  });
+}
+
+// ❌ INCORRECT - Non-atomic operations (data inconsistency risk)
+async createStore(userId: string, dto: CreateStoreDto) {
+  const store = await this.prisma.store.create({ data: { slug: dto.slug } });
+  await this.prisma.storeInformation.create({ data: { storeId: store.id, ...dto } });
+  // If this fails, store exists but no information → inconsistent state!
+  return store;
+}
+```
+
+**Transaction rules:**
+- ALWAYS wrap multiple related CREATE/UPDATE operations in `$transaction`
+- USE `FOR UPDATE` pattern for race condition prevention (inventory, balance checks):
+  ```typescript
+  await tx.$queryRaw`SELECT * FROM accounts WHERE id = ${id} FOR UPDATE`;
+  ```
+- DEFAULT isolation level (`READ COMMITTED`) is sufficient for most operations
+- CONSIDER `Serializable` isolation for critical financial operations
+
+### Database Security
+
+**ALWAYS follow security best practices:**
+
+```typescript
+// ✅ CORRECT - Prisma uses prepared statements automatically
+const user = await this.prisma.user.findUnique({
+  where: { email: userEmail }, // Safe - parameterized
+});
+
+// ⚠️ CAUTION - Raw queries (only when necessary)
+const result = await this.prisma.$queryRaw`
+  SELECT * FROM users WHERE email = ${email}
+`; // Still safe - Prisma parameterizes
+
+// ❌ DANGEROUS - String interpolation (SQL injection risk)
+const result = await this.prisma.$queryRawUnsafe(
+  `SELECT * FROM users WHERE email = '${email}'` // ❌ NEVER DO THIS
+);
+```
+
+**Security rules:**
+- PREFER Prisma's type-safe queries (automatic SQL injection protection)
+- USE `$queryRaw` with template literals (parameterized) if raw SQL needed
+- NEVER use `$queryRawUnsafe` with user input
+- NEVER concatenate user input into SQL strings
+- STORE secrets in environment variables (use `ConfigService`)
+- USE read-only database user for read-heavy operations (if separate pools)
+
+### Migration Best Practices
+
+**ALWAYS handle migrations safely:**
+
 ```bash
-npm run docker:up      # Start PostgreSQL
-npm run dev            # Run app natively (connects to Docker PostgreSQL)
-npm run docker:down    # Stop services when done
+# ✅ Development - interactive migrations
+npm run migrate:db
+
+# ✅ Production - deploy migrations separately
+npx prisma migrate deploy
+
+# ❌ NEVER modify existing migrations
+# Instead, create a new migration
+
+# ✅ Safe column removal (multi-step deployment)
+# Step 1: Mark column unused, deploy code that doesn't read it
+# Step 2: Create migration to drop column
+# Step 3: Deploy migration
 ```
 
-### Production Deployment
-
-**Dockerfile** (Production):
-- Multi-stage build for optimized image size
-- Alpine Linux base (node:lts-alpine)
-- Non-root user (nestjs:nodejs with UID 1001)
-- Prisma client pre-generated at build time
-- Health check endpoint at `/health`
-- Startup script handles database migrations
-- Node.js memory limit: 2GB (`--max-old-space-size=2048`)
-
-**Build & Deploy:**
-```bash
-docker build -t origin-food-house-backend .
-docker run -p 3000:3000 --env-file .env.prod origin-food-house-backend
-```
-
-**Environment Requirements:**
-- `DATABASE_URL`: PostgreSQL connection string
-- `AUTH0_*`: Auth0 configuration variables
-- `JWT_SECRET`: JWT signing secret
-- `AWS_*`: S3 credentials (optional)
-- `SMTP_*`: Email configuration (optional)
-
-### Removed Files (October 2025)
-
-The following development Docker files were removed in favor of native development:
-- ❌ `Dockerfile.dev` (removed)
-- ❌ `docker-compose.dev.yml` (removed)
-- ❌ `docker-entrypoint.sh` (production only)
+**Migration rules:**
+- NEVER modify existing migration files (create new ones)
+- NEVER drop columns without deprecation period:
+  1. Stop writing to column
+  2. Deploy code that doesn't read column
+  3. Create migration to drop column
+  4. Deploy migration
+- ALWAYS test migrations on staging database first
+- ALWAYS backup production before running migrations
+- CREATE migrations with descriptive names
+- USE `prisma migrate dev` in development (interactive)
+- USE `prisma migrate deploy` in production (non-interactive)
 
 ---
 
-## 📚 Related Documentation
+## Performance Considerations
 
-- **Auth0 Setup:** `/docs/AUTH0_INTEGRATION.md`
-- **Business Logic:** `/docs/BUSINESS_DOC_V1.md`
-- **Technical Architecture:** `/docs/TECHNICAL_DOC_V1.md`
-- **Frontend Integration:** `../origin-food-house-frontend/CLAUDE.md`
-- **Root Project Guide:** `../CLAUDE.md`
+### Database Queries
+
+```typescript
+//  EFFICIENT - Select only needed fields
+const users = await this.prisma.user.findMany({
+  select: {
+    id: true,
+    email: true,
+    name: true,
+  },
+});
+
+// L INEFFICIENT - Fetches all fields including large text
+const users = await this.prisma.user.findMany();
+
+//  EFFICIENT - Use cursor-based pagination for large datasets
+const items = await this.prisma.menuItem.findMany({
+  take: 20,
+  skip: 1,
+  cursor: { id: lastItemId },
+});
+
+// L INEFFICIENT - Offset pagination on large tables
+const items = await this.prisma.menuItem.findMany({
+  skip: 10000,
+  take: 20,
+});
+```
+
+### Caching Strategy
+
+**ALWAYS use Redis for caching (not in-memory or database caching):**
+
+```typescript
+// ✅ CORRECT - Redis caching for frequently accessed, rarely changed data
+@Injectable()
+export class StoreService {
+  constructor(
+    private prisma: PrismaService,
+    private cacheService: CacheService,
+  ) {}
+
+  async getStoreDetails(storeId: string): Promise<Store> {
+    const cacheKey = `store:${storeId}`;
+    const cached = await this.cacheService.get<Store>(cacheKey);
+
+    if (cached) {
+      this.logger.log(`Cache hit for store: ${storeId}`);
+      return cached;
+    }
+
+    const store = await this.prisma.store.findUniqueOrThrow({
+      where: { id: storeId },
+      include: { information: true, setting: true },
+    });
+
+    await this.cacheService.set(cacheKey, store, 300); // 5 min TTL
+    return store;
+  }
+}
+```
+
+**Cache Invalidation Pattern:**
+
+```typescript
+// ✅ CORRECT - Invalidate cache after mutations
+async updateStore(storeId: string, dto: UpdateStoreDto): Promise<Store> {
+  const store = await this.prisma.store.update({
+    where: { id: storeId },
+    data: dto,
+  });
+
+  // Invalidate all related cache keys
+  await this.cacheService.del(`store:${storeId}`);
+  await this.cacheService.del(`store:${storeId}:menu`);
+  await this.cacheService.del(`store:${storeId}:categories`);
+
+  return store;
+}
+
+// ✅ CORRECT - Cache with pattern-based invalidation
+async invalidateStoreCache(storeId: string): Promise<void> {
+  const pattern = `store:${storeId}:*`;
+  await this.cacheService.deletePattern(pattern);
+}
+```
+
+**Caching rules:**
+- ALWAYS use Redis (never in-memory caching in services)
+- CACHE read-heavy, write-light data (store details, menu items)
+- SET appropriate TTL (Time To Live):
+  - 5-15 minutes for frequently changing data
+  - 1-24 hours for static data
+- INVALIDATE cache on every mutation
+- USE pattern-based cache keys: `entity:id:subresource`
+- NEVER cache user-specific sensitive data without proper isolation
+
+---
+
+## Environment Variables
+
+**REQUIRED for development:**
+```env
+NODE_ENV=dev
+DATABASE_URL=postgresql://user:pass@localhost:5432/mydb
+
+# Auth0 (REQUIRED - exclusive authentication)
+AUTH0_DOMAIN=your-tenant.auth0.com
+AUTH0_CLIENT_ID=your-client-id
+AUTH0_CLIENT_SECRET=your-client-secret
+AUTH0_AUDIENCE=https://api.your-domain.com
+AUTH0_ISSUER=https://your-tenant.auth0.com/
+
+# JWT (Internal tokens)
+JWT_SECRET=minimum-32-character-secret-key
+JWT_EXPIRES_IN=1d
+
+# CORS
+CORS_ORIGIN=http://localhost:3001,http://localhost:3002
+```
+
+**NEVER**:
+- Commit `.env` files
+- Use `process.env.VARIABLE` directly (use `ConfigService`)
+- Use weak JWT secrets (<32 characters)
+
+---
+
+## Git Workflow
+
+### Commit Messages
+
+**Follow conventional commits:**
+
+```bash
+# Format: <type>(<scope>): <subject>
+
+feat(auth): add Auth0 JWKS token validation
+fix(cart): prevent race condition in WebSocket cart sync
+refactor(store): extract slug generation to utility function
+test(order): add coverage for discount calculation edge cases
+docs(api): update Swagger docs for payment endpoints
+chore(deps): upgrade Prisma to 6.17.1
+```
+
+**Types**: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`, `security`
+
+### Pre-Commit Hooks
+
+**Husky + lint-staged automatically runs:**
+```bash
+1. ESLint --fix on staged files
+2. Prettier --write on staged files
+```
+
+**Manual verification before push:**
+```bash
+npm run typecheck  # Must pass
+npm test           # Must pass
+npm run build      # Must pass
+```
+
+---
+
+## Known Issues & Workarounds
+
+### Test Suite Failures
+
+**Status**: 11 of 17 test suites fail to compile (TypeScript errors)
+
+**Before adding new tests:**
+```bash
+# Check if your test file compiles
+npx tsc --noEmit src/your-module/your-module.service.spec.ts
+```
+
+### Security Vulnerabilities
+
+**4 Critical P0 Vulnerabilities** - See [Security Audit](docs/security-audit/2025-10-28-comprehensive-security-audit.md)
+
+**When working on affected modules:**
+1. `src/cart/cart.gateway.ts` - Add WebSocket authentication
+2. `src/active-table-session/` - Remove session tokens from responses
+3. `src/cart/cart.controller.ts` - Add checkout authentication
+4. All session operations - Validate `tableId` belongs to user's `storeId`
+
+---
+
+## Additional Resources
+
+- **Master Refactoring Plan**: [docs/MASTER_REFACTORING_PLAN.md](docs/MASTER_REFACTORING_PLAN.md)
+- **Security Audit**: [docs/security-audit/2025-10-28-comprehensive-security-audit.md](docs/security-audit/2025-10-28-comprehensive-security-audit.md)
+- **Architecture Review**: [docs/solution-architect/architecture/2025-10-28-comprehensive-architecture-review.md](docs/solution-architect/architecture/2025-10-28-comprehensive-architecture-review.md)
+- **Auth0 Integration**: [docs/AUTH0_INTEGRATION.md](docs/AUTH0_INTEGRATION.md)
+- **API Docs**: `http://localhost:3000/api/docs` (when server running)
+
+---
+
+## Summary: Quality Checklist
+
+Before marking ANY task complete:
+
+- [ ] Code formatted (`npm run format`)
+- [ ] Linting passes (`npm run lint`)
+- [ ] Type checking passes (`npm run typecheck`)
+- [ ] Tests written and passing (`npm test`)
+- [ ] Build succeeds (`npm run build`)
+- [ ] Error handling with typed exceptions
+- [ ] Structured logging with `[method]` prefix
+- [ ] Input validation with class-validator
+- [ ] Authentication/authorization guards applied
+- [ ] Store isolation enforced (multi-tenancy)
+- [ ] Soft deletes used (no hard deletes)
+- [ ] Transactions for multi-step DB operations
+- [ ] Swagger documentation added
+- [ ] JSDoc comments on public methods
+- [ ] No security vulnerabilities introduced
+
+**If ANY item fails, the task is NOT complete.**
+
+---
+
+## Advanced Clean Code Patterns
+
+### Data Mapping: Database → Domain → API
+
+**ALWAYS maintain separation of concerns:**
+
+```typescript
+// Layer 1: Prisma Model (Persistence)
+// Generated by Prisma - represents database schema
+
+// Layer 2: Domain Entity (optional - for complex business logic)
+export class Order {
+  constructor(
+    private readonly id: string,
+    private readonly items: OrderItem[],
+    private readonly status: OrderStatus,
+  ) {}
+
+  calculateTotal(): Decimal {
+    return this.items.reduce(
+      (sum, item) => sum.add(item.price.mul(item.quantity)),
+      new Decimal(0),
+    );
+  }
+
+  canBeCancelled(): boolean {
+    return this.status === 'PENDING' || this.status === 'CONFIRMED';
+  }
+}
+
+// Layer 3: Response DTO (API Contract)
+export class OrderResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  orderNumber: string;
+
+  @ApiProperty({ type: 'number' })
+  total: string; // Decimal as string for JSON
+
+  @ApiProperty()
+  status: OrderStatus;
+
+  @ApiProperty()
+  createdAt: Date;
+}
+```
+
+**Mapping pattern in service:**
+
+```typescript
+@Injectable()
+export class OrderService {
+  async findOne(orderId: string): Promise<OrderResponseDto> {
+    // 1. Fetch from database (Prisma model)
+    const order = await this.prisma.order.findUniqueOrThrow({
+      where: { id: orderId },
+      include: { items: true },
+    });
+
+    // 2. Convert to domain entity (if needed for business logic)
+    const orderEntity = new Order(order.id, order.items, order.status);
+    const total = orderEntity.calculateTotal();
+
+    // 3. Map to DTO (API response)
+    return {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      total: total.toString(),
+      status: order.status,
+      createdAt: order.createdAt,
+    };
+  }
+}
+```
+
+**When to use each layer:**
+- **Prisma Models**: ALWAYS (database operations)
+- **Domain Entities**: ONLY when you have complex business rules that belong to the entity
+- **DTOs**: ALWAYS for API input/output
+
+**This project's pattern:**
+- Often returns Prisma entities directly (acceptable for simple cases)
+- Uses DTOs for input validation
+- Consider adding domain entities for complex business logic (order calculations, payment processing)
+
+### Connection Pool Configuration
+
+**ALWAYS configure proper connection pooling:**
+
+```typescript
+// prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Prisma connection pool (configured via DATABASE_URL)
+// postgresql://user:password@localhost:5432/mydb?connection_limit=10&pool_timeout=20
+
+// For API servers:
+connection_limit=10        // Max 10 connections
+pool_timeout=20            // 20 second timeout
+
+// For background job workers:
+connection_limit=20-50     // Higher for parallel jobs
+```
+
+**Connection pool rules:**
+- API servers: 10 connections (per instance)
+- Background workers: 20-50 connections
+- NEVER exceed PostgreSQL max_connections (typically 100)
+- USE connection pooler (PgBouncer) for >100 concurrent users
+- MONITOR connection usage with `SHOW pool_status` (if using PgBouncer)
+
+### Error Recovery & Resilience
+
+**ALWAYS handle transient failures:**
+
+```typescript
+// ✅ CORRECT - Retry logic for transient failures
+async function createOrderWithRetry(
+  dto: CreateOrderDto,
+  maxRetries = 3,
+): Promise<Order> {
+  let lastError: Error;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await this.createOrder(dto);
+    } catch (error) {
+      lastError = error;
+
+      // Retry only on transient errors
+      if (this.isTransientError(error) && attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 100; // Exponential backoff
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        this.logger.warn(`Retrying order creation (attempt ${attempt + 1}/${maxRetries})`);
+        continue;
+      }
+
+      // Non-transient error or max retries exceeded
+      throw error;
+    }
+  }
+
+  throw lastError;
+}
+
+private isTransientError(error: unknown): boolean {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    // Connection errors, timeouts
+    return ['P1001', 'P1002', 'P1008', 'P1017'].includes(error.code);
+  }
+  return false;
+}
+```
+
+### UPSERT Pattern (Instead of Manual Check)
+
+**ALWAYS use UPSERT for idempotent operations:**
+
+```typescript
+// ❌ INCORRECT - Race condition risk
+async updateOrCreateUserStore(userId: string, storeId: string, role: Role) {
+  const existing = await this.prisma.userStore.findUnique({
+    where: { userId_storeId: { userId, storeId } },
+  });
+
+  if (existing) {
+    return this.prisma.userStore.update({
+      where: { id: existing.id },
+      data: { role },
+    });
+  } else {
+    return this.prisma.userStore.create({
+      data: { userId, storeId, role },
+    });
+  }
+}
+
+// ✅ CORRECT - Atomic UPSERT
+async updateOrCreateUserStore(userId: string, storeId: string, role: Role) {
+  return this.prisma.userStore.upsert({
+    where: { userId_storeId: { userId, storeId } },
+    update: { role },
+    create: { userId, storeId, role },
+  });
+}
+```
+
+### Isolation Level Considerations
+
+**UNDERSTAND when to use different isolation levels:**
+
+```typescript
+// Default: READ COMMITTED (sufficient for most operations)
+await this.prisma.order.create({ data: dto });
+
+// Use SERIALIZABLE for critical financial operations
+await this.prisma.$transaction(
+  async (tx) => {
+    // Check account balance
+    const account = await tx.account.findUnique({ where: { id } });
+
+    if (account.balance < amount) {
+      throw new BadRequestException('Insufficient funds');
+    }
+
+    // Deduct balance
+    await tx.account.update({
+      where: { id },
+      data: { balance: account.balance - amount },
+    });
+
+    // Record transaction
+    await tx.transaction.create({ data: { accountId: id, amount } });
+  },
+  {
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+  },
+);
+```
+
+**Isolation level guidelines:**
+- `READ COMMITTED` (default): Most operations
+- `REPEATABLE READ`: Reporting, analytics (consistent snapshot)
+- `SERIALIZABLE`: Financial transactions, inventory updates (prevent race conditions)
+
+---
+
+## Summary: Comprehensive Quality Checklist
+
+Before marking ANY task complete, verify ALL of the following:
+
+### Code Quality
+- [ ] Code formatted (`npm run format`)
+- [ ] Linting passes (`npm run lint`)
+- [ ] Type checking passes (`npm run typecheck`)
+- [ ] Tests written and passing (`npm test`)
+- [ ] Build succeeds (`npm run build`)
+
+### TypeScript Best Practices
+- [ ] No `any` types used
+- [ ] Explicit return types on all functions
+- [ ] Null/undefined handled with optional chaining (`?.`) and nullish coalescing (`??`)
+- [ ] Union types used instead of broad string/number types
+- [ ] Pure functions for business logic (side effects isolated to services)
+
+### NestJS Architecture
+- [ ] Controllers contain ONLY request/response handling
+- [ ] Business logic in services (not controllers)
+- [ ] DTOs used for all input/output
+- [ ] Dependency injection used (no static methods)
+- [ ] No circular dependencies (`forwardRef` not used)
+
+### Database & Prisma
+- [ ] Transactions used for multi-step operations
+- [ ] Soft deletes used (no hard deletes)
+- [ ] Indexes added for foreign keys and frequently queried fields
+- [ ] `findUniqueOrThrow` used instead of `findUnique` + null check
+- [ ] Decimal type used for monetary values
+
+### Security
+- [ ] Authentication guards applied (`@UseGuards(JwtAuthGuard)`)
+- [ ] Authorization verified (role checks before privileged operations)
+- [ ] Store isolation enforced (multi-tenancy)
+- [ ] Input validation with class-validator decorators
+- [ ] No SQL injection vulnerabilities (Prisma parameterized queries)
+- [ ] Sensitive data not exposed in responses
+
+### Documentation & Logging
+- [ ] Swagger documentation added (`@ApiOperation`, `@ApiResponse`)
+- [ ] JSDoc comments on public methods
+- [ ] Structured logging with `[method]` prefix
+- [ ] Error handling with typed exceptions
+- [ ] `getErrorDetails(error)` used for error logging
+
+### Performance
+- [ ] SELECT only needed fields (not `SELECT *`)
+- [ ] Pagination implemented for large datasets
+- [ ] Redis caching for read-heavy operations
+- [ ] Connection pool configured appropriately
+- [ ] N+1 query problem avoided (use `include` or `select`)
+
+**If ANY item fails, the task is NOT complete.**
