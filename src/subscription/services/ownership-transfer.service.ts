@@ -17,6 +17,7 @@ import {
 } from "@prisma/client";
 
 import { AuditLogService } from "../../audit-log/audit-log.service";
+import { getErrorDetails } from "../../common/utils/error.util";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
@@ -90,9 +91,10 @@ export class OwnershipTransferService {
 
       return transfer;
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to initiate ownership transfer`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException(
         "Failed to initiate ownership transfer",
@@ -165,9 +167,10 @@ export class OwnershipTransferService {
         `[${method}] Ownership transferred successfully: ${transferId}`,
       );
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to complete ownership transfer`,
-        error.stack,
+        stack,
       );
       throw error;
     }
@@ -246,9 +249,10 @@ export class OwnershipTransferService {
         throw new NotFoundException("Transfer not found");
       }
 
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to complete ownership transfer`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException(
         "Failed to complete ownership transfer",
@@ -306,7 +310,8 @@ export class OwnershipTransferService {
         throw new NotFoundException("Transfer not found");
       }
 
-      this.logger.error(`[${method}] Failed to cancel transfer`, error.stack);
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to cancel transfer`, stack);
       throw new InternalServerErrorException("Failed to cancel transfer");
     }
   }

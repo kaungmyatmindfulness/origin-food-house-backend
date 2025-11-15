@@ -27,6 +27,8 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
+import { getErrorDetails } from "../utils/error.util";
+
 @Injectable()
 export class S3Service {
   private readonly logger = new Logger(S3Service.name);
@@ -312,11 +314,9 @@ export class S3Service {
     operation: string,
     context?: string,
   ): never {
-    const message = `S3 operation '${operation}' failed${context ? ` for context: ${context}` : ""}. Error: ${error instanceof Error ? error.message : "Unknown S3 error"}`;
-    this.logger.error(
-      message,
-      error instanceof Error ? error.stack : undefined,
-    );
+    const { message: errorMessage, stack } = getErrorDetails(error);
+    const message = `S3 operation '${operation}' failed${context ? ` for context: ${context}` : ""}. Error: ${errorMessage}`;
+    this.logger.error(message, stack);
 
     if (error instanceof S3ServiceException) {
       if (

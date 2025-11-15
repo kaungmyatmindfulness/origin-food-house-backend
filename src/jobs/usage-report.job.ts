@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 
+import { getErrorDetails } from "../common/utils/error.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { RedisService } from "../redis/redis.service";
 
@@ -36,10 +37,8 @@ export class UsageReportJob {
         `[${method}] Completed in ${duration}ms. Generated report for ${report.totalStores} stores`,
       );
     } catch (error) {
-      this.logger.error(
-        `[${method}] Job failed: ${error.message}`,
-        error.stack,
-      );
+      const { message, stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Job failed: ${message}`, stack);
     } finally {
       await this.redis.releaseLock(lockKey);
     }

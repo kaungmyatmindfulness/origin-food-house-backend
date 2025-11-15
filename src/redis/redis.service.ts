@@ -2,6 +2,8 @@ import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Redis } from "ioredis";
 
+import { getErrorDetails } from "../common/utils/error.util";
+
 @Injectable()
 export class RedisService implements OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
@@ -27,7 +29,8 @@ export class RedisService implements OnModuleDestroy {
     });
 
     this.client.on("error", (error) => {
-      this.logger.error("Redis connection error", error.stack);
+      const { stack } = getErrorDetails(error);
+      this.logger.error("Redis connection error", stack);
     });
   }
 
@@ -59,14 +62,13 @@ export class RedisService implements OnModuleDestroy {
       }
 
       // Call Redis set with spread arguments
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // ioredis types don't support all argument combinations, so we cast to any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
       const result = await (this.client.set as any)(...args);
       return result === "OK" ? "OK" : null;
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to set key ${key}`,
-        (error as Error).stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to set key ${key}`, stack);
       throw error;
     }
   }
@@ -77,7 +79,8 @@ export class RedisService implements OnModuleDestroy {
     try {
       return await this.client.get(key);
     } catch (error) {
-      this.logger.error(`[${method}] Failed to get key ${key}`, error.stack);
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to get key ${key}`, stack);
       throw error;
     }
   }
@@ -88,7 +91,8 @@ export class RedisService implements OnModuleDestroy {
     try {
       return await this.client.del(key);
     } catch (error) {
-      this.logger.error(`[${method}] Failed to delete key ${key}`, error.stack);
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to delete key ${key}`, stack);
       throw error;
     }
   }
@@ -104,7 +108,8 @@ export class RedisService implements OnModuleDestroy {
       await this.client.set(key, value, "EX", ttlSeconds);
       this.logger.log(`[${method}] OTP stored with ${ttlSeconds}s TTL: ${key}`);
     } catch (error) {
-      this.logger.error(`[${method}] Failed to store OTP ${key}`, error.stack);
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to store OTP ${key}`, stack);
       throw error;
     }
   }
@@ -119,7 +124,8 @@ export class RedisService implements OnModuleDestroy {
       }
       return value;
     } catch (error) {
-      this.logger.error(`[${method}] Failed to get OTP ${key}`, error.stack);
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to get OTP ${key}`, stack);
       throw error;
     }
   }
@@ -134,7 +140,8 @@ export class RedisService implements OnModuleDestroy {
       }
       return result > 0;
     } catch (error) {
-      this.logger.error(`[${method}] Failed to delete OTP ${key}`, error.stack);
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to delete OTP ${key}`, stack);
       throw error;
     }
   }
@@ -151,9 +158,10 @@ export class RedisService implements OnModuleDestroy {
       );
       return attempts;
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to increment OTP attempts ${key}`,
-        error.stack,
+        stack,
       );
       throw error;
     }
@@ -167,10 +175,8 @@ export class RedisService implements OnModuleDestroy {
       const attempts = await this.client.get(attemptsKey);
       return attempts ? parseInt(attempts, 10) : 0;
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to get OTP attempts ${key}`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to get OTP attempts ${key}`, stack);
       throw error;
     }
   }
@@ -197,7 +203,8 @@ export class RedisService implements OnModuleDestroy {
       );
       return false;
     } catch (error) {
-      this.logger.error(`[${method}] Failed to set lock ${key}`, error.stack);
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to set lock ${key}`, stack);
       throw error;
     }
   }
@@ -209,10 +216,8 @@ export class RedisService implements OnModuleDestroy {
       await this.client.del(key);
       this.logger.log(`[${method}] Distributed lock released: ${key}`);
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to release lock ${key}`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to release lock ${key}`, stack);
       throw error;
     }
   }

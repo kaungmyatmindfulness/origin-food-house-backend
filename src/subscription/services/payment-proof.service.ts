@@ -64,7 +64,7 @@ export class PaymentProofService {
     }
   }
 
-  async getFileUrl(fileKey: string): Promise<string> {
+  getFileUrl(fileKey: string): string {
     const method = this.getFileUrl.name;
     this.logger.log(`[${method}] Getting S3 URL for: ${fileKey}`);
 

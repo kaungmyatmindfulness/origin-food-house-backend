@@ -18,6 +18,7 @@ import {
 
 import { AuditLogService } from "../../audit-log/audit-log.service";
 import { AuthService } from "../../auth/auth.service";
+import { getErrorDetails } from "../../common/utils/error.util";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
@@ -56,9 +57,10 @@ export class SubscriptionService {
 
       return subscription.tier;
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to get tier for store ${storeId}`,
-        error.stack,
+        stack,
       );
       return SubscriptionTier.FREE;
     }
@@ -94,9 +96,10 @@ export class SubscriptionService {
         );
       }
 
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to get subscription for store ${storeId}`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException("Failed to retrieve subscription");
     }
@@ -148,9 +151,10 @@ export class SubscriptionService {
         status: subscription.status,
       };
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to check subscription status for store ${storeId}`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException(
         "Failed to check subscription status",
@@ -214,9 +218,10 @@ export class SubscriptionService {
         );
       }
 
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to activate subscription for store ${storeId}`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException("Failed to activate subscription");
     }
@@ -279,9 +284,10 @@ export class SubscriptionService {
         );
       }
 
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to downgrade store ${storeId} to FREE tier`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException("Failed to downgrade tier");
     }
@@ -386,10 +392,8 @@ export class SubscriptionService {
 
       return paymentRequest;
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to create payment request`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to create payment request`, stack);
       throw new InternalServerErrorException(
         "Failed to create payment request",
       );
@@ -440,10 +444,8 @@ export class SubscriptionService {
         throw new NotFoundException("Payment request not found");
       }
 
-      this.logger.error(
-        `[${method}] Failed to get payment request`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to get payment request`, stack);
       throw new InternalServerErrorException("Failed to get payment request");
     }
   }
@@ -469,9 +471,10 @@ export class SubscriptionService {
         orderBy: { requestedAt: "desc" },
       });
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to get store payment requests`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException("Failed to get payment requests");
     }
@@ -508,10 +511,8 @@ export class SubscriptionService {
         throw error;
       }
 
-      this.logger.error(
-        `[${method}] Failed to check platform admin`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to check platform admin`, stack);
       throw new InternalServerErrorException("Failed to verify permissions");
     }
   }
@@ -558,7 +559,8 @@ export class SubscriptionService {
         limit,
       };
     } catch (error) {
-      this.logger.error(`[${method}] Failed to get payment queue`, error.stack);
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to get payment queue`, stack);
       throw new InternalServerErrorException("Failed to get payment queue");
     }
   }
@@ -583,9 +585,10 @@ export class SubscriptionService {
         throw new NotFoundException("Payment request not found");
       }
 
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to get payment request detail`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException(
         "Failed to get payment request detail",
@@ -685,10 +688,8 @@ export class SubscriptionService {
         throw new NotFoundException("Payment request not found");
       }
 
-      this.logger.error(
-        `[${method}] Failed to verify payment request`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to verify payment request`, stack);
       throw new InternalServerErrorException("Failed to verify payment");
     }
   }
@@ -744,10 +745,8 @@ export class SubscriptionService {
         throw new NotFoundException("Payment request not found");
       }
 
-      this.logger.error(
-        `[${method}] Failed to reject payment request`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to reject payment request`, stack);
       throw new InternalServerErrorException("Failed to reject payment");
     }
   }
@@ -806,7 +805,8 @@ export class SubscriptionService {
         avgProcessingTime: Math.round(avgProcessingTime * 100) / 100,
       };
     } catch (error) {
-      this.logger.error(`[${method}] Failed to get admin metrics`, error.stack);
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to get admin metrics`, stack);
       throw new InternalServerErrorException("Failed to get admin metrics");
     }
   }
@@ -841,10 +841,8 @@ export class SubscriptionService {
         );
       }
 
-      this.logger.error(
-        `[${method}] Failed to get store subscription`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to get store subscription`, stack);
       throw new InternalServerErrorException(
         "Failed to get store subscription",
       );

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 
+import { getErrorDetails } from "../common/utils/error.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { RedisService } from "../redis/redis.service";
 
@@ -36,10 +37,8 @@ export class OTPCleanupJob {
         `[${method}] Completed in ${duration}ms (cleaned: ${cleanupCount} expired OTPs)`,
       );
     } catch (error) {
-      this.logger.error(
-        `[${method}] Job failed: ${error.message}`,
-        error.stack,
-      );
+      const { message, stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Job failed: ${message}`, stack);
     } finally {
       await this.redis.releaseLock(lockKey);
     }
@@ -92,9 +91,10 @@ export class OTPCleanupJob {
           `[${method}] Cleaned up expired OTP for transfer ${transfer.id}`,
         );
       } catch (error) {
+        const { message, stack } = getErrorDetails(error);
         this.logger.error(
-          `[${method}] Failed to cleanup OTP for transfer ${transfer.id}: ${error.message}`,
-          error.stack,
+          `[${method}] Failed to cleanup OTP for transfer ${transfer.id}: ${message}`,
+          stack,
         );
       }
     }

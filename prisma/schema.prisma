@@ -187,6 +187,7 @@ model CustomizationOption {
   name                 String
   additionalPrice      Decimal? @db.Decimal(10, 2)
   customizationGroupId String
+  sortOrder            Int      @default(0)
 
   customizationGroup      CustomizationGroup       @relation(fields: [customizationGroupId], references: [id], onDelete: Cascade)
   orderItemCustomizations OrderItemCustomization[]
@@ -196,6 +197,7 @@ model CustomizationOption {
   updatedAt DateTime @default(now()) @updatedAt
 
   @@index([customizationGroupId])
+  @@index([customizationGroupId, sortOrder])
 }
 
 model Table {

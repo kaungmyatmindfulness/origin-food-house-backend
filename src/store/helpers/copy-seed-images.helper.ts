@@ -4,6 +4,7 @@ import { Logger } from "@nestjs/common";
 
 import { SEED_IMAGES_S3_PREFIX } from "./ensure-seed-images.helper";
 import { S3Service } from "../../common/infra/s3.service";
+import { getErrorDetails } from "../../common/utils/error.util";
 
 const logger = new Logger("CopySeedImagesHelper");
 
@@ -36,9 +37,10 @@ export async function copySeedImage(
     );
     return s3Url;
   } catch (error) {
+    const { stack } = getErrorDetails(error);
     logger.error(
       `Failed to copy seed image ${filename} for store ${storeId}`,
-      error.stack,
+      stack,
     );
     return null;
   }

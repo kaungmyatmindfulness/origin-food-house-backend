@@ -1,4 +1,4 @@
-import { Logger, UnauthorizedException } from "@nestjs/common";
+import { Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import {
@@ -138,7 +138,7 @@ export class CartGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.logger.log(
         `[${method}] Client ${client.id} connected and authenticated`,
       );
-    } catch (error) {
+    } catch (_error) {
       this.logger.warn(
         `[${method}] Client ${client.id} connection rejected - authentication failed`,
       );

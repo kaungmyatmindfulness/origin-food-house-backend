@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { AdminActionType } from "@prisma/client";
+import { AdminActionType, Prisma } from "@prisma/client";
 
 import { PrismaService } from "src/prisma/prisma.service";
 
@@ -29,7 +29,9 @@ export class AdminAuditService {
           actionType: data.actionType,
           targetType: data.targetType,
           targetId: data.targetId,
-          details: data.details ? JSON.parse(data.details) : null,
+          details: data.details
+            ? (JSON.parse(data.details) as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
           ipAddress: data.ipAddress,
           userAgent: data.userAgent,
         },

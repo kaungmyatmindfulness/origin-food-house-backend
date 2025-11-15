@@ -12,6 +12,7 @@ import {
 } from "@prisma/client";
 
 import { AuditLogService } from "../../audit-log/audit-log.service";
+import { getErrorDetails } from "../../common/utils/error.util";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
@@ -44,9 +45,10 @@ export class TrialService {
 
       return canStartTrial;
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to check trial eligibility for user ${userId}`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException(
         "Failed to check trial eligibility",
@@ -123,9 +125,10 @@ export class TrialService {
         return subscription;
       });
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to auto-grant trial for store ${storeId}`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException("Failed to grant trial");
     }
@@ -159,9 +162,10 @@ export class TrialService {
 
       return Math.max(0, daysRemaining);
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to get trial days remaining for store ${storeId}`,
-        error.stack,
+        stack,
       );
       return 0;
     }
@@ -222,9 +226,10 @@ export class TrialService {
         );
       }
 
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to expire trial for store ${storeId}`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException("Failed to expire trial");
     }
@@ -255,9 +260,10 @@ export class TrialService {
           await this.expireTrial(subscription.storeId);
           downgradeCount++;
         } catch (error) {
+          const { stack } = getErrorDetails(error);
           this.logger.error(
             `[${method}] Failed to downgrade trial for store ${subscription.storeId}`,
-            error.stack,
+            stack,
           );
         }
       }
@@ -268,9 +274,10 @@ export class TrialService {
 
       return downgradeCount;
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to auto-downgrade expired trials`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException(
         "Failed to downgrade expired trials",
@@ -326,9 +333,10 @@ export class TrialService {
 
           warningCount++;
         } catch (error) {
+          const { stack } = getErrorDetails(error);
           this.logger.error(
             `[${method}] Failed to log trial warning for store ${subscription.storeId}`,
-            error.stack,
+            stack,
           );
         }
       }
@@ -339,10 +347,8 @@ export class TrialService {
 
       return warningCount;
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to send trial warnings`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to send trial warnings`, stack);
       throw new InternalServerErrorException("Failed to send trial warnings");
     }
   }
@@ -401,9 +407,10 @@ export class TrialService {
         canStartTrial: !subscription.isTrialUsed,
       };
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to get trial info for store ${storeId}`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException("Failed to get trial info");
     }

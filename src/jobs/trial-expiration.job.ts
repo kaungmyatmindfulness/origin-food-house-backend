@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Cron, CronExpression } from "@nestjs/schedule";
 
+import { getErrorDetails } from "../common/utils/error.util";
 import { SubscriptionEmailService } from "../email/subscription-email.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { RedisService } from "../redis/redis.service";
@@ -47,10 +48,8 @@ export class TrialExpirationJob {
         `[${method}] Completed in ${duration}ms (warnings: ${warningCount}, downgrades: ${downgradeCount})`,
       );
     } catch (error) {
-      this.logger.error(
-        `[${method}] Job failed: ${error.message}`,
-        error.stack,
-      );
+      const { message, stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Job failed: ${message}`, stack);
     } finally {
       await this.redis.releaseLock(lockKey);
     }

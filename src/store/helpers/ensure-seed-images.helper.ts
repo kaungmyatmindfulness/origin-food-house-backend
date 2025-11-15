@@ -2,6 +2,7 @@ import { Logger } from "@nestjs/common";
 
 import { getMimeType, readLocalImageFile } from "./upload-seed-images.helper";
 import { S3Service } from "../../common/infra/s3.service";
+import { getErrorDetails } from "../../common/utils/error.util";
 
 const logger = new Logger("EnsureSeedImagesHelper");
 
@@ -31,10 +32,8 @@ export async function checkSeedImageExists(
     const allKeys = await s3Service.listAllObjectKeys(SEED_IMAGES_S3_PREFIX);
     return allKeys.includes(key);
   } catch (error) {
-    logger.error(
-      `Failed to check existence of seed image: ${filename}`,
-      error.stack,
-    );
+    const { stack } = getErrorDetails(error);
+    logger.error(`Failed to check existence of seed image: ${filename}`, stack);
     return false;
   }
 }
@@ -71,9 +70,10 @@ export async function uploadSeedImageToSharedLocation(
     );
     return s3Url;
   } catch (error) {
+    const { stack } = getErrorDetails(error);
     logger.error(
       `Failed to upload seed image to shared location: ${filename}`,
-      error.stack,
+      stack,
     );
     return null;
   }

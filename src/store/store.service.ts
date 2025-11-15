@@ -9,6 +9,7 @@ import {
 import {
   Prisma,
   Role,
+  RoutingArea,
   Store,
   StoreInformation,
   StoreSetting,
@@ -19,6 +20,7 @@ import slugify from "slugify";
 import { AuditLogService } from "src/audit-log/audit-log.service";
 import { AuthService } from "src/auth/auth.service";
 import { S3Service } from "src/common/infra/s3.service";
+import { getErrorDetails } from "src/common/utils/error.util";
 import { BusinessHoursDto } from "src/store/dto/business-hours.dto";
 import { CreateStoreDto } from "src/store/dto/create-store.dto";
 import { UpdateStoreInformationDto } from "src/store/dto/update-store-information.dto";
@@ -26,6 +28,14 @@ import { UpdateStoreSettingDto } from "src/store/dto/update-store-setting.dto";
 
 import { InviteOrAssignRoleDto } from "./dto/invite-or-assign-role.dto";
 import { PrismaService } from "../prisma/prisma.service";
+
+/**
+ * Type for Prisma transaction client
+ * Used in transaction callbacks to ensure type safety
+ */
+type TransactionClient = Parameters<
+  Parameters<PrismaService["$transaction"]>[0]
+>[0];
 
 const storeWithDetailsInclude = Prisma.validator<Prisma.StoreInclude>()({
   information: true,
@@ -104,6 +114,10 @@ export class StoreService {
       `[${method}] User ${userId} attempting to create store: ${dto.name}`,
     );
 
+    // Helper to convert empty strings to null
+    const emptyToNull = (value: string | undefined): string | null =>
+      value && value.trim().length > 0 ? value : null;
+
     try {
       const { nanoid } = await import("nanoid");
 
@@ -130,6 +144,10 @@ export class StoreService {
           information: {
             create: {
               name: dto.name,
+              address: emptyToNull(dto.address),
+              phone: emptyToNull(dto.phone),
+              email: emptyToNull(dto.email),
+              website: emptyToNull(dto.website),
             },
           },
           setting: {
@@ -866,7 +884,7 @@ export class StoreService {
    * @returns Map of category name to category ID
    */
   private async createDefaultCategories(
-    tx: any,
+    tx: TransactionClient,
     storeId: string,
   ): Promise<Map<string, string>> {
     const method = "createDefaultCategories";
@@ -906,7 +924,10 @@ export class StoreService {
    * @param tx Prisma transaction client
    * @param storeId Store ID
    */
-  private async createDefaultTables(tx: any, storeId: string): Promise<void> {
+  private async createDefaultTables(
+    tx: TransactionClient,
+    storeId: string,
+  ): Promise<void> {
     const method = "createDefaultTables";
     this.logger.log(`[${method}] Creating default tables for Store ${storeId}`);
 
@@ -996,9 +1017,10 @@ export class StoreService {
       );
       return imageMap;
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to copy some images for Store ${storeId}`,
-        error.stack,
+        stack,
       );
       // Return partial results - failed copies will have null imageUrl
       return new Map();
@@ -1015,7 +1037,7 @@ export class StoreService {
    * @returns Array of created menu items with IDs
    */
   private async createDefaultMenuItems(
-    tx: any,
+    tx: TransactionClient,
     storeId: string,
     categoryMap: Map<string, string>,
     imageUrlMap: Map<string, string>,
@@ -1051,13 +1073,15 @@ export class StoreService {
         data: {
           name: itemData.name,
           description: itemData.description,
-          basePrice: toPrismaDecimal(itemData.basePrice),
+          basePrice: toPrismaDecimal(itemData.basePrice) as Prisma.Decimal,
           categoryId,
           storeId,
           imageUrl,
           preparationTimeMinutes: itemData.preparationTimeMinutes,
           sortOrder: itemData.sortOrder,
-          routingArea: itemData.routingArea,
+          routingArea:
+            (itemData.routingArea as RoutingArea | undefined) ??
+            RoutingArea.OTHER,
           isOutOfStock: false,
           isHidden: false,
           deletedAt: null,
@@ -1083,7 +1107,7 @@ export class StoreService {
    * @param menuItems Array of menu items with IDs and names
    */
   private async createDefaultCustomizations(
-    tx: any,
+    tx: TransactionClient,
     menuItems: Array<{ id: string; name: string }>,
   ): Promise<void> {
     const method = "createDefaultCustomizations";

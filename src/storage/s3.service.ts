@@ -14,6 +14,8 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { fileTypeFromBuffer } from "file-type";
 
+import { getErrorDetails } from "../common/utils/error.util";
+
 @Injectable()
 export class S3Service {
   private readonly logger = new Logger(S3Service.name);
@@ -83,7 +85,8 @@ export class S3Service {
       ) {
         throw error;
       }
-      this.logger.error(`[${method}] S3 upload failed`, error.stack);
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] S3 upload failed`, stack);
       throw new InternalServerErrorException("File upload failed");
     }
   }
@@ -104,9 +107,10 @@ export class S3Service {
 
       return s3Key;
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to upload payment proof for store ${storeId}`,
-        error.stack,
+        stack,
       );
       throw error;
     }
@@ -134,9 +138,10 @@ export class S3Service {
 
       return url;
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to generate presigned URL for ${s3Key}`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException(
         "Failed to generate file access URL",
@@ -157,10 +162,8 @@ export class S3Service {
 
       this.logger.log(`[${method}] File deleted: ${s3Key}`);
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to delete file ${s3Key}`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to delete file ${s3Key}`, stack);
       throw new InternalServerErrorException("File deletion failed");
     }
   }

@@ -6,6 +6,8 @@ import { ConfigService } from "@nestjs/config";
 import * as Handlebars from "handlebars";
 import * as nodemailer from "nodemailer";
 
+import { getErrorDetails } from "../common/utils/error.util";
+
 export interface PaymentRequestEmailData {
   ownerName: string;
   storeName: string;
@@ -194,10 +196,8 @@ export class SubscriptionEmailService {
         this.templates.set(templateName, Handlebars.compile(template));
         this.logger.log(`Loaded email template: ${templateName}`);
       } catch (error) {
-        this.logger.error(
-          `Failed to load template ${file}: ${error.message}`,
-          error.stack,
-        );
+        const { message, stack } = getErrorDetails(error);
+        this.logger.error(`Failed to load template ${file}: ${message}`, stack);
       }
     }
   }
@@ -227,10 +227,8 @@ export class SubscriptionEmailService {
         `[${method}] Payment request created email sent to ${to}`,
       );
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to send email to ${to}`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to send email to ${to}`, stack);
       throw error;
     }
   }
@@ -258,10 +256,8 @@ export class SubscriptionEmailService {
 
       this.logger.log(`[${method}] Payment proof uploaded email sent to ${to}`);
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to send email to ${to}`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to send email to ${to}`, stack);
       throw error;
     }
   }
@@ -289,10 +285,8 @@ export class SubscriptionEmailService {
 
       this.logger.log(`[${method}] Payment verified email sent to ${to}`);
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to send email to ${to}`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to send email to ${to}`, stack);
       throw error;
     }
   }
@@ -320,10 +314,8 @@ export class SubscriptionEmailService {
 
       this.logger.log(`[${method}] Payment rejected email sent to ${to}`);
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to send email to ${to}`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to send email to ${to}`, stack);
       throw error;
     }
   }
@@ -351,10 +343,8 @@ export class SubscriptionEmailService {
 
       this.logger.log(`[${method}] Trial started email sent to ${to}`);
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to send email to ${to}`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to send email to ${to}`, stack);
       throw error;
     }
   }
@@ -382,10 +372,8 @@ export class SubscriptionEmailService {
 
       this.logger.log(`[${method}] Trial warning email sent to ${to}`);
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to send email to ${to}`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to send email to ${to}`, stack);
       throw error;
     }
   }
@@ -413,10 +401,8 @@ export class SubscriptionEmailService {
 
       this.logger.log(`[${method}] Trial expired email sent to ${to}`);
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to send email to ${to}`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to send email to ${to}`, stack);
       throw error;
     }
   }
@@ -444,10 +430,8 @@ export class SubscriptionEmailService {
 
       this.logger.log(`[${method}] Ownership transfer OTP email sent to ${to}`);
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to send email to ${to}`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to send email to ${to}`, stack);
       throw error;
     }
   }
@@ -477,10 +461,8 @@ export class SubscriptionEmailService {
         `[${method}] Ownership transfer invite email sent to ${to}`,
       );
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to send email to ${to}`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to send email to ${to}`, stack);
       throw error;
     }
   }
@@ -510,10 +492,8 @@ export class SubscriptionEmailService {
         `[${method}] Ownership transfer complete (old owner) email sent to ${to}`,
       );
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to send email to ${to}`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to send email to ${to}`, stack);
       throw error;
     }
   }
@@ -543,10 +523,8 @@ export class SubscriptionEmailService {
         `[${method}] Ownership transfer complete (new owner) email sent to ${to}`,
       );
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to send email to ${to}`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to send email to ${to}`, stack);
       throw error;
     }
   }
@@ -574,10 +552,8 @@ export class SubscriptionEmailService {
 
       this.logger.log(`[${method}] Refund processed email sent to ${to}`);
     } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to send email to ${to}`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to send email to ${to}`, stack);
       throw error;
     }
   }

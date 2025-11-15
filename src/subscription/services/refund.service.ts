@@ -14,6 +14,7 @@ import {
 } from "@prisma/client";
 
 import { AuditLogService } from "../../audit-log/audit-log.service";
+import { getErrorDetails } from "../../common/utils/error.util";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
@@ -85,10 +86,8 @@ export class RefundService {
         throw new NotFoundException("Transaction not found");
       }
 
-      this.logger.error(
-        `[${method}] Failed to create refund request`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to create refund request`, stack);
       throw new InternalServerErrorException("Failed to request refund");
     }
   }
@@ -166,9 +165,10 @@ export class RefundService {
         throw new NotFoundException("Transaction not found");
       }
 
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to validate refund eligibility`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException(
         "Failed to validate refund eligibility",
@@ -224,10 +224,8 @@ export class RefundService {
         throw new NotFoundException("Refund request not found");
       }
 
-      this.logger.error(
-        `[${method}] Failed to approve refund request`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to approve refund request`, stack);
       throw new InternalServerErrorException("Failed to approve refund");
     }
   }
@@ -279,10 +277,8 @@ export class RefundService {
         throw new NotFoundException("Refund request not found");
       }
 
-      this.logger.error(
-        `[${method}] Failed to reject refund request`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to reject refund request`, stack);
       throw new InternalServerErrorException("Failed to reject refund");
     }
   }
@@ -381,7 +377,8 @@ export class RefundService {
         throw new NotFoundException("Refund request not found");
       }
 
-      this.logger.error(`[${method}] Failed to process refund`, error.stack);
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to process refund`, stack);
       throw new InternalServerErrorException("Failed to process refund");
     }
   }
@@ -446,10 +443,8 @@ export class RefundService {
         throw error;
       }
 
-      this.logger.error(
-        `[${method}] Failed to create refund request`,
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Failed to create refund request`, stack);
       throw new InternalServerErrorException("Failed to create refund request");
     }
   }
@@ -475,9 +470,10 @@ export class RefundService {
         orderBy: { createdAt: "desc" },
       });
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to get store refund requests`,
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException("Failed to get refund requests");
     }

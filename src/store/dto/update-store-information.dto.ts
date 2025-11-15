@@ -7,6 +7,7 @@ import {
   IsUrl,
   MaxLength,
   Matches,
+  ValidateIf,
 } from "class-validator";
 
 export class UpdateStoreInformationDto {
@@ -26,6 +27,9 @@ export class UpdateStoreInformationDto {
     maxLength: 255,
   })
   @IsOptional()
+  @ValidateIf(
+    (o: UpdateStoreInformationDto) => o.logoUrl !== "" && o.logoUrl !== null,
+  )
   @IsUrl()
   @MaxLength(255)
   logoUrl?: string;
@@ -36,6 +40,9 @@ export class UpdateStoreInformationDto {
     maxLength: 255,
   })
   @IsOptional()
+  @ValidateIf(
+    (o: UpdateStoreInformationDto) => o.address !== "" && o.address !== null,
+  )
   @IsString()
   @MaxLength(255)
   address?: string;
@@ -45,6 +52,9 @@ export class UpdateStoreInformationDto {
     maxLength: 20,
   })
   @IsOptional()
+  @ValidateIf(
+    (o: UpdateStoreInformationDto) => o.phone !== "" && o.phone !== null,
+  )
   @IsString()
   @Matches(/^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/, {
     message: "Invalid phone number format",
@@ -57,6 +67,9 @@ export class UpdateStoreInformationDto {
     maxLength: 100,
   })
   @IsOptional()
+  @ValidateIf(
+    (o: UpdateStoreInformationDto) => o.email !== "" && o.email !== null,
+  )
   @IsEmail()
   @MaxLength(100)
   email?: string;
@@ -66,6 +79,9 @@ export class UpdateStoreInformationDto {
     maxLength: 255,
   })
   @IsOptional()
+  @ValidateIf(
+    (o: UpdateStoreInformationDto) => o.website !== "" && o.website !== null,
+  )
   @IsUrl()
   @MaxLength(255)
   website?: string;

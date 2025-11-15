@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 
+import { getErrorDetails } from "../common/utils/error.util";
 import { SubscriptionEmailService } from "../email/subscription-email.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { RedisService } from "../redis/redis.service";
@@ -38,10 +39,8 @@ export class SubscriptionRenewalJob {
         `[${method}] Completed in ${duration}ms (reminders: ${reminderCount})`,
       );
     } catch (error) {
-      this.logger.error(
-        `[${method}] Job failed: ${error.message}`,
-        error.stack,
-      );
+      const { message, stack } = getErrorDetails(error);
+      this.logger.error(`[${method}] Job failed: ${message}`, stack);
     } finally {
       await this.redis.releaseLock(lockKey);
     }
@@ -110,9 +109,10 @@ export class SubscriptionRenewalJob {
           reminderCount++;
         }
       } catch (error) {
+        const { message, stack } = getErrorDetails(error);
         this.logger.error(
-          `[${method}] Failed to send renewal reminder for subscription ${subscription.id}: ${error.message}`,
-          error.stack,
+          `[${method}] Failed to send renewal reminder for subscription ${subscription.id}: ${message}`,
+          stack,
         );
       }
     }

@@ -180,7 +180,7 @@ describe("StoreService", () => {
       deletedAt: null,
     };
 
-    const mockTable = {
+    const _mockTable = {
       id: "table-123",
       name: "T-1",
       storeId: mockStoreId,
@@ -271,6 +271,10 @@ describe("StoreService", () => {
           information: {
             create: {
               name: createStoreDto.name,
+              address: null,
+              phone: null,
+              email: null,
+              website: null,
             },
           },
           setting: {

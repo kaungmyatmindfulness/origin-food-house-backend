@@ -4,6 +4,7 @@ import * as path from "path";
 import { Logger } from "@nestjs/common";
 
 import { S3Service } from "../../common/infra/s3.service";
+import { getErrorDetails } from "../../common/utils/error.util";
 
 const logger = new Logger("UploadSeedImagesHelper");
 
@@ -32,7 +33,8 @@ export async function readLocalImageFile(
     logger.log(`Read local image: ${filename} (${buffer.length} bytes)`);
     return buffer;
   } catch (error) {
-    logger.error(`Failed to read local image: ${filename}`, error.stack);
+    const { stack } = getErrorDetails(error);
+    logger.error(`Failed to read local image: ${filename}`, stack);
     return null;
   }
 }
@@ -90,7 +92,8 @@ export async function uploadSeedImage(
     logger.log(`Uploaded seed image: ${filename} -> ${s3Url}`);
     return s3Url;
   } catch (error) {
-    logger.error(`Failed to upload seed image: ${filename}`, error.stack);
+    const { stack } = getErrorDetails(error);
+    logger.error(`Failed to upload seed image: ${filename}`, stack);
     return null;
   }
 }

@@ -43,7 +43,7 @@ export class ActiveTableSessionController {
   private mapToSessionResponse(
     session: ActiveTableSession,
   ): SessionResponseDto {
-    const { sessionToken, ...safeSession } = session;
+    const { sessionToken: _sessionToken, ...safeSession } = session;
     return safeSession;
   }
 
