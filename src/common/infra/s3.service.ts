@@ -37,14 +37,14 @@ export class S3Service {
   private readonly region: string | undefined;
 
   constructor(private readonly configService: ConfigService) {
-    this.region = configService.get<string>("AWS_S3_REGION");
+    this.region = configService.get<string>("AWS_REGION");
     const accessKeyId = configService.get<string>("AWS_ACCESS_KEY_ID");
     const secretAccessKey = configService.get<string>("AWS_SECRET_ACCESS_KEY");
     this.bucket = configService.get<string>("AWS_S3_BUCKET");
 
     if (!this.region || !accessKeyId || !secretAccessKey || !this.bucket) {
       const errorMsg =
-        "Missing one or more required S3 configuration values (AWS_S3_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET).";
+        "Missing one or more required S3 configuration values (AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET).";
       this.logger.error(errorMsg);
 
       throw new InternalServerErrorException(errorMsg);
@@ -85,7 +85,7 @@ export class S3Service {
    * @param key The desired object key (path within the bucket).
    * @param data The file content as a Buffer.
    * @param contentType The MIME type of the file.
-   * @returns The public URL of the uploaded object.
+   * @returns The S3 object key (path) of the uploaded file.
    * @throws {InternalServerErrorException} On S3 API errors.
    */
   async uploadFile(
@@ -109,7 +109,7 @@ export class S3Service {
       this.logger.log(
         `Successfully uploaded file to key: ${key}. ETag: ${output.ETag}`,
       );
-      return this.getObjectUrl(key);
+      return key;
     } catch (error) {
       this.handleS3Error(error, "upload", key);
     }
@@ -121,7 +121,7 @@ export class S3Service {
    * Much faster and cheaper than uploading a new file.
    * @param sourceKey The source object key to copy from.
    * @param destinationKey The destination object key to copy to.
-   * @returns The public URL of the copied object (destination).
+   * @returns The S3 object key (path) of the copied object (destination).
    * @throws {NotFoundException | InternalServerErrorException} On S3 API errors.
    */
   async copyFile(sourceKey: string, destinationKey: string): Promise<string> {
@@ -140,7 +140,7 @@ export class S3Service {
       this.logger.log(
         `Successfully copied file from ${sourceKey} to ${destinationKey}. ETag: ${output.CopyObjectResult?.ETag}`,
       );
-      return this.getObjectUrl(destinationKey);
+      return destinationKey;
     } catch (error) {
       this.handleS3Error(error, "copy", `${sourceKey} -> ${destinationKey}`);
     }

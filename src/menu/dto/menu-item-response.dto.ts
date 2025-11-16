@@ -27,10 +27,12 @@ export class MenuItemResponseDto {
   basePrice: string;
 
   @ApiPropertyOptional({
-    example: null,
+    example: "uploads/abc-123-def",
+    description:
+      "Base S3 path for image. Frontend constructs URL: baseUrl + imagePath + '-' + size + '.webp'",
     nullable: true,
   })
-  imageUrl: string | null;
+  imagePath: string | null;
 
   @ApiProperty({
     description:

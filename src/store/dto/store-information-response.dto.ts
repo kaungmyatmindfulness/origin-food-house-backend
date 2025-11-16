@@ -10,8 +10,19 @@ export class StoreInformationResponseDto {
   @ApiProperty()
   name: string;
 
-  @ApiPropertyOptional({ nullable: true })
-  logoUrl?: string | null;
+  @ApiPropertyOptional({
+    nullable: true,
+    description: "Base S3 path for logo",
+    example: "uploads/abc-123-def",
+  })
+  logoPath?: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: "Base S3 path for cover photo",
+    example: "uploads/def-456-ghi",
+  })
+  coverPhotoPath?: string | null;
 
   @ApiPropertyOptional({ nullable: true })
   address?: string | null;

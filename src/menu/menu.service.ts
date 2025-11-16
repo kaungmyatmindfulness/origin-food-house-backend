@@ -123,7 +123,7 @@ export class MenuService {
             name: dto.name,
             description: dto.description,
             basePrice: dto.basePrice,
-            imageUrl: dto.imageUrl,
+            imagePath: dto.imagePath,
             sortOrder: newSortOrder,
           },
           select: { id: true },
@@ -243,7 +243,7 @@ export class MenuService {
             name: dto.name,
             description: dto.description,
             basePrice: dto.basePrice,
-            imageUrl: dto.imageUrl,
+            imagePath: dto.imagePath,
             isHidden: dto.isHidden,
             categoryId:
               newCategoryId !== existingMenuItem.categoryId

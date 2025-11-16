@@ -23,7 +23,6 @@ import { OrderModule } from "src/order/order.module";
 import { PaymentModule } from "src/payment/payment.module";
 import { RedisModule } from "src/redis/redis.module";
 import { ReportModule } from "src/report/report.module";
-import { StorageModule } from "src/storage/storage.module";
 import { StoreModule } from "src/store/store.module";
 import { SubscriptionModule } from "src/subscription/subscription.module";
 import { TableModule } from "src/table/table.module";
@@ -63,7 +62,6 @@ import { PrismaService } from "./prisma/prisma.service";
     PaymentModule,
     RedisModule,
     ReportModule,
-    StorageModule,
     StoreModule,
     SubscriptionModule,
     TableModule,

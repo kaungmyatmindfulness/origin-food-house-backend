@@ -42,8 +42,8 @@ describe("StoreService", () => {
     id: "info-123",
     storeId: mockStoreId,
     name: "Test Store",
-    logoUrl: null,
-    coverPhotoUrl: null,
+    logoPath: null,
+    coverPhotoPath: null,
     address: "123 Main St",
     phone: "+1234567890",
     email: "store@example.com",
@@ -770,7 +770,7 @@ describe("StoreService", () => {
     it("should upload logo successfully", async () => {
       const updatedInfo = {
         ...mockStoreInformation,
-        logoUrl: "https://s3.example.com/logo.png",
+        logoPath: "https://s3.example.com/logo.png",
       };
 
       authService.checkStorePermission.mockResolvedValue(undefined);
@@ -792,15 +792,15 @@ describe("StoreService", () => {
       );
       expect(prismaService.storeInformation.update).toHaveBeenCalledWith({
         where: { storeId: mockStoreId },
-        data: { logoUrl: "https://s3.example.com/logo.png" },
+        data: { logoPath: "https://s3.example.com/logo.png" },
       });
-      expect(result.logoUrl).toBe("https://s3.example.com/logo.png");
+      expect(result.logoPath).toBe("https://s3.example.com/logo.png");
     });
 
     it("should upload cover photo successfully", async () => {
       const updatedInfo = {
         ...mockStoreInformation,
-        coverPhotoUrl: "https://s3.example.com/cover.jpg",
+        coverPhotoPath: "https://s3.example.com/cover.jpg",
       };
 
       authService.checkStorePermission.mockResolvedValue(undefined);
@@ -822,14 +822,14 @@ describe("StoreService", () => {
         mockCoverFile.buffer,
         mockCoverFile.mimetype,
       );
-      expect(result.coverPhotoUrl).toBe("https://s3.example.com/cover.jpg");
+      expect(result.coverPhotoPath).toBe("https://s3.example.com/cover.jpg");
     });
 
     it("should upload both logo and cover", async () => {
       const updatedInfo = {
         ...mockStoreInformation,
-        logoUrl: "https://s3.example.com/logo.png",
-        coverPhotoUrl: "https://s3.example.com/cover.jpg",
+        logoPath: "https://s3.example.com/logo.png",
+        coverPhotoPath: "https://s3.example.com/cover.jpg",
       };
 
       authService.checkStorePermission.mockResolvedValue(undefined);
@@ -847,8 +847,8 @@ describe("StoreService", () => {
       );
 
       expect(s3Service.uploadFile).toHaveBeenCalledTimes(2);
-      expect(result.logoUrl).toBe("https://s3.example.com/logo.png");
-      expect(result.coverPhotoUrl).toBe("https://s3.example.com/cover.jpg");
+      expect(result.logoPath).toBe("https://s3.example.com/logo.png");
+      expect(result.coverPhotoPath).toBe("https://s3.example.com/cover.jpg");
     });
 
     it("should require Owner/Admin permission", async () => {

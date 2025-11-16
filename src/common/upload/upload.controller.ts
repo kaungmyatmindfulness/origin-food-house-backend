@@ -50,10 +50,16 @@ export class UploadController {
       fileFilter: imageFileFilter,
     }),
   )
-  @ApiOperation({ summary: "Upload an image file" })
+  @ApiOperation({
+    summary: "Upload an image file with configurable resizing",
+    description:
+      "Uploads an image file and generates optimized versions based on the selected preset. " +
+      "Supports menu items, store logos, cover photos, and payment proofs (no resize).",
+  })
   @ApiConsumes("multipart/form-data")
   @ApiBody({
-    description: "Image file to upload (jpg, jpeg, png, webp)",
+    description:
+      "Image file to upload (jpg, jpeg, png, webp) with optional size preset",
     required: true,
     schema: {
       type: "object",
@@ -61,17 +67,29 @@ export class UploadController {
         file: {
           type: "string",
           format: "binary",
+          description: "Image file (max 10MB)",
+        },
+        sizePreset: {
+          type: "string",
+          enum: ["menu-item", "store-logo", "cover-photo", "payment-proof"],
+          description:
+            "Size preset for image resizing (defaults to 'menu-item')",
+          default: "menu-item",
         },
       },
+      required: ["file"],
     },
   })
-  @ApiSuccessResponse(UploadImageResponseDto, "Image uploaded successfully")
+  @ApiSuccessResponse(
+    UploadImageResponseDto,
+    "Image uploaded and processed successfully",
+  )
   async uploadImage(
     @UploadedFile(
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: MAX_IMAGE_SIZE_BYTES }),
-          new FileTypeValidator({ fileType: ".(png|jpeg|jpg|webp)" }),
+          new FileTypeValidator({ fileType: ".(png|jpeg|jpg|webp|pdf)" }),
         ],
       }),
     )
@@ -79,14 +97,14 @@ export class UploadController {
   ): Promise<StandardApiResponse<UploadImageResponseDto>> {
     const method = this.uploadImage.name;
     this.logger.log(
-      `[${method}] Received image upload request: ${file.originalname}, size: ${file.size}, type: ${file.mimetype}`,
+      `[${method}] Received file upload request: ${file.originalname}, size: ${file.size}, type: ${file.mimetype}`,
     );
 
-    const mediumImageUrl = await this.uploadService.uploadImage(file);
+    const result = await this.uploadService.uploadImage(file);
 
     return StandardApiResponse.success(
-      { imageUrl: mediumImageUrl },
-      "Image uploaded successfully",
+      result,
+      "Image uploaded and processed successfully",
     );
   }
 }

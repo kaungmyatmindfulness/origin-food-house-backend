@@ -17,8 +17,12 @@ export class MenuItemNestedResponseDto {
   @ApiPropertyOptional({ type: String, example: "49.11", nullable: true })
   basePrice: Decimal | string | null;
 
-  @ApiPropertyOptional({ example: null, nullable: true })
-  imageUrl: string | null;
+  @ApiPropertyOptional({
+    example: "uploads/abc-123-def",
+    description: "Base S3 path",
+    nullable: true,
+  })
+  imagePath: string | null;
 
   @ApiProperty({ example: 2 })
   sortOrder: number;

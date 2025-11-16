@@ -15,11 +15,13 @@ import {
   StoreSetting,
   UserStore,
 } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 import slugify from "slugify";
 
 import { AuditLogService } from "src/audit-log/audit-log.service";
 import { AuthService } from "src/auth/auth.service";
 import { S3Service } from "src/common/infra/s3.service";
+import { UploadService } from "src/common/upload/upload.service";
 import { getErrorDetails } from "src/common/utils/error.util";
 import { BusinessHoursDto } from "src/store/dto/business-hours.dto";
 import { CreateStoreDto } from "src/store/dto/create-store.dto";
@@ -28,6 +30,15 @@ import { UpdateStoreSettingDto } from "src/store/dto/update-store-setting.dto";
 
 import { InviteOrAssignRoleDto } from "./dto/invite-or-assign-role.dto";
 import { PrismaService } from "../prisma/prisma.service";
+
+/**
+ * Constants for store service validations
+ */
+const MAX_RATE_PERCENTAGE = new Decimal("0.3"); // 30% maximum for VAT/service charge
+const MIN_RATE = new Decimal("0"); // 0% minimum for rates
+const MAX_LOYALTY_EXPIRY_DAYS = 3650; // 10 years maximum
+const MIN_LOYALTY_EXPIRY_DAYS = 0; // No expiry minimum
+const NANOID_LENGTH = 6; // Length of random slug suffix
 
 /**
  * Type for Prisma transaction client
@@ -54,6 +65,7 @@ export class StoreService {
     private authService: AuthService,
     private auditLogService: AuditLogService,
     private s3Service: S3Service,
+    private uploadService: UploadService,
   ) {}
 
   /**
@@ -93,9 +105,10 @@ export class StoreService {
         this.logger.warn(`[${method}] Store ${storeId} not found.`);
         throw new NotFoundException(`Store with ID ${storeId} not found.`);
       }
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Error fetching store details for ${storeId}`,
-        error,
+        stack,
       );
       throw new InternalServerErrorException(
         "Could not retrieve store details.",
@@ -114,10 +127,6 @@ export class StoreService {
       `[${method}] User ${userId} attempting to create store: ${dto.name}`,
     );
 
-    // Helper to convert empty strings to null
-    const emptyToNull = (value: string | undefined): string | null =>
-      value && value.trim().length > 0 ? value : null;
-
     try {
       const { nanoid } = await import("nanoid");
 
@@ -126,7 +135,7 @@ export class StoreService {
         lower: true,
         strict: true,
         remove: /[*+~.()'"!:@]/g,
-      })}-${nanoid(6)}`;
+      })}-${nanoid(NANOID_LENGTH)}`;
 
       // Check slug uniqueness
       const existingStore = await this.prisma.store.findUnique({
@@ -144,10 +153,10 @@ export class StoreService {
           information: {
             create: {
               name: dto.name,
-              address: emptyToNull(dto.address),
-              phone: emptyToNull(dto.phone),
-              email: emptyToNull(dto.email),
-              website: emptyToNull(dto.website),
+              address: this.emptyToNull(dto.address),
+              phone: this.emptyToNull(dto.phone),
+              email: this.emptyToNull(dto.email),
+              website: this.emptyToNull(dto.website),
             },
           },
           setting: {
@@ -217,9 +226,10 @@ export class StoreService {
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
 
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to create store: ${dto.name}`,
-        error,
+        stack,
       );
       throw new InternalServerErrorException("Could not create store.");
     }
@@ -255,7 +265,7 @@ export class StoreService {
         where: { storeId },
         data: {
           name: dto.name,
-          logoUrl: dto.logoUrl,
+          logoPath: dto.logoPath,
           address: dto.address,
           phone: dto.phone,
           email: dto.email,
@@ -279,9 +289,10 @@ export class StoreService {
           `Information for store with ID ${storeId} not found. Cannot update.`,
         );
       }
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to update StoreInformation for Store ID ${storeId}`,
-        error,
+        stack,
       );
       throw new InternalServerErrorException(
         "Could not update store information.",
@@ -342,9 +353,10 @@ export class StoreService {
         );
       }
 
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to update StoreSetting for Store ID ${storeId}`,
-        error,
+        stack,
       );
       throw new InternalServerErrorException(
         "Could not update store settings.",
@@ -442,9 +454,10 @@ export class StoreService {
       ) {
         throw error;
       }
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `Failed to assign role ${dto.role} to email ${dto.email} in Store ${storeId}`,
-        error,
+        stack,
       );
       throw new InternalServerErrorException("Could not assign role to user.");
     }
@@ -480,16 +493,16 @@ export class StoreService {
     ]);
 
     // Validation: 0-30%
-    const vat = new Prisma.Decimal(vatRate);
-    const service = new Prisma.Decimal(serviceChargeRate);
+    const vat = new Decimal(vatRate);
+    const service = new Decimal(serviceChargeRate);
 
-    if (vat.lt(0) || vat.gt(0.3)) {
+    if (vat.lt(MIN_RATE) || vat.gt(MAX_RATE_PERCENTAGE)) {
       this.logger.warn(
         `[${method}] Invalid VAT rate ${vatRate} by User ${userId}`,
       );
       throw new BadRequestException("VAT rate must be between 0% and 30%");
     }
-    if (service.lt(0) || service.gt(0.3)) {
+    if (service.lt(MIN_RATE) || service.gt(MAX_RATE_PERCENTAGE)) {
       this.logger.warn(
         `[${method}] Invalid service charge rate ${serviceChargeRate} by User ${userId}`,
       );
@@ -552,9 +565,10 @@ export class StoreService {
       ) {
         throw error;
       }
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to update tax/service charge for Store ID ${storeId}`,
-        error,
+        stack,
       );
       throw new InternalServerErrorException(
         "Could not update tax and service charge.",
@@ -630,9 +644,10 @@ export class StoreService {
           `Settings for store with ID ${storeId} not found.`,
         );
       }
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to update business hours for Store ID ${storeId}`,
-        error,
+        stack,
       );
       throw new InternalServerErrorException(
         "Could not update business hours.",
@@ -641,17 +656,33 @@ export class StoreService {
   }
 
   /**
+   * Converts empty strings to null for optional database fields.
+   * Ensures that empty strings are stored as NULL in the database.
+   * @private
+   * @param value Optional string value from user input
+   * @returns Trimmed string or null if empty/undefined
+   */
+  private emptyToNull(value: string | undefined): string | null {
+    return value?.trim().length ? value.trim() : null;
+  }
+
+  /**
    * Converts any object to Prisma.InputJsonValue.
    * This is a type-safe wrapper for JSON field assignments.
    * @private
    */
   private toJsonValue(value: unknown): Prisma.InputJsonValue {
+    // Prisma.InputJsonValue accepts null, string, number, boolean, JsonObject, or JsonArray
+    // This type assertion is safe as long as the value conforms to JSON-serializable data
     return value as Prisma.InputJsonValue;
   }
 
   /**
-   * Validates business hours structure
+   * Validates business hours structure and time format.
+   * Ensures all days are present with valid time ranges or closed status.
    * @private
+   * @param hours Business hours object with days of the week
+   * @throws {BadRequestException} If any day is missing or has invalid time format
    */
   private validateBusinessHours(hours: BusinessHoursDto): void {
     const days: Array<keyof BusinessHoursDto> = [
@@ -711,31 +742,52 @@ export class StoreService {
       Role.ADMIN,
     ]);
 
-    try {
-      const updates: { logoUrl?: string; coverPhotoUrl?: string } = {};
+    // Get existing paths for cleanup on success
+    const existingInfo = await this.prisma.storeInformation.findUnique({
+      where: { storeId },
+      select: { logoPath: true, coverPhotoPath: true },
+    });
 
-      // Upload logo to S3
+    if (!existingInfo) {
+      throw new NotFoundException(
+        `Store information for store ${storeId} not found`,
+      );
+    }
+
+    const oldPaths = {
+      logo: existingInfo.logoPath,
+      cover: existingInfo.coverPhotoPath,
+    };
+
+    const newPaths: string[] = [];
+
+    try {
+      const updates: { logoPath?: string; coverPhotoPath?: string } = {};
+
+      // Upload logo using UploadService (generates multiple sizes)
       if (logo) {
         this.logger.log(`[${method}] Uploading logo for Store ${storeId}`);
-        const logoUrl = await this.s3Service.uploadFile(
-          `store-logos/${storeId}-${Date.now()}-${logo.originalname}`,
-          logo.buffer,
-          logo.mimetype,
+        const logoResult = await this.uploadService.uploadImage(
+          logo,
+          "store-logo",
+          storeId,
         );
-        updates.logoUrl = logoUrl;
+        updates.logoPath = logoResult.basePath;
+        newPaths.push(logoResult.basePath);
       }
 
-      // Upload cover to S3
+      // Upload cover photo using UploadService (generates multiple sizes)
       if (cover) {
         this.logger.log(
           `[${method}] Uploading cover photo for Store ${storeId}`,
         );
-        const coverUrl = await this.s3Service.uploadFile(
-          `store-covers/${storeId}-${Date.now()}-${cover.originalname}`,
-          cover.buffer,
-          cover.mimetype,
+        const coverResult = await this.uploadService.uploadImage(
+          cover,
+          "cover-photo",
+          storeId,
         );
-        updates.coverPhotoUrl = coverUrl;
+        updates.coverPhotoPath = coverResult.basePath;
+        newPaths.push(coverResult.basePath);
       }
 
       // Update store information
@@ -756,8 +808,52 @@ export class StoreService {
       this.logger.log(
         `[${method}] Branding updated for Store ${storeId} by User ${userId}`,
       );
+
+      // Delete old files only after database update succeeds
+      if (oldPaths.logo && updates.logoPath) {
+        await this.deleteImageVersions(oldPaths.logo, "store-logo").catch(
+          (err) => {
+            const { message } = getErrorDetails(err);
+            this.logger.warn(
+              `[${method}] Failed to delete old logo: ${message}`,
+            );
+          },
+        );
+      }
+
+      if (oldPaths.cover && updates.coverPhotoPath) {
+        await this.deleteImageVersions(oldPaths.cover, "cover-photo").catch(
+          (err) => {
+            const { message } = getErrorDetails(err);
+            this.logger.warn(
+              `[${method}] Failed to delete old cover photo: ${message}`,
+            );
+          },
+        );
+      }
+
       return updated;
     } catch (error) {
+      // Cleanup newly uploaded files on database update failure
+      this.logger.warn(
+        `[${method}] Database update failed. Cleaning up newly uploaded files...`,
+      );
+
+      for (const newPath of newPaths) {
+        try {
+          const preset = newPath.includes("logo")
+            ? "store-logo"
+            : "cover-photo";
+          await this.deleteImageVersions(newPath, preset);
+          this.logger.log(`[${method}] Cleaned up uploaded file: ${newPath}`);
+        } catch (cleanupError) {
+          this.logger.error(
+            `[${method}] Failed to cleanup uploaded file ${newPath}`,
+            cleanupError,
+          );
+        }
+      }
+
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2025"
@@ -769,9 +865,10 @@ export class StoreService {
           `Information for store with ID ${storeId} not found.`,
         );
       }
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to upload branding for Store ID ${storeId}`,
-        error,
+        stack,
       );
       throw new InternalServerErrorException("Could not upload branding.");
     }
@@ -806,26 +903,31 @@ export class StoreService {
     await this.authService.checkStorePermission(userId, storeId, [Role.OWNER]);
 
     // Validation
-    const pointRateDecimal = new Prisma.Decimal(pointRate);
-    const redemptionRateDecimal = new Prisma.Decimal(redemptionRate);
+    const pointRateDecimal = new Decimal(pointRate);
+    const redemptionRateDecimal = new Decimal(redemptionRate);
 
-    if (pointRateDecimal.lte(0)) {
+    if (pointRateDecimal.lte(MIN_RATE)) {
       this.logger.warn(
         `[${method}] Invalid point rate ${pointRate} by User ${userId}`,
       );
       throw new BadRequestException("Point rate must be positive");
     }
-    if (redemptionRateDecimal.lte(0)) {
+    if (redemptionRateDecimal.lte(MIN_RATE)) {
       this.logger.warn(
         `[${method}] Invalid redemption rate ${redemptionRate} by User ${userId}`,
       );
       throw new BadRequestException("Redemption rate must be positive");
     }
-    if (expiryDays < 0 || expiryDays > 3650) {
+    if (
+      expiryDays < MIN_LOYALTY_EXPIRY_DAYS ||
+      expiryDays > MAX_LOYALTY_EXPIRY_DAYS
+    ) {
       this.logger.warn(
         `[${method}] Invalid expiry days ${expiryDays} by User ${userId}`,
       );
-      throw new BadRequestException("Expiry days must be between 0 and 3650");
+      throw new BadRequestException(
+        `Expiry days must be between ${MIN_LOYALTY_EXPIRY_DAYS} and ${MAX_LOYALTY_EXPIRY_DAYS}`,
+      );
     }
 
     try {
@@ -868,9 +970,10 @@ export class StoreService {
           `Settings for store with ID ${storeId} not found.`,
         );
       }
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to update loyalty rules for Store ID ${storeId}`,
-        error,
+        stack,
       );
       throw new InternalServerErrorException("Could not update loyalty rules.");
     }
@@ -1062,21 +1165,30 @@ export class StoreService {
         continue;
       }
 
-      // Get image URL if image file exists
-      let imageUrl: string | null = null;
+      // Get image path if image file exists
+      let imagePath: string | null = null;
       if (itemData.imageFileName) {
         const imageKey = itemData.imageFileName.replace(/\.[^/.]+$/, ""); // Remove extension
-        imageUrl = imageUrlMap.get(imageKey) ?? null;
+        imagePath = imageUrlMap.get(imageKey) ?? null;
+      }
+
+      // Convert basePrice to Decimal (should never be null in default data)
+      const basePrice = toPrismaDecimal(itemData.basePrice);
+      if (!basePrice) {
+        this.logger.warn(
+          `[${method}] Skipping item "${itemData.name}" - missing base price`,
+        );
+        continue;
       }
 
       const menuItem = await tx.menuItem.create({
         data: {
           name: itemData.name,
           description: itemData.description,
-          basePrice: toPrismaDecimal(itemData.basePrice) as Prisma.Decimal,
+          basePrice,
           categoryId,
           storeId,
-          imageUrl,
+          imagePath,
           preparationTimeMinutes: itemData.preparationTimeMinutes,
           sortOrder: itemData.sortOrder,
           routingArea:
@@ -1178,6 +1290,53 @@ export class StoreService {
 
     this.logger.log(
       `[${method}] Created ${totalGroupsCreated} customization groups total`,
+    );
+  }
+
+  /**
+   * Deletes all versions of an image from S3.
+   * Constructs version paths based on the preset and deletes each version.
+   *
+   * @param basePath Base S3 path without version suffix (e.g., "uploads/uuid")
+   * @param preset Image size preset to determine which versions to delete
+   * @throws {InternalServerErrorException} On S3 deletion errors
+   */
+  private async deleteImageVersions(
+    basePath: string,
+    preset: "store-logo" | "cover-photo" | "menu-item",
+  ): Promise<void> {
+    const method = "deleteImageVersions";
+    this.logger.log(
+      `[${method}] Deleting all versions for base path: ${basePath}`,
+    );
+
+    // Determine which versions to delete based on preset
+    const versions: string[] = [];
+    switch (preset) {
+      case "store-logo":
+        versions.push("small", "medium");
+        break;
+      case "cover-photo":
+      case "menu-item":
+        versions.push("small", "medium", "large");
+        break;
+    }
+
+    // Delete each version
+    const deletePromises = versions.map((version) => {
+      const versionPath = `${basePath}-${version}.webp`;
+      return this.s3Service.deleteFile(versionPath).catch((error) => {
+        const { message } = getErrorDetails(error);
+        this.logger.warn(
+          `[${method}] Failed to delete version ${version} at ${versionPath}: ${message}`,
+        );
+        // Continue deleting other versions even if one fails
+      });
+    });
+
+    await Promise.all(deletePromises);
+    this.logger.log(
+      `[${method}] Deleted ${versions.length} version(s) for ${basePath}`,
     );
   }
 }

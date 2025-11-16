@@ -1,5 +1,3 @@
-import * as path from "path"; // Import path module
-
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule"; // Use CronExpression for readability
 
@@ -8,7 +6,7 @@ import { S3Service } from "../infra/s3.service";
 
 // Configuration (Consider moving to config file/service)
 const S3_IMAGE_PREFIX = "uploads/"; // Match the prefix used in UploadService
-const IMAGE_SUFFIX_REGEX = /-(medium|thumb)(\..+)$/i; // Regex to match suffixes and extensions
+const IMAGE_SUFFIX_REGEX = /-(original|small|medium|large)(\..+)$/i; // Regex to match version suffixes and extensions
 
 @Injectable()
 export class UnusedImageCleanupService {
@@ -45,24 +43,21 @@ export class UnusedImageCleanupService {
   }
 
   /**
-   * Extracts the base identifier (e.g., "uploads/uuid") from a DB-stored key
-   * (e.g., "uploads/uuid.png"). Returns null if format is invalid.
+   * Validates and returns the base path from database.
+   * Database now stores base paths directly (e.g., "uploads/uuid"), not full URLs.
    */
   private getBaseIdentifierFromDbKey(
-    dbKey: string | null | undefined,
+    dbPath: string | null | undefined,
   ): string | null {
-    if (!dbKey?.startsWith(S3_IMAGE_PREFIX)) {
-      return null;
+    // Database stores base paths directly now
+    if (!dbPath?.startsWith(S3_IMAGE_PREFIX)) {
+      // Also check for payment-proofs prefix
+      if (!dbPath?.startsWith("payment-proofs/")) {
+        return null;
+      }
     }
-    try {
-      const extension = path.extname(dbKey);
-      if (!extension) return null; // Needs an extension
-      // Return the part before the extension
-      return dbKey.substring(0, dbKey.length - extension.length); // e.g., "uploads/some-uuid"
-    } catch (e) {
-      this.logger.error(`[Cleanup] Error parsing DB key "${dbKey}"`, e);
-      return null;
-    }
+    // Return the path as-is (already a base path)
+    return dbPath;
   }
 
   /**
@@ -160,36 +155,40 @@ export class UnusedImageCleanupService {
     const usedKeys = new Set<string>();
 
     // Query MenuItem table
-    const menuItemImageUrls = await this.prisma.menuItem.findMany({
-      where: { imageUrl: { not: null } }, // Only fetch non-null keys
-      select: { imageUrl: true },
+    const menuItemImagePaths = await this.prisma.menuItem.findMany({
+      where: { imagePath: { not: null } },
+      select: { imagePath: true },
     });
-    menuItemImageUrls.forEach((item) => {
-      const baseId = this.getBaseIdentifierFromDbKey(item.imageUrl);
+    menuItemImagePaths.forEach((item) => {
+      if (!item.imagePath) return;
+      const baseId = this.getBaseIdentifierFromDbKey(item.imagePath);
       if (baseId) usedKeys.add(baseId);
     });
 
-    // --- Add other sources here ---
-    // Example: User avatars
-    // const userAvatars = await this.prisma.user.findMany({
-    //    where: { avatarKey: { not: null } },
-    //    select: { avatarKey: true },
-    // });
-    // userAvatars.forEach(item => {
-    //    const baseId = this.getBaseIdentifierFromDbKey(item.avatarKey);
-    //    if(baseId) usedKeys.add(baseId);
-    // });
+    // Query StoreInformation table for logos
+    const storeLogos = await this.prisma.storeInformation.findMany({
+      where: { logoPath: { not: null } },
+      select: { logoPath: true },
+    });
+    storeLogos.forEach((item) => {
+      const baseId = this.getBaseIdentifierFromDbKey(item.logoPath);
+      if (baseId) usedKeys.add(baseId);
+    });
 
-    // Example: Store logos
-    // const storeLogos = await this.prisma.store.findMany({
-    //     where: { logoKey: { not: null } },
-    //     select: { logoKey: true },
-    // });
-    // storeLogos.forEach(item => {
-    //     const baseId = this.getBaseIdentifierFromDbKey(item.logoKey);
-    //     if(baseId) usedKeys.add(baseId);
-    // });
-    // --- End other sources ---
+    // Query StoreInformation table for cover photos
+    const storeCoverPhotos = await this.prisma.storeInformation.findMany({
+      where: { coverPhotoPath: { not: null } },
+      select: { coverPhotoPath: true },
+    });
+    storeCoverPhotos.forEach((item) => {
+      if (!item.coverPhotoPath) return;
+      const baseId = this.getBaseIdentifierFromDbKey(item.coverPhotoPath);
+      if (baseId) usedKeys.add(baseId);
+    });
+
+    this.logger.verbose(
+      `Collected base identifiers: ${usedKeys.size} from MenuItem.imagePath, StoreInformation.logoPath, and StoreInformation.coverPhotoPath`,
+    );
 
     return usedKeys;
   }

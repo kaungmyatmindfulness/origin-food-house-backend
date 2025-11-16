@@ -287,7 +287,7 @@ export class RefundService {
     financeId: string,
     refundRequestId: string,
     refundMethod: string,
-    refundProofUrl?: string,
+    refundProofPath?: string,
   ): Promise<void> {
     const method = this.processRefund.name;
     this.logger.log(
@@ -314,7 +314,7 @@ export class RefundService {
             processedBy: financeId,
             processedAt: new Date(),
             refundMethod,
-            refundProofUrl,
+            refundProofPath,
           },
         });
 
@@ -329,7 +329,7 @@ export class RefundService {
             periodStart: new Date(),
             periodEnd: new Date(),
             paymentMethod: refund.transaction.paymentMethod,
-            paymentProofUrl: refundProofUrl,
+            paymentProofPath: refundProofPath,
             externalReference: refundRequestId,
             processedBy: financeId,
             notes: `Refund processed via ${refundMethod}`,

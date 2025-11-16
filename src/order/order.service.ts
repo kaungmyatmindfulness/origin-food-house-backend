@@ -411,7 +411,7 @@ export class OrderService {
                   select: {
                     id: true,
                     name: true,
-                    imageUrl: true,
+                    imagePath: true,
                   },
                 },
               },
@@ -706,11 +706,7 @@ export class OrderService {
         include: { session: { include: { table: true } } },
       });
 
-      if (
-        !order ||
-        !order.session?.table ||
-        order.session.table.storeId !== storeId
-      ) {
+      if (!order || order.session?.table?.storeId !== storeId) {
         throw new NotFoundException("Order not found in this store");
       }
 
@@ -815,11 +811,7 @@ export class OrderService {
         include: { session: { include: { table: true } } },
       });
 
-      if (
-        !order ||
-        !order.session?.table ||
-        order.session.table.storeId !== storeId
-      ) {
+      if (!order || order.session?.table?.storeId !== storeId) {
         throw new NotFoundException("Order not found in this store");
       }
 

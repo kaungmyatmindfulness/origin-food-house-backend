@@ -4,7 +4,14 @@ import { Expose } from "class-transformer";
 export class MenuItemBasicResponseDto {
   @ApiProperty({ format: "uuid" }) @Expose() id: string;
   @ApiProperty() @Expose() name: string;
-  @ApiPropertyOptional({ nullable: true }) @Expose() imageUrl?: string | null;
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      "Base S3 path. Frontend constructs: baseUrl + imagePath + '-' + size + '.webp'",
+    example: "uploads/abc-123-def",
+  })
+  @Expose()
+  imagePath?: string | null;
   @ApiProperty({ type: String }) @Expose() basePrice: string; // Assuming string output for Decimal
 }
 

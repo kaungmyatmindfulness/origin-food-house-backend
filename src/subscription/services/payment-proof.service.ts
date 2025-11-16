@@ -7,82 +7,23 @@ import {
 } from "@nestjs/common";
 
 import { S3Service } from "../../common/infra/s3.service";
+import { UploadService } from "../../common/upload/upload.service";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
 export class PaymentProofService {
   private readonly logger = new Logger(PaymentProofService.name);
-  private readonly MAX_FILE_SIZE = 10 * 1024 * 1024;
-  private readonly ALLOWED_MIME_TYPES = [
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/webp",
-    "application/pdf",
-  ];
 
   constructor(
     private readonly s3Service: S3Service,
+    private readonly uploadService: UploadService,
     private readonly prisma: PrismaService,
   ) {}
 
-  private async uploadFileToS3(
-    file: Express.Multer.File,
-    requestId: string,
-    storeId: string,
-  ): Promise<string> {
-    const method = this.uploadFileToS3.name;
-    this.logger.log(
-      `[${method}] Uploading payment proof to S3 for request ${requestId}, store ${storeId}`,
-    );
-
-    this.validateFile(file);
-
-    try {
-      const timestamp = Date.now();
-      const fileExtension = file.originalname.split(".").pop();
-      const fileName = `${timestamp}-${requestId}.${fileExtension}`;
-      const key = `payment-proofs/${storeId}/${fileName}`;
-
-      const fileUrl = await this.s3Service.uploadFile(
-        key,
-        file.buffer,
-        file.mimetype,
-      );
-
-      this.logger.log(
-        `[${method}] Payment proof uploaded successfully: ${fileUrl}`,
-      );
-
-      return fileUrl;
-    } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to upload payment proof`,
-        (error as Error).stack,
-      );
-      throw new InternalServerErrorException("Failed to upload payment proof");
-    }
-  }
-
-  getFileUrl(fileKey: string): string {
-    const method = this.getFileUrl.name;
-    this.logger.log(`[${method}] Getting S3 URL for: ${fileKey}`);
-
-    try {
-      const fileUrl = this.s3Service.getObjectUrl(fileKey);
-
-      this.logger.log(`[${method}] File URL retrieved successfully`);
-
-      return fileUrl;
-    } catch (error) {
-      this.logger.error(
-        `[${method}] Failed to get file URL`,
-        (error as Error).stack,
-      );
-      throw new InternalServerErrorException("Failed to get file URL");
-    }
-  }
-
+  /**
+   * Deletes a payment proof file from S3.
+   * @param fileKey The S3 key of the file to delete.
+   */
   async deletePaymentProof(fileKey: string): Promise<void> {
     const method = this.deletePaymentProof.name;
     this.logger.log(`[${method}] Deleting payment proof: ${fileKey}`);
@@ -100,43 +41,30 @@ export class PaymentProofService {
     }
   }
 
-  validateFile(file: Express.Multer.File): void {
-    const method = this.validateFile.name;
-
-    if (!file) {
-      throw new BadRequestException("No file provided");
-    }
-
-    if (file.size > this.MAX_FILE_SIZE) {
-      throw new BadRequestException(
-        `File size exceeds maximum allowed size of ${this.MAX_FILE_SIZE / (1024 * 1024)}MB`,
-      );
-    }
-
-    if (!this.ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-      throw new BadRequestException(
-        `Invalid file type. Allowed types: ${this.ALLOWED_MIME_TYPES.join(", ")}`,
-      );
-    }
-
-    this.logger.log(
-      `[${method}] File validation passed: ${file.originalname} (${file.mimetype}, ${(file.size / 1024).toFixed(2)}KB)`,
-    );
-  }
-
+  /**
+   * Uploads a payment proof file for a payment request.
+   * Uses the common UploadService with 'payment-proof' preset (no resizing).
+   *
+   * @param userId The user uploading the proof
+   * @param paymentRequestId The payment request ID
+   * @param file The uploaded file (image or PDF)
+   * @returns Object containing the payment proof URL
+   * @throws {BadRequestException} If user is not authorized or file is invalid
+   * @throws {NotFoundException} If subscription not found
+   * @throws {InternalServerErrorException} On unexpected errors
+   */
   async uploadPaymentProof(
     userId: string,
     paymentRequestId: string,
     file: Express.Multer.File,
-  ): Promise<{ paymentProofUrl: string }> {
+  ): Promise<{ paymentProofPath: string }> {
     const method = "uploadPaymentProof";
     this.logger.log(
       `[${method}] User ${userId} uploading payment proof for request ${paymentRequestId}`,
     );
 
-    this.validateFile(file);
-
     try {
+      // Verify payment request ownership
       const paymentRequest = await this.prisma.paymentRequest.findUniqueOrThrow(
         {
           where: { id: paymentRequestId },
@@ -149,6 +77,7 @@ export class PaymentProofService {
         );
       }
 
+      // Get store ID for S3 prefix
       const subscription = await this.prisma.subscription.findUnique({
         where: { id: paymentRequest.subscriptionId },
         select: { storeId: true },
@@ -158,25 +87,28 @@ export class PaymentProofService {
         throw new NotFoundException("Subscription not found");
       }
 
-      const fileUrl = await this.uploadFileToS3(
+      // Upload using UploadService with 'payment-proof' preset
+      // This preset skips resizing and uses 'payment-proofs/{storeId}/' prefix
+      const uploadResult = await this.uploadService.uploadImage(
         file,
-        paymentRequestId,
+        "payment-proof",
         subscription.storeId,
       );
 
+      // Update payment request with the uploaded file path
       await this.prisma.paymentRequest.update({
         where: { id: paymentRequestId },
         data: {
-          paymentProofUrl: fileUrl,
+          paymentProofPath: uploadResult.basePath,
           updatedAt: new Date(),
         },
       });
 
       this.logger.log(
-        `[${method}] Payment proof uploaded successfully: ${fileUrl}`,
+        `[${method}] Payment proof uploaded successfully: ${uploadResult.basePath}`,
       );
 
-      return { paymentProofUrl: fileUrl };
+      return { paymentProofPath: uploadResult.basePath };
     } catch (error) {
       if (
         error instanceof BadRequestException ||
@@ -203,17 +135,17 @@ export class PaymentProofService {
       const paymentRequest = await this.prisma.paymentRequest.findUniqueOrThrow(
         {
           where: { id: paymentRequestId },
-          select: { paymentProofUrl: true },
+          select: { paymentProofPath: true },
         },
       );
 
-      if (!paymentRequest.paymentProofUrl) {
+      if (!paymentRequest.paymentProofPath) {
         throw new NotFoundException(
           "No payment proof uploaded for this request",
         );
       }
 
-      return paymentRequest.paymentProofUrl;
+      return paymentRequest.paymentProofPath;
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;

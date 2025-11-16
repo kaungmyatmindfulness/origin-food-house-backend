@@ -13,11 +13,13 @@ import { SubscriptionService } from "./services/subscription.service";
 import { TrialService } from "./services/trial.service";
 import { AuditLogModule } from "../audit-log/audit-log.module";
 import { AuthModule } from "../auth/auth.module";
+import { CommonModule } from "../common/common.module";
 import { S3Service } from "../common/infra/s3.service";
+import { UploadService } from "../common/upload/upload.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Module({
-  imports: [AuthModule, AuditLogModule],
+  imports: [AuthModule, AuditLogModule, CommonModule],
   controllers: [
     PaymentRequestController,
     AdminVerificationController,
@@ -34,6 +36,7 @@ import { PrismaService } from "../prisma/prisma.service";
     RefundService,
     PrismaService,
     S3Service,
+    UploadService,
   ],
   exports: [
     SubscriptionService,

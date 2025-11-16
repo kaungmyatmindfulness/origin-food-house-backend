@@ -68,19 +68,20 @@ npm run build               # 5. Build succeeds
 ```typescript
 // L BAD - implicit any, unsafe operations
 function processData(data) {
-  return data.items.map(item => item.value);
+  return data.items.map((item) => item.value);
 }
 
 //  GOOD - explicit types, null safety
 function processData(data: DataResponse): ProcessedItem[] {
   if (!data?.items) {
-    throw new BadRequestException('Items array is required');
+    throw new BadRequestException("Items array is required");
   }
   return data.items.map((item) => item.value);
 }
 ```
 
 **Rules:**
+
 - NEVER use `any` type (ESLint warns, but fix it)
 - NEVER use non-null assertion (`!`) without null check first
 - ALWAYS handle null/undefined cases explicitly
@@ -96,8 +97,13 @@ function processData(data: DataResponse): ProcessedItem[] {
 
 ```typescript
 // ✅ GOOD - Narrow union types instead of string
-type UserRole = 'OWNER' | 'ADMIN' | 'CHEF' | 'CASHIER' | 'SERVER';
-type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'COMPLETED';
+type UserRole = "OWNER" | "ADMIN" | "CHEF" | "CASHIER" | "SERVER";
+type OrderStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "PREPARING"
+  | "READY"
+  | "COMPLETED";
 
 // ✅ GOOD - Discriminated unions for type-safe branching
 type PaymentResult =
@@ -169,6 +175,7 @@ async findUser(id: string): Promise<User> {
 ```
 
 **Rules:**
+
 - ALWAYS use NestJS exception classes (`NotFoundException`, `BadRequestException`, etc.)
 - ALWAYS log errors with context (method name, relevant IDs, error details)
 - ALWAYS use `getErrorDetails(error)` utility for error logging
@@ -201,6 +208,7 @@ async createStore(userId: string, dto: CreateStoreDto): Promise<Store> {
 ```
 
 **Rules:**
+
 - ALWAYS prefix logs with `[${method}]` using `const method = this.methodName.name`
 - ALWAYS log at method entry with key parameters (user ID, entity ID)
 - ALWAYS log success with created/updated entity IDs
@@ -244,6 +252,7 @@ async createStore(userId: string, dto: CreateStoreDto): Promise<Store> {
 ```
 
 **Rules:**
+
 - ALWAYS use `$transaction` for operations creating multiple related entities
 - ALWAYS use `findUniqueOrThrow` instead of `findUnique` + null check when entity must exist
 - ALWAYS include `where: { deletedAt: null }` for soft-deleted entities
@@ -282,6 +291,7 @@ async update(userId: string, storeId: string, dto: UpdateStoreDto) {
 ```
 
 **Rules:**
+
 - ALWAYS use `@UseGuards(JwtAuthGuard)` on protected routes
 - ALWAYS verify user role before privileged operations (use `checkUserRole` helper)
 - ALWAYS validate store membership before accessing store data
@@ -303,23 +313,23 @@ export class CreateMenuItemDto {
 
 //  GOOD - comprehensive validation, API documentation
 export class CreateMenuItemDto {
-  @ApiProperty({ description: 'Menu item name', example: 'Margherita Pizza' })
+  @ApiProperty({ description: "Menu item name", example: "Margherita Pizza" })
   @IsString()
   @IsNotEmpty()
   @MinLength(1)
   @MaxLength(100)
   name: string;
 
-  @ApiProperty({ description: 'Price in store currency', example: 12.99 })
+  @ApiProperty({ description: "Price in store currency", example: 12.99 })
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   price: number;
 
-  @ApiProperty({ description: 'Store UUID', example: 'abc123...' })
+  @ApiProperty({ description: "Store UUID", example: "abc123..." })
   @IsUUID()
   storeId: string;
 
-  @ApiPropertyOptional({ description: 'Item description' })
+  @ApiPropertyOptional({ description: "Item description" })
   @IsString()
   @IsOptional()
   @MaxLength(500)
@@ -328,6 +338,7 @@ export class CreateMenuItemDto {
 ```
 
 **Rules:**
+
 - ALWAYS use class-validator decorators on all DTO properties
 - ALWAYS add `@ApiProperty` or `@ApiPropertyOptional` for Swagger docs
 - ALWAYS validate string lengths (`@MinLength`, `@MaxLength`)
@@ -362,6 +373,7 @@ async getStore(@Param('id') id: string): Promise<StoreResponseDto> {
 ```
 
 **Rules:**
+
 - ALWAYS use `@ApiOperation` to describe endpoint purpose
 - ALWAYS use `@ApiParam`, `@ApiQuery`, `@ApiBody` for input documentation
 - ALWAYS use `@ApiOkResponse`, `@ApiCreatedResponse` with DTO types
@@ -373,7 +385,7 @@ async getStore(@Param('id') id: string): Promise<StoreResponseDto> {
 **ALWAYS write tests for new code (target: 85% coverage):**
 
 ```typescript
-describe('StoreService', () => {
+describe("StoreService", () => {
   let service: StoreService;
   let prismaMock: ReturnType<typeof createPrismaMock>;
 
@@ -392,33 +404,35 @@ describe('StoreService', () => {
     service = module.get<StoreService>(StoreService);
   });
 
-  describe('createStore', () => {
-    it('should create store with information and settings in transaction', async () => {
-      const dto: CreateStoreDto = { name: 'Test Store', slug: 'test-store' };
-      const userId = 'user-123';
+  describe("createStore", () => {
+    it("should create store with information and settings in transaction", async () => {
+      const dto: CreateStoreDto = { name: "Test Store", slug: "test-store" };
+      const userId = "user-123";
 
       prismaMock.$transaction.mockImplementation((callback) =>
-        callback(prismaMock)
+        callback(prismaMock),
       );
 
       const result = await service.createStore(userId, dto);
 
       expect(result).toBeDefined();
       expect(prismaMock.store.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ slug: dto.slug }) })
+        expect.objectContaining({
+          data: expect.objectContaining({ slug: dto.slug }),
+        }),
       );
     });
 
-    it('should throw BadRequestException for duplicate slug', async () => {
+    it("should throw BadRequestException for duplicate slug", async () => {
       prismaMock.$transaction.mockRejectedValue(
-        new Prisma.PrismaClientKnownRequestError('Unique constraint', {
-          code: 'P2002',
-          clientVersion: '5.0.0',
-        })
+        new Prisma.PrismaClientKnownRequestError("Unique constraint", {
+          code: "P2002",
+          clientVersion: "5.0.0",
+        }),
       );
 
-      await expect(service.createStore('user-123', dto)).rejects.toThrow(
-        BadRequestException
+      await expect(service.createStore("user-123", dto)).rejects.toThrow(
+        BadRequestException,
       );
     });
   });
@@ -426,6 +440,7 @@ describe('StoreService', () => {
 ```
 
 **Rules:**
+
 - ALWAYS write unit tests for service methods (aim for 85%+ coverage)
 - ALWAYS mock Prisma with `createPrismaMock()` helper
 - ALWAYS test both success and error cases
@@ -462,6 +477,7 @@ src/
 ```
 
 **Each module MUST contain:**
+
 - **Controller** (HTTP endpoints)
 - **Service** (business logic & use cases)
 - **DTOs** (input/output contracts)
@@ -469,6 +485,7 @@ src/
 - **Tests** (unit & integration tests)
 
 **Optional but recommended:**
+
 - **Gateway** (WebSocket for real-time features)
 - **Types** (custom TypeScript types)
 - **Constants** (module-specific constants)
@@ -502,12 +519,14 @@ async createUser(
 ```
 
 **Controller responsibilities (ONLY):**
+
 1. Request validation (automatic via DTOs)
 2. Authentication/authorization (via guards)
 3. Call appropriate service method
 4. Return response (with proper HTTP status codes)
 
 **Controllers MUST NOT:**
+
 - Access database directly (use services)
 - Contain business logic (delegate to services)
 - Hash passwords, calculate totals, etc. (belongs in services)
@@ -554,6 +573,7 @@ export class StoreService {
 ```
 
 **Service responsibilities:**
+
 - Orchestrate business logic
 - Manage transactions
 - Enforce domain rules
@@ -561,6 +581,7 @@ export class StoreService {
 - Emit events for side effects
 
 **Services MUST:**
+
 - Be injected (never use `new StoreService()`)
 - Return DTOs or mapped objects (not always Prisma entities directly, but acceptable in this project)
 - Handle all error cases with typed exceptions
@@ -583,7 +604,8 @@ export class OrderService {
 
 // ❌ INCORRECT - No static helpers or singletons
 export class OrderHelper {
-  static calculateTotal(items: OrderItem[]) { // ❌ Don't do this
+  static calculateTotal(items: OrderItem[]) {
+    // ❌ Don't do this
     // ...
   }
 }
@@ -598,6 +620,7 @@ export class OrderCalculationService {
 ```
 
 **Injection patterns in this project:**
+
 - Use `PrismaService` directly (no repository abstraction layer)
 - Use `ConfigService` for all environment variables (never `process.env` directly)
 - Inject all dependencies through constructor (no property injection)
@@ -621,6 +644,7 @@ export class UserModule {}
 ```
 
 **Strategies to avoid circular dependencies:**
+
 1. Extract shared logic to a common/shared module
 2. Use events (EventEmitter) for cross-module communication
 3. Restructure modules to have clear dependency direction
@@ -650,6 +674,7 @@ async getMenuItems() {
 ```
 
 **Rules:**
+
 - ALWAYS filter by `storeId` in queries
 - ALWAYS verify user has access to the store before operations
 - ALWAYS include store context in audit logs
@@ -674,6 +699,7 @@ async deleteMenuItem(id: string) {
 ```
 
 **Rules:**
+
 - ALWAYS use `deletedAt` timestamp for deletions
 - ALWAYS exclude soft-deleted records with `where: { deletedAt: null }`
 - NEVER use `prisma.model.delete()` except for test cleanup
@@ -686,7 +712,7 @@ async deleteMenuItem(id: string) {
 // L CRITICAL VULNERABILITY - No authentication (existing code has this issue)
 @WebSocketGateway()
 export class CartGateway {
-  @SubscribeMessage('cart:add')
+  @SubscribeMessage("cart:add")
   async handleAddItem(client: Socket, data: any) {
     // Anyone can manipulate any cart!
   }
@@ -711,7 +737,7 @@ export class CartGateway implements OnGatewayConnection {
     client.data.userId = user.id;
   }
 
-  @SubscribeMessage('cart:add')
+  @SubscribeMessage("cart:add")
   async handleAddItem(client: Socket, data: AddCartItemDto) {
     const userId = client.data.userId;
     // ... validated operation
@@ -720,6 +746,7 @@ export class CartGateway implements OnGatewayConnection {
 ```
 
 **Rules:**
+
 - ALWAYS validate authentication in `handleConnection`
 - ALWAYS disconnect unauthenticated clients
 - ALWAYS validate DTOs for WebSocket messages
@@ -747,12 +774,173 @@ async updateStoreSettings(userId: string, storeId: string, dto: UpdateSettingsDt
 ```
 
 **Rules:**
+
 - ALWAYS verify role before privileged operations
 - ALWAYS use `checkUserRole` helper method
 - OWNER and ADMIN can manage store settings
 - CHEF can update menu and order statuses
 - CASHIER can process payments
 - SERVER can create orders and manage tables
+
+### Image Storage & Multi-Size System
+
+**CRITICAL**: This project uses **path-based image storage**, NOT full URLs in the database.
+
+#### Architecture Overview
+
+**Backend stores**: Base S3 paths (e.g., `"uploads/abc-123-def"`)
+**Frontend constructs**: Full URLs with size suffix (e.g., `baseUrl + path + "-medium.webp"`)
+**Benefits**: Zero backend bandwidth, easy CDN integration, flexible infrastructure
+
+#### Database Fields
+
+```typescript
+// ✅ CORRECT - Store base paths
+model MenuItem {
+  imagePath String?  // "uploads/abc-123-def" (no version suffix, no URL)
+}
+
+model StoreInformation {
+  logoPath       String?  // "uploads/logo-456"
+  coverPhotoPath String?  // "uploads/cover-789"
+}
+
+// ❌ INCORRECT - Don't store full URLs
+model MenuItem {
+  imageUrl String?  // "https://bucket.s3.amazonaws.com/uploads/abc-medium.webp" ← NO!
+}
+```
+
+#### Upload Service Returns Paths
+
+```typescript
+// ✅ CORRECT - UploadService returns base path
+const uploadResult = await this.uploadService.uploadImage(file, "menu-item");
+// Returns: { basePath: "uploads/abc-123", availableSizes: ["small", "medium", "large"] }
+
+await this.prisma.menuItem.create({
+  data: {
+    imagePath: uploadResult.basePath, // Store base path only
+  },
+});
+
+// ❌ INCORRECT - Don't construct or store URLs
+await this.prisma.menuItem.create({
+  data: {
+    imagePath: `https://bucket.s3.amazonaws.com/${uploadResult.basePath}-medium.webp`, // ← NO!
+  },
+});
+```
+
+#### Available Image Sizes
+
+**Image Size Presets** (defined in `src/common/upload/types/image-size-config.type.ts`):
+
+| Preset          | Sizes Generated                               | Primary  | File Pattern                                   |
+| --------------- | --------------------------------------------- | -------- | ---------------------------------------------- |
+| `menu-item`     | small (400px), medium (800px), large (1200px) | medium   | `uploads/uuid-{size}.webp`                     |
+| `store-logo`    | small (200px), medium (400px)                 | medium   | `uploads/uuid-{size}.webp`                     |
+| `cover-photo`   | small (400px), medium (800px), large (1200px) | large    | `uploads/uuid-{size}.webp`                     |
+| `payment-proof` | original (no resize)                          | original | `payment-proofs/{storeId}/uuid-original.{ext}` |
+
+#### Upload Flow
+
+```typescript
+// 1. Upload image
+const uploadResult = await this.uploadService.uploadImage(file, "menu-item");
+// Returns:
+// {
+//   basePath: "uploads/abc-123-def",
+//   availableSizes: ["small", "medium", "large"],
+//   primarySize: "medium",
+//   metadata: { originalWidth: 1920, versions: {...} }
+// }
+
+// 2. Store base path in database
+await this.prisma.menuItem.create({
+  data: {
+    name: "Pad Thai",
+    imagePath: uploadResult.basePath, // ← Just the base path
+  },
+});
+
+// 3. API returns base path to frontend
+return {
+  id: "item-123",
+  name: "Pad Thai",
+  imagePath: "uploads/abc-123-def", // ← Frontend constructs URLs
+};
+```
+
+#### Input Validation
+
+**ALWAYS use `@IsImagePath()` validator for image fields:**
+
+```typescript
+// ✅ CORRECT - Validate base path format
+import { IsImagePath } from "src/common/validators/is-image-path.validator";
+
+export class CreateMenuItemDto {
+  @IsOptional()
+  @IsString()
+  @IsImagePath()
+  imagePath?: string; // Validates: "uploads/abc-123" or "payment-proofs/store/uuid"
+}
+
+// ❌ INCORRECT - Don't use URL validator for paths
+import { IsS3ImageUrl } from "src/common/validators/is-s3-image-url.validator";
+
+export class CreateMenuItemDto {
+  @IsS3ImageUrl() // ← NO! This expects full HTTPS URLs
+  imagePath?: string;
+}
+```
+
+#### Path Utilities
+
+**Use helper functions from `src/common/utils/image-path.util.ts`:**
+
+```typescript
+import {
+  getVersionPath,
+  isValidImagePath,
+} from "src/common/utils/image-path.util";
+
+// Check if path is valid
+if (isValidImagePath("uploads/abc-123")) {
+  // Valid base path
+}
+
+// Construct version-specific path (internal use only)
+const mediumPath = getVersionPath("uploads/abc-123", "medium");
+// Returns: "uploads/abc-123-medium.webp"
+```
+
+#### Image Upload Rules
+
+- ALWAYS return `basePath` from upload service (not full URLs)
+- ALWAYS store base paths in database (e.g., `"uploads/uuid"`)
+- NEVER store version suffixes in database (no `-small`, `-medium`, `-large`)
+- NEVER store full URLs in database
+- ALWAYS use `@IsImagePath()` validator for input DTOs
+- ALWAYS document in API responses that paths require frontend URL construction
+
+#### Cleanup Service Pattern
+
+```typescript
+// Cleanup service uses base paths
+const menuItems = await this.prisma.menuItem.findMany({
+  where: { imagePath: { not: null } },
+  select: { imagePath: true },
+});
+
+// imagePath is already the base path: "uploads/uuid"
+menuItems.forEach((item) => {
+  if (item.imagePath) {
+    usedBasePaths.add(item.imagePath); // No extraction needed
+  }
+});
+```
 
 ---
 
@@ -834,6 +1022,7 @@ if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
 ### Prettier Configuration
 
 **Implicit configuration** (using Prettier defaults):
+
 - Single quotes for strings
 - 2 spaces indentation
 - Semicolons required
@@ -843,8 +1032,8 @@ if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
 
 ```typescript
 // 1. Nullish coalescing over OR
-const value = config ?? 'default'; // 
-const value = config || 'default'; // L
+const value = config ?? "default"; // 
+const value = config || "default"; // L
 
 // 2. Optional chaining
 const name = user?.profile?.name; // 
@@ -860,7 +1049,7 @@ let items = []; // L (if never reassigned)
 
 // 5. Template literals
 const message = `User ${userId} created`; // 
-const message = 'User ' + userId + ' created'; // L
+const message = "User " + userId + " created"; // L
 
 // 6. Import order (enforced by eslint-plugin-import)
 // 1. Built-in modules (fs, path)
@@ -913,6 +1102,7 @@ model User {
 ```
 
 **File naming conventions:**
+
 ```
 ✅ CORRECT naming patterns:
 store.service.ts           # Service
@@ -964,11 +1154,11 @@ src/
 
 ```typescript
 //  CORRECT - Use absolute paths with 'src/' prefix
-import { PrismaService } from 'src/prisma/prisma.service';
-import { AuthService } from 'src/auth/auth.service';
+import { PrismaService } from "src/prisma/prisma.service";
+import { AuthService } from "src/auth/auth.service";
 
 // L INCORRECT - Relative paths for cross-module imports
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from "../../prisma/prisma.service";
 ```
 
 ---
@@ -1001,6 +1191,7 @@ async createStore(
 ```
 
 **Rules:**
+
 - ALWAYS document public service methods
 - ALWAYS describe parameters with `@param`
 - ALWAYS describe return value with `@returns`
@@ -1059,6 +1250,7 @@ model MenuItem {
 ```
 
 **Rules:**
+
 - ALWAYS use `uuid(7)` for primary keys (this project's standard, not `gen_random_uuid()`)
 - ALWAYS use `DateTime` fields (Prisma handles timezone conversion)
 - ALWAYS use Prisma ENUMs instead of raw strings for finite sets
@@ -1097,6 +1289,7 @@ model Order {
 ```
 
 **Indexing rules:**
+
 - ALWAYS index foreign keys (`storeId`, `userId`, etc.)
 - ALWAYS index fields used in `WHERE` clauses frequently
 - CREATE composite indexes with filter columns first, then sort columns
@@ -1141,6 +1334,7 @@ async createStore(userId: string, dto: CreateStoreDto) {
 ```
 
 **Transaction rules:**
+
 - ALWAYS wrap multiple related CREATE/UPDATE operations in `$transaction`
 - USE `FOR UPDATE` pattern for race condition prevention (inventory, balance checks):
   ```typescript
@@ -1166,11 +1360,12 @@ const result = await this.prisma.$queryRaw`
 
 // ❌ DANGEROUS - String interpolation (SQL injection risk)
 const result = await this.prisma.$queryRawUnsafe(
-  `SELECT * FROM users WHERE email = '${email}'` // ❌ NEVER DO THIS
+  `SELECT * FROM users WHERE email = '${email}'`, // ❌ NEVER DO THIS
 );
 ```
 
 **Security rules:**
+
 - PREFER Prisma's type-safe queries (automatic SQL injection protection)
 - USE `$queryRaw` with template literals (parameterized) if raw SQL needed
 - NEVER use `$queryRawUnsafe` with user input
@@ -1199,6 +1394,7 @@ npx prisma migrate deploy
 ```
 
 **Migration rules:**
+
 - NEVER modify existing migration files (create new ones)
 - NEVER drop columns without deprecation period:
   1. Stop writing to column
@@ -1303,6 +1499,7 @@ async invalidateStoreCache(storeId: string): Promise<void> {
 ```
 
 **Caching rules:**
+
 - ALWAYS use Redis (never in-memory caching in services)
 - CACHE read-heavy, write-light data (store details, menu items)
 - SET appropriate TTL (Time To Live):
@@ -1317,6 +1514,7 @@ async invalidateStoreCache(storeId: string): Promise<void> {
 ## Environment Variables
 
 **REQUIRED for development:**
+
 ```env
 NODE_ENV=dev
 DATABASE_URL=postgresql://user:pass@localhost:5432/mydb
@@ -1337,6 +1535,7 @@ CORS_ORIGIN=http://localhost:3001,http://localhost:3002
 ```
 
 **NEVER**:
+
 - Commit `.env` files
 - Use `process.env.VARIABLE` directly (use `ConfigService`)
 - Use weak JWT secrets (<32 characters)
@@ -1365,12 +1564,14 @@ chore(deps): upgrade Prisma to 6.17.1
 ### Pre-Commit Hooks
 
 **Husky + lint-staged automatically runs:**
+
 ```bash
 1. ESLint --fix on staged files
 2. Prettier --write on staged files
 ```
 
 **Manual verification before push:**
+
 ```bash
 npm run typecheck  # Must pass
 npm test           # Must pass
@@ -1386,6 +1587,7 @@ npm run build      # Must pass
 **Status**: 11 of 17 test suites fail to compile (TypeScript errors)
 
 **Before adding new tests:**
+
 ```bash
 # Check if your test file compiles
 npx tsc --noEmit src/your-module/your-module.service.spec.ts
@@ -1396,6 +1598,7 @@ npx tsc --noEmit src/your-module/your-module.service.spec.ts
 **4 Critical P0 Vulnerabilities** - See [Security Audit](docs/security-audit/2025-10-28-comprehensive-security-audit.md)
 
 **When working on affected modules:**
+
 1. `src/cart/cart.gateway.ts` - Add WebSocket authentication
 2. `src/active-table-session/` - Remove session tokens from responses
 3. `src/cart/cart.controller.ts` - Add checkout authentication
@@ -1463,7 +1666,7 @@ export class Order {
   }
 
   canBeCancelled(): boolean {
-    return this.status === 'PENDING' || this.status === 'CONFIRMED';
+    return this.status === "PENDING" || this.status === "CONFIRMED";
   }
 }
 
@@ -1475,7 +1678,7 @@ export class OrderResponseDto {
   @ApiProperty()
   orderNumber: string;
 
-  @ApiProperty({ type: 'number' })
+  @ApiProperty({ type: "number" })
   total: string; // Decimal as string for JSON
 
   @ApiProperty()
@@ -1515,11 +1718,13 @@ export class OrderService {
 ```
 
 **When to use each layer:**
+
 - **Prisma Models**: ALWAYS (database operations)
 - **Domain Entities**: ONLY when you have complex business rules that belong to the entity
 - **DTOs**: ALWAYS for API input/output
 
 **This project's pattern:**
+
 - Often returns Prisma entities directly (acceptable for simple cases)
 - Uses DTOs for input validation
 - Consider adding domain entities for complex business logic (order calculations, payment processing)
@@ -1547,6 +1752,7 @@ connection_limit=20-50     // Higher for parallel jobs
 ```
 
 **Connection pool rules:**
+
 - API servers: 10 connections (per instance)
 - Background workers: 20-50 connections
 - NEVER exceed PostgreSQL max_connections (typically 100)
@@ -1644,7 +1850,7 @@ await this.prisma.$transaction(
     const account = await tx.account.findUnique({ where: { id } });
 
     if (account.balance < amount) {
-      throw new BadRequestException('Insufficient funds');
+      throw new BadRequestException("Insufficient funds");
     }
 
     // Deduct balance
@@ -1663,6 +1869,7 @@ await this.prisma.$transaction(
 ```
 
 **Isolation level guidelines:**
+
 - `READ COMMITTED` (default): Most operations
 - `REPEATABLE READ`: Reporting, analytics (consistent snapshot)
 - `SERIALIZABLE`: Financial transactions, inventory updates (prevent race conditions)
@@ -1674,6 +1881,7 @@ await this.prisma.$transaction(
 Before marking ANY task complete, verify ALL of the following:
 
 ### Code Quality
+
 - [ ] Code formatted (`npm run format`)
 - [ ] Linting passes (`npm run lint`)
 - [ ] Type checking passes (`npm run typecheck`)
@@ -1681,6 +1889,7 @@ Before marking ANY task complete, verify ALL of the following:
 - [ ] Build succeeds (`npm run build`)
 
 ### TypeScript Best Practices
+
 - [ ] No `any` types used
 - [ ] Explicit return types on all functions
 - [ ] Null/undefined handled with optional chaining (`?.`) and nullish coalescing (`??`)
@@ -1688,6 +1897,7 @@ Before marking ANY task complete, verify ALL of the following:
 - [ ] Pure functions for business logic (side effects isolated to services)
 
 ### NestJS Architecture
+
 - [ ] Controllers contain ONLY request/response handling
 - [ ] Business logic in services (not controllers)
 - [ ] DTOs used for all input/output
@@ -1695,6 +1905,7 @@ Before marking ANY task complete, verify ALL of the following:
 - [ ] No circular dependencies (`forwardRef` not used)
 
 ### Database & Prisma
+
 - [ ] Transactions used for multi-step operations
 - [ ] Soft deletes used (no hard deletes)
 - [ ] Indexes added for foreign keys and frequently queried fields
@@ -1702,6 +1913,7 @@ Before marking ANY task complete, verify ALL of the following:
 - [ ] Decimal type used for monetary values
 
 ### Security
+
 - [ ] Authentication guards applied (`@UseGuards(JwtAuthGuard)`)
 - [ ] Authorization verified (role checks before privileged operations)
 - [ ] Store isolation enforced (multi-tenancy)
@@ -1710,6 +1922,7 @@ Before marking ANY task complete, verify ALL of the following:
 - [ ] Sensitive data not exposed in responses
 
 ### Documentation & Logging
+
 - [ ] Swagger documentation added (`@ApiOperation`, `@ApiResponse`)
 - [ ] JSDoc comments on public methods
 - [ ] Structured logging with `[method]` prefix
@@ -1717,6 +1930,7 @@ Before marking ANY task complete, verify ALL of the following:
 - [ ] `getErrorDetails(error)` used for error logging
 
 ### Performance
+
 - [ ] SELECT only needed fields (not `SELECT *`)
 - [ ] Pagination implemented for large datasets
 - [ ] Redis caching for read-heavy operations

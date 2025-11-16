@@ -13,6 +13,7 @@ import {
 } from "class-validator";
 
 import { IsPositiveNumericString } from "src/common/decorators/is-positive-numeric-string.decorator";
+import { IsImagePath } from "src/common/validators/is-image-path.validator";
 
 import { UpsertCategoryDto } from "./upsert-category.dto";
 import { UpsertCustomizationGroupDto } from "./upsert-customization-group.dto";
@@ -43,12 +44,14 @@ export class UpdateMenuItemDto {
   basePrice: string;
 
   @ApiPropertyOptional({
-    example: "images/krapow-pork-egg.jpg",
-    description: "Key for image stored in S3 or similar",
+    example: "uploads/abc-123-def-456",
+    description:
+      "Base S3 path for the menu item image (without version suffix). Frontend constructs URLs as: baseUrl + imagePath + '-' + size + '.webp'",
   })
   @IsOptional()
   @IsString()
-  imageUrl?: string;
+  @IsImagePath()
+  imagePath?: string;
 
   @ApiPropertyOptional({
     description:

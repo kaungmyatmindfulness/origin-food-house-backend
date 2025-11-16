@@ -52,7 +52,7 @@ export class CategoryService {
         name: string;
         description: string | null;
         basePrice: Prisma.Decimal;
-        imageUrl: string | null;
+        imagePath: string | null;
         sortOrder: number;
       }>;
     },
@@ -71,7 +71,7 @@ export class CategoryService {
               name: item.name,
               description: item.description,
               basePrice: item.basePrice?.toString() ?? "0",
-              imageUrl: item.imageUrl,
+              imagePath: item.imagePath,
               sortOrder: item.sortOrder,
             }))
           : [],
