@@ -16,6 +16,7 @@ import {
   UserStore,
 } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
+import { nanoid } from "nanoid";
 import slugify from "slugify";
 
 import { AuditLogService } from "src/audit-log/audit-log.service";
@@ -28,8 +29,17 @@ import { CreateStoreDto } from "src/store/dto/create-store.dto";
 import { UpdateStoreInformationDto } from "src/store/dto/update-store-information.dto";
 import { UpdateStoreSettingDto } from "src/store/dto/update-store-setting.dto";
 
+import {
+  CUSTOMIZATION_TEMPLATES,
+  DEFAULT_CATEGORIES,
+  DEFAULT_MENU_ITEMS,
+  DEFAULT_TABLE_NAMES,
+  MENU_ITEM_CUSTOMIZATIONS,
+  toPrismaDecimal,
+} from "./constants/default-store-data";
 import { InviteOrAssignRoleDto } from "./dto/invite-or-assign-role.dto";
 import { emptyToNull, toJsonValue } from "./helpers/data-conversion.helper";
+import { processSeedImagesInParallel } from "./helpers/process-seed-images.helper";
 import { validateBusinessHours } from "./helpers/validation.helper";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -130,8 +140,6 @@ export class StoreService {
     );
 
     try {
-      const { nanoid } = await import("nanoid");
-
       // Step 1: Generate slug and create store (outside transaction to get storeId for S3 uploads)
       const slug = `${slugify(dto.name, {
         lower: true,
@@ -170,14 +178,14 @@ export class StoreService {
         `[${method}] Base store '${dto.name}' created (ID: ${baseStore.id}, Slug: ${baseStore.slug})`,
       );
 
-      // Step 3: Copy images in S3 BEFORE transaction (S3 operations can't be rolled back)
-      // This uses server-side S3 copy (10x faster than uploading)
+      // Step 3: Process seed images BEFORE transaction
+      // Reads local seed images and uploads them as multi-size WebP versions
       this.logger.log(
-        `[${method}] Copying seed images for Store ${baseStore.id}`,
+        `[${method}] Processing seed images for Store ${baseStore.id}`,
       );
-      const imageUrlMap = await this.copyMenuImages(baseStore.id);
+      const imagePathMap = await this.processMenuImages(baseStore.id);
       this.logger.log(
-        `[${method}] Copied ${imageUrlMap.size} images successfully`,
+        `[${method}] Processed ${imagePathMap.size} images successfully`,
       );
 
       // Step 4: Create all default data in a single transaction
@@ -208,7 +216,7 @@ export class StoreService {
           tx,
           baseStore.id,
           categoryMap,
-          imageUrlMap,
+          imagePathMap,
         );
 
         // Create default customization groups and options
@@ -938,9 +946,6 @@ export class StoreService {
       `[${method}] Creating default categories for Store ${storeId}`,
     );
 
-    const { DEFAULT_CATEGORIES } = await import(
-      "./constants/default-store-data"
-    );
     const categoryMap = new Map<string, string>();
 
     for (const catData of DEFAULT_CATEGORIES) {
@@ -977,10 +982,6 @@ export class StoreService {
     const method = "createDefaultTables";
     this.logger.log(`[${method}] Creating default tables for Store ${storeId}`);
 
-    const { DEFAULT_TABLE_NAMES } = await import(
-      "./constants/default-store-data"
-    );
-
     const tableData = DEFAULT_TABLE_NAMES.map((name) => ({
       name,
       storeId,
@@ -998,21 +999,20 @@ export class StoreService {
   }
 
   /**
-   * Copies menu seed images from shared S3 location to store-specific location.
-   * Ensures seed images exist in shared location first (uploads if missing).
-   * Uses S3 server-side copy (10x faster and cheaper than uploading).
+   * Processes menu seed images for a new store.
+   * Reads local seed image files and uploads them as multi-size WebP versions.
+   * This ensures consistency with the new image system that uses base paths
+   * and multiple size versions (small, medium, large).
    * @private
    * @param storeId Store ID for folder organization
-   * @returns Map of image filename (without extension) to S3 URL
+   * @returns Map of image filename (without extension) to base S3 path
    */
-  private async copyMenuImages(storeId: string): Promise<Map<string, string>> {
-    const method = "copyMenuImages";
+  private async processMenuImages(
+    storeId: string,
+  ): Promise<Map<string, string>> {
+    const method = "processMenuImages";
     this.logger.log(
-      `[${method}] Preparing to copy seed images for Store ${storeId}`,
-    );
-
-    const { DEFAULT_MENU_ITEMS } = await import(
-      "./constants/default-store-data"
+      `[${method}] Preparing to process seed images for Store ${storeId}`,
     );
 
     // Extract unique image filenames (excluding nulls)
@@ -1024,51 +1024,28 @@ export class StoreService {
       ),
     );
 
-    // Step 1: Ensure seed images exist in shared S3 location (one-time upload)
     this.logger.log(
-      `[${method}] Ensuring ${imageFilenames.length} seed images exist in shared S3 location`,
+      `[${method}] Processing ${imageFilenames.length} seed images for Store ${storeId}`,
     );
 
     try {
-      const { ensureSeedImagesExist } = await import(
-        "./helpers/ensure-seed-images.helper"
-      );
-
-      const initResult = await ensureSeedImagesExist(
-        this.s3Service,
-        imageFilenames,
-      );
-
-      this.logger.log(
-        `[${method}] Seed images ready: ${initResult.alreadyExisted.length} existed, ${initResult.uploaded.length} uploaded, ${initResult.failed.length} failed`,
-      );
-
-      // Step 2: Copy images from shared location to store-specific location
-      this.logger.log(
-        `[${method}] Copying ${imageFilenames.length} images to store-specific location`,
-      );
-
-      const { copySeedImagesInParallel } = await import(
-        "./helpers/copy-seed-images.helper"
-      );
-
-      const imageMap = await copySeedImagesInParallel(
-        this.s3Service,
+      const imageMap = await processSeedImagesInParallel(
+        this.uploadService,
         imageFilenames,
         storeId,
       );
 
       this.logger.log(
-        `[${method}] Successfully copied ${imageMap.size} images for Store ${storeId}`,
+        `[${method}] Successfully processed ${imageMap.size} images for Store ${storeId}`,
       );
       return imageMap;
     } catch (error) {
       const { stack } = getErrorDetails(error);
       this.logger.error(
-        `[${method}] Failed to copy some images for Store ${storeId}`,
+        `[${method}] Failed to process some images for Store ${storeId}`,
         stack,
       );
-      // Return partial results - failed copies will have null imageUrl
+      // Return partial results - failed uploads will have null imagePath
       return new Map();
     }
   }
@@ -1079,22 +1056,18 @@ export class StoreService {
    * @param tx Prisma transaction client
    * @param storeId Store ID
    * @param categoryMap Map of category name to category ID
-   * @param imageUrlMap Map of image filename to S3 URL
+   * @param imagePathMap Map of image filename to base S3 path
    * @returns Array of created menu items with IDs
    */
   private async createDefaultMenuItems(
     tx: TransactionClient,
     storeId: string,
     categoryMap: Map<string, string>,
-    imageUrlMap: Map<string, string>,
+    imagePathMap: Map<string, string>,
   ): Promise<Array<{ id: string; name: string }>> {
     const method = "createDefaultMenuItems";
     this.logger.log(
       `[${method}] Creating default menu items for Store ${storeId}`,
-    );
-
-    const { DEFAULT_MENU_ITEMS, toPrismaDecimal } = await import(
-      "./constants/default-store-data"
     );
 
     const menuItems: Array<{ id: string; name: string }> = [];
@@ -1112,7 +1085,7 @@ export class StoreService {
       let imagePath: string | null = null;
       if (itemData.imageFileName) {
         const imageKey = itemData.imageFileName.replace(/\.[^/.]+$/, ""); // Remove extension
-        imagePath = imageUrlMap.get(imageKey) ?? null;
+        imagePath = imagePathMap.get(imageKey) ?? null;
       }
 
       // Convert basePrice to Decimal (should never be null in default data)
@@ -1169,12 +1142,6 @@ export class StoreService {
     this.logger.log(
       `[${method}] Creating default customizations for ${menuItems.length} menu items`,
     );
-
-    const {
-      CUSTOMIZATION_TEMPLATES,
-      MENU_ITEM_CUSTOMIZATIONS,
-      toPrismaDecimal,
-    } = await import("./constants/default-store-data");
 
     let totalGroupsCreated = 0;
 
