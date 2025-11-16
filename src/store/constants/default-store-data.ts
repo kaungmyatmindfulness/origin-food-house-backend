@@ -1,4 +1,5 @@
-import { Prisma } from "@prisma/client";
+// Re-export helper for backwards compatibility
+export { toPrismaDecimal } from "../helpers/data-conversion.helper";
 
 /**
  * Default categories created for new stores
@@ -12,7 +13,6 @@ export const DEFAULT_CATEGORIES: DefaultCategory[] = [
   { name: "Appetizers", sortOrder: 0 },
   { name: "Main Courses", sortOrder: 1 },
   { name: "Drinks", sortOrder: 2 },
-  { name: "Desserts", sortOrder: 3 },
 ];
 
 /**
@@ -41,13 +41,12 @@ export interface DefaultMenuItem {
 }
 
 /**
- * Default menu items mapped to available images
+ * Optimized default menu items - reduced to 6 items total (2 per category)
  * Images available: bread.jpg, chicken-curry.jpg, iced-latte.jpg, milk-tea.jpg,
- * pizza.jpg, ramen-noodle.jpg, salmon-sushi.jpg, strawberry-drink.jpg,
- * suki.jpg, vegetables-salad.jpg
+ * pizza.jpg, vegetables-salad.jpg
  */
 export const DEFAULT_MENU_ITEMS: DefaultMenuItem[] = [
-  // Appetizers (3 items)
+  // Appetizers (2 items)
   {
     name: "Garden Fresh Salad",
     description:
@@ -70,18 +69,8 @@ export const DEFAULT_MENU_ITEMS: DefaultMenuItem[] = [
     sortOrder: 1,
     routingArea: "GRILL",
   },
-  {
-    name: "Spring Rolls",
-    description: "Crispy vegetable spring rolls with sweet chili dipping sauce",
-    basePrice: "6.99",
-    categoryName: "Appetizers",
-    imageFileName: null, // No image available
-    preparationTimeMinutes: 12,
-    sortOrder: 2,
-    routingArea: "FRY",
-  },
 
-  // Main Courses (5 items)
+  // Main Courses (2 items)
   {
     name: "Thai Chicken Curry",
     description:
@@ -104,41 +93,8 @@ export const DEFAULT_MENU_ITEMS: DefaultMenuItem[] = [
     sortOrder: 1,
     routingArea: "GRILL",
   },
-  {
-    name: "Ramen Noodle Bowl",
-    description:
-      "Rich tonkotsu broth with ramen noodles, pork belly, soft-boiled egg, and green onions",
-    basePrice: "13.99",
-    categoryName: "Main Courses",
-    imageFileName: "ramen-noodle.jpg",
-    preparationTimeMinutes: 25,
-    sortOrder: 2,
-    routingArea: "GRILL",
-  },
-  {
-    name: "Salmon Sushi Platter",
-    description:
-      "Fresh salmon nigiri and rolls with wasabi, ginger, and soy sauce",
-    basePrice: "16.99",
-    categoryName: "Main Courses",
-    imageFileName: "salmon-sushi.jpg",
-    preparationTimeMinutes: 15,
-    sortOrder: 3,
-    routingArea: "SALAD",
-  },
-  {
-    name: "Suki Hot Pot",
-    description:
-      "Thai-style hot pot with meat, seafood, vegetables, and glass noodles in savory broth",
-    basePrice: "15.99",
-    categoryName: "Main Courses",
-    imageFileName: "suki.jpg",
-    preparationTimeMinutes: 22,
-    sortOrder: 4,
-    routingArea: "GRILL",
-  },
 
-  // Drinks (4 items)
+  // Drinks (2 items)
   {
     name: "Iced Latte",
     description: "Smooth espresso with cold milk over ice, lightly sweetened",
@@ -158,62 +114,6 @@ export const DEFAULT_MENU_ITEMS: DefaultMenuItem[] = [
     preparationTimeMinutes: 5,
     sortOrder: 1,
     routingArea: "DRINKS",
-  },
-  {
-    name: "Strawberry Smoothie",
-    description:
-      "Fresh strawberries blended with yogurt, honey, and ice. Refreshing and healthy!",
-    basePrice: "5.49",
-    categoryName: "Drinks",
-    imageFileName: "strawberry-drink.jpg",
-    preparationTimeMinutes: 5,
-    sortOrder: 2,
-    routingArea: "DRINKS",
-  },
-  {
-    name: "Fresh Orange Juice",
-    description: "Freshly squeezed orange juice, no added sugar",
-    basePrice: "3.99",
-    categoryName: "Drinks",
-    imageFileName: null, // No image available
-    preparationTimeMinutes: 5,
-    sortOrder: 3,
-    routingArea: "DRINKS",
-  },
-
-  // Desserts (3 items)
-  {
-    name: "Chocolate Lava Cake",
-    description:
-      "Warm chocolate cake with molten center, served with vanilla ice cream",
-    basePrice: "6.99",
-    categoryName: "Desserts",
-    imageFileName: null, // No image available
-    preparationTimeMinutes: 12,
-    sortOrder: 0,
-    routingArea: "GRILL",
-  },
-  {
-    name: "Ice Cream Sundae",
-    description:
-      "Three scoops of ice cream with chocolate sauce, whipped cream, and cherry",
-    basePrice: "5.99",
-    categoryName: "Desserts",
-    imageFileName: null, // No image available
-    preparationTimeMinutes: 5,
-    sortOrder: 1,
-    routingArea: "SALAD",
-  },
-  {
-    name: "Apple Pie",
-    description:
-      "Classic homemade apple pie with cinnamon, served warm with ice cream",
-    basePrice: "5.99",
-    categoryName: "Desserts",
-    imageFileName: null, // No image available
-    preparationTimeMinutes: 10,
-    sortOrder: 2,
-    routingArea: "GRILL",
   },
 ];
 
@@ -289,29 +189,11 @@ export const CUSTOMIZATION_TEMPLATES = {
  * Key is menu item name, value is array of customization template keys
  */
 export const MENU_ITEM_CUSTOMIZATIONS: Record<string, string[]> = {
-  // Main courses with spice level and add-ons
+  // Main courses
   "Thai Chicken Curry": ["SPICE_LEVEL", "ADD_ONS"],
   "Pizza Margherita": ["SIZE", "ADD_ONS"],
-  "Ramen Noodle Bowl": ["SPICE_LEVEL", "ADD_ONS"],
-  "Suki Hot Pot": ["SPICE_LEVEL"],
 
-  // Drinks with temperature and size
+  // Drinks
   "Iced Latte": ["SIZE", "TEMPERATURE"],
   "Thai Milk Tea": ["SIZE", "TEMPERATURE"],
-  "Strawberry Smoothie": ["SIZE"],
-  "Fresh Orange Juice": ["SIZE"],
-
-  // Desserts with add-ons
-  "Chocolate Lava Cake": ["ADD_ONS"],
-  "Ice Cream Sundae": ["ADD_ONS"],
 };
-
-/**
- * Helper to convert price string to Prisma Decimal
- */
-export function toPrismaDecimal(
-  priceString: string | null,
-): Prisma.Decimal | null {
-  if (priceString === null) return null;
-  return new Prisma.Decimal(priceString);
-}

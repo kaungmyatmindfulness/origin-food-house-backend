@@ -29,6 +29,8 @@ import { UpdateStoreInformationDto } from "src/store/dto/update-store-informatio
 import { UpdateStoreSettingDto } from "src/store/dto/update-store-setting.dto";
 
 import { InviteOrAssignRoleDto } from "./dto/invite-or-assign-role.dto";
+import { emptyToNull, toJsonValue } from "./helpers/data-conversion.helper";
+import { validateBusinessHours } from "./helpers/validation.helper";
 import { PrismaService } from "../prisma/prisma.service";
 
 /**
@@ -153,10 +155,10 @@ export class StoreService {
           information: {
             create: {
               name: dto.name,
-              address: this.emptyToNull(dto.address),
-              phone: this.emptyToNull(dto.phone),
-              email: this.emptyToNull(dto.email),
-              website: this.emptyToNull(dto.website),
+              address: emptyToNull(dto.address),
+              phone: emptyToNull(dto.phone),
+              email: emptyToNull(dto.email),
+              website: emptyToNull(dto.website),
             },
           },
           setting: {
@@ -604,14 +606,14 @@ export class StoreService {
     ]);
 
     // Validate business hours JSON structure
-    this.validateBusinessHours(businessHours);
+    validateBusinessHours(businessHours);
 
     try {
       // Update settings
       const updated = await this.prisma.storeSetting.update({
         where: { storeId },
         data: {
-          businessHours: this.toJsonValue(businessHours),
+          businessHours: toJsonValue(businessHours),
         },
       });
 
@@ -652,65 +654,6 @@ export class StoreService {
       throw new InternalServerErrorException(
         "Could not update business hours.",
       );
-    }
-  }
-
-  /**
-   * Converts empty strings to null for optional database fields.
-   * Ensures that empty strings are stored as NULL in the database.
-   * @private
-   * @param value Optional string value from user input
-   * @returns Trimmed string or null if empty/undefined
-   */
-  private emptyToNull(value: string | undefined): string | null {
-    return value?.trim().length ? value.trim() : null;
-  }
-
-  /**
-   * Converts any object to Prisma.InputJsonValue.
-   * This is a type-safe wrapper for JSON field assignments.
-   * @private
-   */
-  private toJsonValue(value: unknown): Prisma.InputJsonValue {
-    // Prisma.InputJsonValue accepts null, string, number, boolean, JsonObject, or JsonArray
-    // This type assertion is safe as long as the value conforms to JSON-serializable data
-    return value as Prisma.InputJsonValue;
-  }
-
-  /**
-   * Validates business hours structure and time format.
-   * Ensures all days are present with valid time ranges or closed status.
-   * @private
-   * @param hours Business hours object with days of the week
-   * @throws {BadRequestException} If any day is missing or has invalid time format
-   */
-  private validateBusinessHours(hours: BusinessHoursDto): void {
-    const days: Array<keyof BusinessHoursDto> = [
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-      "sunday",
-    ];
-
-    for (const day of days) {
-      if (!hours[day]) {
-        throw new BadRequestException(`Missing business hours for ${day}`);
-      }
-      const dayHours = hours[day];
-      if (dayHours.closed) continue;
-
-      if (!dayHours.open || !dayHours.close) {
-        throw new BadRequestException(`Invalid hours for ${day}`);
-      }
-
-      // Validate time format HH:MM
-      const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-      if (!timeRegex.test(dayHours.open) || !timeRegex.test(dayHours.close)) {
-        throw new BadRequestException(`Invalid time format for ${day}`);
-      }
     }
   }
 
