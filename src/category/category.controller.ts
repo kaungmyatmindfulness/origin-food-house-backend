@@ -17,6 +17,7 @@ import {
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiExtraModels,
   ApiOperation,
   ApiParam,
@@ -29,6 +30,12 @@ import { GetCategoriesQueryDto } from "src/category/dto/get-categories-query.dto
 import { ApiSuccessResponse } from "src/common/decorators/api-success-response.decorator";
 import { StandardApiErrorDetails } from "src/common/dto/standard-api-error-details.dto";
 import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
+import {
+  SupportedLocale,
+  SUPPORTED_LOCALES,
+} from "src/common/dto/translation.dto";
+import { ParseLocalePipe } from "src/common/pipes/parse-locale.pipe";
+import { UpdateCategoryTranslationsDto } from "src/menu/dto/update-translations.dto";
 
 import { CategoryService } from "./category.service";
 import { CategoryBasicResponseDto } from "./dto/category-basic-response.dto";
@@ -269,6 +276,121 @@ export class CategoryController {
     return StandardApiResponse.success(
       deletedResult,
       "Category deleted successfully.",
+    );
+  }
+
+  /**
+   * ============================================================================
+   * TRANSLATION MANAGEMENT ENDPOINTS
+   * ============================================================================
+   */
+
+  @Patch(":id/translations")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Update category translations (OWNER or ADMIN)",
+    description:
+      "Add or update translations for a category. Supports multiple locales: en, zh, my, th",
+  })
+  @ApiParam({
+    name: "id",
+    description: "ID (UUID) of the category",
+    type: String,
+    format: "uuid",
+  })
+  @ApiBody({
+    type: UpdateCategoryTranslationsDto,
+    examples: {
+      multipleTranslations: {
+        summary: "Multiple locale translations",
+        value: {
+          translations: [
+            { locale: "th", name: "อาหารเรียกน้ำย่อย" },
+            { locale: "zh", name: "开胃菜" },
+            { locale: "my", name: "အစားအစာ" },
+          ],
+        },
+      },
+      singleTranslation: {
+        summary: "Single locale translation",
+        value: {
+          translations: [{ locale: "th", name: "อาหารเรียกน้ำย่อย" }],
+        },
+      },
+    },
+  })
+  @ApiSuccessResponse(String, "Category translations updated successfully.")
+  async updateCategoryTranslations(
+    @Req() req: RequestWithUser,
+    @Param("id", new ParseUUIDPipe({ version: "7" })) categoryId: string,
+    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
+    @Body() dto: UpdateCategoryTranslationsDto,
+  ): Promise<StandardApiResponse<unknown>> {
+    const method = this.updateCategoryTranslations.name;
+    const userId = req.user.sub;
+    this.logger.log(
+      `[${method}] User ${userId} updating translations for category ${categoryId}`,
+    );
+
+    await this.categoryService.updateCategoryTranslations(
+      userId,
+      storeId,
+      categoryId,
+      dto.translations,
+    );
+
+    return StandardApiResponse.success(
+      undefined,
+      "Category translations updated successfully",
+    );
+  }
+
+  @Delete(":id/translations/:locale")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Delete a specific translation for a category (OWNER or ADMIN)",
+    description:
+      "Remove a translation in a specific locale (en, zh, my, th) from a category",
+  })
+  @ApiParam({
+    name: "id",
+    description: "ID (UUID) of the category",
+    type: String,
+    format: "uuid",
+  })
+  @ApiParam({
+    name: "locale",
+    description: "Locale to delete (en, zh, my, th)",
+    type: String,
+    enum: SUPPORTED_LOCALES,
+  })
+  @ApiSuccessResponse(String, "Category translation deleted successfully.")
+  async deleteCategoryTranslation(
+    @Req() req: RequestWithUser,
+    @Param("id", new ParseUUIDPipe({ version: "7" })) categoryId: string,
+    @Param("locale", ParseLocalePipe) locale: SupportedLocale,
+    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
+  ): Promise<StandardApiResponse<unknown>> {
+    const method = this.deleteCategoryTranslation.name;
+    const userId = req.user.sub;
+    this.logger.log(
+      `[${method}] User ${userId} deleting ${locale} translation for category ${categoryId}`,
+    );
+
+    await this.categoryService.deleteCategoryTranslation(
+      userId,
+      storeId,
+      categoryId,
+      locale,
+    );
+
+    return StandardApiResponse.success(
+      undefined,
+      `Category translation for locale '${locale}' deleted successfully`,
     );
   }
 }

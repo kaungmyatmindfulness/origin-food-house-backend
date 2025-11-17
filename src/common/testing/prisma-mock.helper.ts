@@ -65,6 +65,8 @@ export const createPrismaMock = () => ({
     create: jest.fn(),
     update: jest.fn(),
     deleteMany: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
   },
   customizationOption: {
     create: jest.fn(),
@@ -72,9 +74,11 @@ export const createPrismaMock = () => ({
     update: jest.fn(),
     deleteMany: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     findMany: jest.fn(),
   },
   storeInformation: {
+    findUnique: jest.fn(),
     update: jest.fn(),
   },
   storeSetting: {
@@ -140,6 +144,34 @@ export const createPrismaMock = () => ({
     findUnique: jest.fn(),
     update: jest.fn(),
     findMany: jest.fn(),
+  },
+  categoryTranslation: {
+    create: jest.fn(),
+    upsert: jest.fn(),
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+    deleteMany: jest.fn(),
+  },
+  menuItemTranslation: {
+    create: jest.fn(),
+    upsert: jest.fn(),
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+    deleteMany: jest.fn(),
+  },
+  customizationGroupTranslation: {
+    create: jest.fn(),
+    upsert: jest.fn(),
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+    deleteMany: jest.fn(),
+  },
+  customizationOptionTranslation: {
+    create: jest.fn(),
+    upsert: jest.fn(),
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+    deleteMany: jest.fn(),
   },
   $transaction: jest.fn(),
 });

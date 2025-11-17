@@ -14,6 +14,7 @@ import {
   createPrismaMock,
   PrismaMock,
 } from "../common/testing/prisma-mock.helper";
+import { UploadService } from "../common/upload/upload.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 // Mock nanoid module
@@ -27,6 +28,7 @@ describe("StoreService", () => {
   let authService: jest.Mocked<AuthService>;
   let auditLogService: jest.Mocked<AuditLogService>;
   let s3Service: jest.Mocked<S3Service>;
+  let uploadService: jest.Mocked<UploadService>;
 
   const mockUserId = "user-123";
   const mockStoreId = "store-123";
@@ -120,6 +122,13 @@ describe("StoreService", () => {
             listAllObjectKeys: jest.fn(),
           },
         },
+        {
+          provide: UploadService,
+          useValue: {
+            uploadImage: jest.fn(),
+            deleteImage: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -128,6 +137,7 @@ describe("StoreService", () => {
     authService = module.get(AuthService);
     auditLogService = module.get(AuditLogService);
     s3Service = module.get(S3Service);
+    uploadService = module.get(UploadService);
 
     jest.clearAllMocks();
   });
@@ -209,20 +219,6 @@ describe("StoreService", () => {
       prismaService.store.findUnique.mockResolvedValue(null);
       prismaService.store.create.mockResolvedValue(mockStore as any);
 
-      // Mock S3 operations for seed image copy optimization
-      // 1. List operation to check if seed images exist
-      s3Service.listAllObjectKeys.mockResolvedValue([
-        "menu-images/seed/chicken-curry.jpg",
-        "menu-images/seed/pizza.jpg",
-        "menu-images/seed/vegetables-salad.jpg",
-        // ... assume all seed images already exist
-      ]);
-
-      // 2. Copy operation (server-side, much faster than upload)
-      s3Service.copyFile.mockResolvedValue(
-        "https://s3.example.com/menu-images/store-123/1234567890-image.jpg",
-      );
-
       // Mock transaction with all necessary operations
       const extendedMockTransaction = {
         ...mockTransaction,
@@ -283,15 +279,7 @@ describe("StoreService", () => {
         },
       });
 
-      // Verify S3 operations called
-      // 1. Check if seed images exist (one-time initialization)
-      expect(s3Service.listAllObjectKeys).toHaveBeenCalledWith(
-        "menu-images/seed/",
-      );
-      // 2. Copy images from shared location (10 unique images expected)
-      expect(s3Service.copyFile).toHaveBeenCalled();
-
-      // Verify transaction executed
+      // Verify transaction executed (images are now processed from local files using UploadService)
       expect(prismaService.$transaction).toHaveBeenCalled();
     });
 
@@ -303,11 +291,13 @@ describe("StoreService", () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it("should handle S3 copy failures gracefully and continue with store creation", async () => {
-      // Mock S3 copy failure
-      s3Service.copyFile.mockRejectedValue(new Error("S3 copy failed"));
+    it("should handle image upload failures gracefully and continue with store creation", async () => {
+      // Mock UploadService failure
+      uploadService.uploadImage.mockRejectedValue(
+        new Error("Image upload failed"),
+      );
 
-      // Should still create store even if images fail to copy
+      // Should still create store even if images fail to upload
       const result = await service.createStore(mockUserId, createStoreDto);
 
       expect(result).toEqual(mockStore);
@@ -768,13 +758,22 @@ describe("StoreService", () => {
     } as any;
 
     it("should upload logo successfully", async () => {
+      const logoBasePath = "uploads/logo-123";
       const updatedInfo = {
         ...mockStoreInformation,
-        logoPath: "https://s3.example.com/logo.png",
+        logoPath: logoBasePath,
       };
 
       authService.checkStorePermission.mockResolvedValue(undefined);
-      s3Service.uploadFile.mockResolvedValue("https://s3.example.com/logo.png");
+      prismaService.storeInformation.findUnique.mockResolvedValue(
+        mockStoreInformation,
+      );
+      uploadService.uploadImage.mockResolvedValue({
+        basePath: logoBasePath,
+        availableSizes: ["small", "medium"],
+        primarySize: "medium",
+        metadata: { originalWidth: 400, versions: {} },
+      } as any);
       prismaService.storeInformation.update.mockResolvedValue(updatedInfo);
       auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
 
@@ -785,28 +784,35 @@ describe("StoreService", () => {
         undefined,
       );
 
-      expect(s3Service.uploadFile).toHaveBeenCalledWith(
-        expect.stringContaining("store-logos"),
-        mockLogoFile.buffer,
-        mockLogoFile.mimetype,
+      expect(uploadService.uploadImage).toHaveBeenCalledWith(
+        mockLogoFile,
+        "store-logo",
+        mockStoreId,
       );
       expect(prismaService.storeInformation.update).toHaveBeenCalledWith({
         where: { storeId: mockStoreId },
-        data: { logoPath: "https://s3.example.com/logo.png" },
+        data: { logoPath: logoBasePath },
       });
-      expect(result.logoPath).toBe("https://s3.example.com/logo.png");
+      expect(result.logoPath).toBe(logoBasePath);
     });
 
     it("should upload cover photo successfully", async () => {
+      const coverBasePath = "uploads/cover-456";
       const updatedInfo = {
         ...mockStoreInformation,
-        coverPhotoPath: "https://s3.example.com/cover.jpg",
+        coverPhotoPath: coverBasePath,
       };
 
       authService.checkStorePermission.mockResolvedValue(undefined);
-      s3Service.uploadFile.mockResolvedValue(
-        "https://s3.example.com/cover.jpg",
+      prismaService.storeInformation.findUnique.mockResolvedValue(
+        mockStoreInformation,
       );
+      uploadService.uploadImage.mockResolvedValue({
+        basePath: coverBasePath,
+        availableSizes: ["small", "medium", "large"],
+        primarySize: "large",
+        metadata: { originalWidth: 1200, versions: {} },
+      } as any);
       prismaService.storeInformation.update.mockResolvedValue(updatedInfo);
       auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
 
@@ -817,25 +823,40 @@ describe("StoreService", () => {
         mockCoverFile,
       );
 
-      expect(s3Service.uploadFile).toHaveBeenCalledWith(
-        expect.stringContaining("store-covers"),
-        mockCoverFile.buffer,
-        mockCoverFile.mimetype,
+      expect(uploadService.uploadImage).toHaveBeenCalledWith(
+        mockCoverFile,
+        "cover-photo",
+        mockStoreId,
       );
-      expect(result.coverPhotoPath).toBe("https://s3.example.com/cover.jpg");
+      expect(result.coverPhotoPath).toBe(coverBasePath);
     });
 
     it("should upload both logo and cover", async () => {
+      const logoBasePath = "uploads/logo-123";
+      const coverBasePath = "uploads/cover-456";
       const updatedInfo = {
         ...mockStoreInformation,
-        logoPath: "https://s3.example.com/logo.png",
-        coverPhotoPath: "https://s3.example.com/cover.jpg",
+        logoPath: logoBasePath,
+        coverPhotoPath: coverBasePath,
       };
 
       authService.checkStorePermission.mockResolvedValue(undefined);
-      s3Service.uploadFile
-        .mockResolvedValueOnce("https://s3.example.com/logo.png")
-        .mockResolvedValueOnce("https://s3.example.com/cover.jpg");
+      prismaService.storeInformation.findUnique.mockResolvedValue(
+        mockStoreInformation,
+      );
+      uploadService.uploadImage
+        .mockResolvedValueOnce({
+          basePath: logoBasePath,
+          availableSizes: ["small", "medium"],
+          primarySize: "medium",
+          metadata: { originalWidth: 400, versions: {} },
+        } as any)
+        .mockResolvedValueOnce({
+          basePath: coverBasePath,
+          availableSizes: ["small", "medium", "large"],
+          primarySize: "large",
+          metadata: { originalWidth: 1200, versions: {} },
+        } as any);
       prismaService.storeInformation.update.mockResolvedValue(updatedInfo);
       auditLogService.logStoreSettingChange.mockResolvedValue(undefined);
 
@@ -846,9 +867,9 @@ describe("StoreService", () => {
         mockCoverFile,
       );
 
-      expect(s3Service.uploadFile).toHaveBeenCalledTimes(2);
-      expect(result.logoPath).toBe("https://s3.example.com/logo.png");
-      expect(result.coverPhotoPath).toBe("https://s3.example.com/cover.jpg");
+      expect(uploadService.uploadImage).toHaveBeenCalledTimes(2);
+      expect(result.logoPath).toBe(logoBasePath);
+      expect(result.coverPhotoPath).toBe(coverBasePath);
     });
 
     it("should require Owner/Admin permission", async () => {
@@ -867,8 +888,18 @@ describe("StoreService", () => {
     });
 
     it("should log audit trail", async () => {
+      const logoBasePath = "uploads/logo-123";
+
       authService.checkStorePermission.mockResolvedValue(undefined);
-      s3Service.uploadFile.mockResolvedValue("https://s3.example.com/logo.png");
+      prismaService.storeInformation.findUnique.mockResolvedValue(
+        mockStoreInformation,
+      );
+      uploadService.uploadImage.mockResolvedValue({
+        basePath: logoBasePath,
+        availableSizes: ["small", "medium"],
+        primarySize: "medium",
+        metadata: { originalWidth: 400, versions: {} },
+      } as any);
       prismaService.storeInformation.update.mockResolvedValue(
         mockStoreInformation,
       );

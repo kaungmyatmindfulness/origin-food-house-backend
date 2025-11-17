@@ -29,9 +29,37 @@ export class CategoryService {
         include: {
           customizationGroups: {
             include: {
-              customizationOptions: true,
+              customizationOptions: {
+                include: {
+                  translations: {
+                    select: {
+                      locale: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+              translations: {
+                select: {
+                  locale: true,
+                  name: true,
+                },
+              },
             },
           },
+          translations: {
+            select: {
+              locale: true,
+              name: true,
+              description: true,
+            },
+          },
+        },
+      },
+      translations: {
+        select: {
+          locale: true,
+          name: true,
         },
       },
     });
@@ -497,5 +525,138 @@ export class CategoryService {
         "Could not reorder categories and items.",
       );
     }
+  }
+
+  /**
+   * ============================================================================
+   * TRANSLATION MANAGEMENT METHODS
+   * ============================================================================
+   */
+
+  /**
+   * Updates or creates translations for a category in multiple locales.
+   *
+   * This operation uses upsert logic - it creates new translations or
+   * updates existing ones based on the (categoryId, locale) composite key.
+   * All updates are atomic within a database transaction.
+   *
+   * @param userId - Auth0 ID of the user making changes
+   * @param storeId - Store UUID to verify access
+   * @param categoryId - Category UUID to update
+   * @param translations - Array of translations to upsert (locale and name)
+   * @returns Promise that resolves when all translations are updated
+   * @throws {ForbiddenException} If user lacks OWNER/ADMIN role
+   * @throws {NotFoundException} If category not found in store
+   * @throws {InternalServerErrorException} On unexpected database errors
+   */
+  async updateCategoryTranslations(
+    userId: string,
+    storeId: string,
+    categoryId: string,
+    translations: Array<{ locale: string; name: string }>,
+  ): Promise<void> {
+    const method = this.updateCategoryTranslations.name;
+    this.logger.log(
+      `[${method}] User ${userId} updating translations for category ${categoryId}`,
+    );
+
+    // Check permissions
+    await this.authService.checkStorePermission(userId, storeId, [
+      Role.OWNER,
+      Role.ADMIN,
+    ]);
+
+    // Verify category exists and belongs to store
+    const category = await this.prisma.category.findFirst({
+      where: { id: categoryId, storeId, deletedAt: null },
+    });
+
+    if (!category) {
+      throw new NotFoundException(
+        `Category with ID ${categoryId} not found in store ${storeId}`,
+      );
+    }
+
+    // Upsert translations
+    await this.prisma.$transaction(async (tx) => {
+      for (const translation of translations) {
+        await tx.categoryTranslation.upsert({
+          where: {
+            categoryId_locale: {
+              categoryId,
+              locale: translation.locale,
+            },
+          },
+          update: {
+            name: translation.name,
+          },
+          create: {
+            categoryId,
+            locale: translation.locale,
+            name: translation.name,
+          },
+        });
+      }
+    });
+
+    this.logger.log(
+      `[${method}] Updated ${translations.length} translations for category ${categoryId}`,
+    );
+  }
+
+  /**
+   * Deletes a specific translation for a category in a given locale.
+   *
+   * This operation removes the translation entry from the CategoryTranslation table.
+   * The default category name remains unchanged - only the localized translation is removed.
+   *
+   * @param userId - Auth0 ID of the user making changes
+   * @param storeId - Store UUID to verify access
+   * @param categoryId - Category UUID to update
+   * @param locale - Locale code to delete (en, zh, my, th)
+   * @returns Promise that resolves when translation is deleted
+   * @throws {ForbiddenException} If user lacks OWNER/ADMIN role
+   * @throws {NotFoundException} If category not found in store
+   * @throws {InternalServerErrorException} On unexpected database errors
+   */
+  async deleteCategoryTranslation(
+    userId: string,
+    storeId: string,
+    categoryId: string,
+    locale: string,
+  ): Promise<void> {
+    const method = this.deleteCategoryTranslation.name;
+    this.logger.log(
+      `[${method}] User ${userId} deleting ${locale} translation for category ${categoryId}`,
+    );
+
+    // Check permissions
+    await this.authService.checkStorePermission(userId, storeId, [
+      Role.OWNER,
+      Role.ADMIN,
+    ]);
+
+    // Verify category exists and belongs to store
+    const category = await this.prisma.category.findFirst({
+      where: { id: categoryId, storeId, deletedAt: null },
+    });
+
+    if (!category) {
+      throw new NotFoundException(
+        `Category with ID ${categoryId} not found in store ${storeId}`,
+      );
+    }
+
+    // Delete translation
+    await this.prisma.categoryTranslation.deleteMany({
+      where: {
+        categoryId,
+        locale,
+      },
+    });
+
+    this.logger.log(
+      `[${method}] Deleted ${locale} translation for category ${categoryId}`,
+    );
   }
 }

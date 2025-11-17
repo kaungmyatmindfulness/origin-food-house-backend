@@ -2,6 +2,11 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { RoutingArea } from "@prisma/client";
 import { Type } from "class-transformer";
 
+import {
+  TranslationMap,
+  TranslationWithDescriptionResponseDto,
+} from "src/common/dto/translation.dto";
+
 import { CategoryResponseDto } from "./category-response.dto";
 import { CustomizationGroupResponseDto } from "./customization-group-response.dto";
 
@@ -9,11 +14,17 @@ export class MenuItemResponseDto {
   @ApiProperty({ example: 147 })
   id: string;
 
-  @ApiProperty({ example: "Generic Granite Cheese" })
+  @ApiProperty({
+    example: "Generic Granite Cheese",
+    description:
+      "Item name (default/fallback). Use translations map for localized names.",
+  })
   name: string;
 
   @ApiPropertyOptional({
     example: "The lavender Bike combines Bolivia aesthetics...",
+    description:
+      "Item description (default/fallback). Use translations map for localized descriptions.",
     nullable: true,
   })
   description: string | null;
@@ -84,4 +95,19 @@ export class MenuItemResponseDto {
   @ApiProperty({ type: () => [CustomizationGroupResponseDto] })
   @Type(() => CustomizationGroupResponseDto)
   customizationGroups: CustomizationGroupResponseDto[];
+
+  @ApiPropertyOptional({
+    description:
+      "Translations map by locale (e.g., { 'en': {...}, 'th': {...} }). Use for multi-language support.",
+    example: {
+      en: {
+        locale: "en",
+        name: "Pad Thai",
+        description: "Thai stir-fried noodles",
+      },
+      th: { locale: "th", name: "ผัดไทย", description: "ก๋วยเตี๋ยวผัดไทย" },
+    },
+    nullable: true,
+  })
+  translations?: TranslationMap<TranslationWithDescriptionResponseDto>;
 }

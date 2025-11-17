@@ -143,7 +143,10 @@
     "testEnvironment": "node",
     "moduleNameMapper": {
       "^src/(.*)$": "<rootDir>/$1"
-    }
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!(uuid)/)"
+    ]
   },
   "prisma": {
     "seed": "ts-node --transpile-only prisma/seed.ts"

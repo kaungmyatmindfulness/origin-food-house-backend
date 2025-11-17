@@ -35,17 +35,47 @@ export class MenuService {
 
   /**
    * Reusable Prisma Include clause for fetching menu items with full details
-   * (category, customization groups, and options), ensuring consistent data structure.
+   * (category, customization groups, options, and translations), ensuring consistent data structure.
    * Groups and options are ordered alphabetically by name.
    */
   private readonly menuItemInclude = {
-    category: true,
+    category: {
+      include: {
+        translations: {
+          select: {
+            locale: true,
+            name: true,
+          },
+        },
+      },
+    },
     customizationGroups: {
       orderBy: { name: "asc" },
       include: {
         customizationOptions: {
           orderBy: { name: "asc" },
+          include: {
+            translations: {
+              select: {
+                locale: true,
+                name: true,
+              },
+            },
+          },
         },
+        translations: {
+          select: {
+            locale: true,
+            name: true,
+          },
+        },
+      },
+    },
+    translations: {
+      select: {
+        locale: true,
+        name: true,
+        description: true,
       },
     },
   } satisfies Prisma.MenuItemInclude;
@@ -680,6 +710,297 @@ export class MenuService {
     }
     this.logger.debug(
       `[syncCustomizationOptions] Finished sync for group ${groupId}`,
+    );
+  }
+
+  /**
+   * ============================================================================
+   * TRANSLATION MANAGEMENT METHODS
+   * ============================================================================
+   */
+
+  /**
+   * Updates or creates translations for a menu item in multiple locales.
+   *
+   * This operation uses upsert logic - it creates new translations or
+   * updates existing ones based on the (menuItemId, locale) composite key.
+   * Supports both name and description fields. All updates are atomic
+   * within a database transaction.
+   *
+   * @param userId - Auth0 ID of the user making changes
+   * @param storeId - Store UUID to verify access
+   * @param itemId - Menu item UUID to update
+   * @param translations - Array of translations (locale, name, optional description)
+   * @returns Promise that resolves when all translations are updated
+   * @throws {ForbiddenException} If user lacks OWNER/ADMIN role
+   * @throws {NotFoundException} If menu item not found in store
+   * @throws {InternalServerErrorException} On unexpected database errors
+   */
+  async updateMenuItemTranslations(
+    userId: string,
+    storeId: string,
+    itemId: string,
+    translations: Array<{
+      locale: string;
+      name: string;
+      description?: string | null;
+    }>,
+  ): Promise<void> {
+    const method = this.updateMenuItemTranslations.name;
+    this.logger.log(
+      `[${method}] User ${userId} updating translations for menu item ${itemId}`,
+    );
+
+    // Check permissions
+    await this.authService.checkStorePermission(userId, storeId, [
+      Role.OWNER,
+      Role.ADMIN,
+    ]);
+
+    // Verify menu item exists and belongs to store
+    const menuItem = await this.prisma.menuItem.findFirst({
+      where: { id: itemId, storeId, deletedAt: null },
+    });
+
+    if (!menuItem) {
+      throw new NotFoundException(
+        `Menu item with ID ${itemId} not found in store ${storeId}`,
+      );
+    }
+
+    // Upsert translations
+    await this.prisma.$transaction(async (tx) => {
+      for (const translation of translations) {
+        await tx.menuItemTranslation.upsert({
+          where: {
+            menuItemId_locale: {
+              menuItemId: itemId,
+              locale: translation.locale,
+            },
+          },
+          update: {
+            name: translation.name,
+            description: translation.description ?? null,
+          },
+          create: {
+            menuItemId: itemId,
+            locale: translation.locale,
+            name: translation.name,
+            description: translation.description ?? null,
+          },
+        });
+      }
+    });
+
+    this.logger.log(
+      `[${method}] Updated ${translations.length} translations for menu item ${itemId}`,
+    );
+  }
+
+  /**
+   * Deletes a specific translation for a menu item in a given locale.
+   *
+   * This operation removes the translation entry from the MenuItemTranslation table.
+   * The default menu item name and description remain unchanged - only the
+   * localized translation is removed.
+   *
+   * @param userId - Auth0 ID of the user making changes
+   * @param storeId - Store UUID to verify access
+   * @param itemId - Menu item UUID to update
+   * @param locale - Locale code to delete (en, zh, my, th)
+   * @returns Promise that resolves when translation is deleted
+   * @throws {ForbiddenException} If user lacks OWNER/ADMIN role
+   * @throws {NotFoundException} If menu item not found in store
+   * @throws {InternalServerErrorException} On unexpected database errors
+   */
+  async deleteMenuItemTranslation(
+    userId: string,
+    storeId: string,
+    itemId: string,
+    locale: string,
+  ): Promise<void> {
+    const method = this.deleteMenuItemTranslation.name;
+    this.logger.log(
+      `[${method}] User ${userId} deleting ${locale} translation for menu item ${itemId}`,
+    );
+
+    // Check permissions
+    await this.authService.checkStorePermission(userId, storeId, [
+      Role.OWNER,
+      Role.ADMIN,
+    ]);
+
+    // Verify menu item exists and belongs to store
+    const menuItem = await this.prisma.menuItem.findFirst({
+      where: { id: itemId, storeId, deletedAt: null },
+    });
+
+    if (!menuItem) {
+      throw new NotFoundException(
+        `Menu item with ID ${itemId} not found in store ${storeId}`,
+      );
+    }
+
+    // Delete translation
+    await this.prisma.menuItemTranslation.deleteMany({
+      where: {
+        menuItemId: itemId,
+        locale,
+      },
+    });
+
+    this.logger.log(
+      `[${method}] Deleted ${locale} translation for menu item ${itemId}`,
+    );
+  }
+
+  /**
+   * Updates or creates translations for a customization group (e.g., 'Size', 'Spice Level').
+   *
+   * This operation uses upsert logic - it creates new translations or
+   * updates existing ones based on the (customizationGroupId, locale) composite key.
+   * All updates are atomic within a database transaction.
+   *
+   * @param userId - Auth0 ID of the user making changes
+   * @param storeId - Store UUID to verify access
+   * @param groupId - Customization group UUID to update
+   * @param translations - Array of translations to upsert (locale and name)
+   * @returns Promise that resolves when all translations are updated
+   * @throws {ForbiddenException} If user lacks OWNER/ADMIN role
+   * @throws {NotFoundException} If customization group not found in store
+   * @throws {InternalServerErrorException} On unexpected database errors
+   */
+  async updateCustomizationGroupTranslations(
+    userId: string,
+    storeId: string,
+    groupId: string,
+    translations: Array<{ locale: string; name: string }>,
+  ): Promise<void> {
+    const method = this.updateCustomizationGroupTranslations.name;
+    this.logger.log(
+      `[${method}] User ${userId} updating translations for customization group ${groupId}`,
+    );
+
+    // Check permissions
+    await this.authService.checkStorePermission(userId, storeId, [
+      Role.OWNER,
+      Role.ADMIN,
+    ]);
+
+    // Verify group exists and belongs to store
+    const group = await this.prisma.customizationGroup.findFirst({
+      where: {
+        id: groupId,
+        menuItem: { storeId, deletedAt: null },
+      },
+    });
+
+    if (!group) {
+      throw new NotFoundException(
+        `Customization group with ID ${groupId} not found in store ${storeId}`,
+      );
+    }
+
+    // Upsert translations
+    await this.prisma.$transaction(async (tx) => {
+      for (const translation of translations) {
+        await tx.customizationGroupTranslation.upsert({
+          where: {
+            customizationGroupId_locale: {
+              customizationGroupId: groupId,
+              locale: translation.locale,
+            },
+          },
+          update: {
+            name: translation.name,
+          },
+          create: {
+            customizationGroupId: groupId,
+            locale: translation.locale,
+            name: translation.name,
+          },
+        });
+      }
+    });
+
+    this.logger.log(
+      `[${method}] Updated ${translations.length} translations for customization group ${groupId}`,
+    );
+  }
+
+  /**
+   * Updates or creates translations for a customization option (e.g., 'Large', 'Spicy').
+   *
+   * This operation uses upsert logic - it creates new translations or
+   * updates existing ones based on the (customizationOptionId, locale) composite key.
+   * All updates are atomic within a database transaction.
+   *
+   * @param userId - Auth0 ID of the user making changes
+   * @param storeId - Store UUID to verify access
+   * @param optionId - Customization option UUID to update
+   * @param translations - Array of translations to upsert (locale and name)
+   * @returns Promise that resolves when all translations are updated
+   * @throws {ForbiddenException} If user lacks OWNER/ADMIN role
+   * @throws {NotFoundException} If customization option not found in store
+   * @throws {InternalServerErrorException} On unexpected database errors
+   */
+  async updateCustomizationOptionTranslations(
+    userId: string,
+    storeId: string,
+    optionId: string,
+    translations: Array<{ locale: string; name: string }>,
+  ): Promise<void> {
+    const method = this.updateCustomizationOptionTranslations.name;
+    this.logger.log(
+      `[${method}] User ${userId} updating translations for customization option ${optionId}`,
+    );
+
+    // Check permissions
+    await this.authService.checkStorePermission(userId, storeId, [
+      Role.OWNER,
+      Role.ADMIN,
+    ]);
+
+    // Verify option exists and belongs to store
+    const option = await this.prisma.customizationOption.findFirst({
+      where: {
+        id: optionId,
+        customizationGroup: {
+          menuItem: { storeId, deletedAt: null },
+        },
+      },
+    });
+
+    if (!option) {
+      throw new NotFoundException(
+        `Customization option with ID ${optionId} not found in store ${storeId}`,
+      );
+    }
+
+    // Upsert translations
+    await this.prisma.$transaction(async (tx) => {
+      for (const translation of translations) {
+        await tx.customizationOptionTranslation.upsert({
+          where: {
+            customizationOptionId_locale: {
+              customizationOptionId: optionId,
+              locale: translation.locale,
+            },
+          },
+          update: {
+            name: translation.name,
+          },
+          create: {
+            customizationOptionId: optionId,
+            locale: translation.locale,
+            name: translation.name,
+          },
+        });
+      }
+    });
+
+    this.logger.log(
+      `[${method}] Updated ${translations.length} translations for customization option ${optionId}`,
     );
   }
 }

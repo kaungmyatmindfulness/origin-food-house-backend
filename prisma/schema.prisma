@@ -117,6 +117,12 @@ model StoreSetting {
   loyaltyRedemptionRate  Decimal? @db.Decimal(10, 4) // e.g., 0.1 (100 points = 10 THB)
   loyaltyPointExpiryDays Int?     @default(365)
 
+  // Multi-Language Support
+  primaryLocale          String   @default("en") // Primary language for this store
+  enabledLocales         String[] @default(["en"]) // Enabled languages (e.g., ["en", "zh", "th"])
+  multiLanguageEnabled   Boolean  @default(false) // Feature flag for multi-language
+  multiLanguageMigratedAt DateTime? // When data was migrated to translation tables
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @default(now()) @updatedAt
 }
@@ -131,7 +137,8 @@ model Category {
   updatedAt DateTime  @default(now()) @updatedAt
   deletedAt DateTime?
 
-  menuItems MenuItem[]
+  menuItems    MenuItem[]
+  translations CategoryTranslation[]
 
   @@unique([storeId, name, deletedAt])
   @@index([storeId, sortOrder])
@@ -160,6 +167,7 @@ model MenuItem {
   customizationGroups CustomizationGroup[]
   orderItems          OrderItem[]
   cartItems           CartItem[]
+  translations        MenuItemTranslation[]
 
   @@index([storeId, categoryId, sortOrder])
   @@index([storeId, routingArea])
@@ -175,6 +183,7 @@ model CustomizationGroup {
   menuItemId           String
   menuItem             MenuItem              @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
   customizationOptions CustomizationOption[]
+  translations         CustomizationGroupTranslation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
@@ -192,12 +201,82 @@ model CustomizationOption {
   customizationGroup      CustomizationGroup       @relation(fields: [customizationGroupId], references: [id], onDelete: Cascade)
   orderItemCustomizations OrderItemCustomization[]
   cartItemCustomizations  CartItemCustomization[]
+  translations            CustomizationOptionTranslation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
   @@index([customizationGroupId])
   @@index([customizationGroupId, sortOrder])
+}
+
+// ============================================================================
+// MULTI-LANGUAGE TRANSLATION TABLES
+// ============================================================================
+
+model CategoryTranslation {
+  id         String   @id @default(uuid(7))
+  categoryId String
+  locale     String   // "en", "zh", "my", "th"
+  name       String
+
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@unique([categoryId, locale])
+  @@index([categoryId])
+  @@index([locale])
+}
+
+model MenuItemTranslation {
+  id          String  @id @default(uuid(7))
+  menuItemId  String
+  locale      String  // "en", "zh", "my", "th"
+  name        String
+  description String? @db.Text
+
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@unique([menuItemId, locale])
+  @@index([menuItemId])
+  @@index([locale])
+}
+
+model CustomizationGroupTranslation {
+  id                   String @id @default(uuid(7))
+  customizationGroupId String
+  locale               String // "en", "zh", "my", "th"
+  name                 String
+
+  customizationGroup   CustomizationGroup @relation(fields: [customizationGroupId], references: [id], onDelete: Cascade)
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @default(now()) @updatedAt
+
+  @@unique([customizationGroupId, locale])
+  @@index([customizationGroupId])
+  @@index([locale])
+}
+
+model CustomizationOptionTranslation {
+  id                    String @id @default(uuid(7))
+  customizationOptionId String
+  locale                String // "en", "zh", "my", "th"
+  name                  String
+
+  customizationOption   CustomizationOption @relation(fields: [customizationOptionId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+
+  @@unique([customizationOptionId, locale])
+  @@index([customizationOptionId])
+  @@index([locale])
 }
 
 model Table {
