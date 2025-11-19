@@ -931,7 +931,7 @@ export class StoreService {
   }
 
   /**
-   * Creates default categories for a new store
+   * Creates default categories for a new store with translations
    * @private
    * @param tx Prisma transaction client
    * @param storeId Store ID
@@ -943,7 +943,7 @@ export class StoreService {
   ): Promise<Map<string, string>> {
     const method = "createDefaultCategories";
     this.logger.log(
-      `[${method}] Creating default categories for Store ${storeId}`,
+      `[${method}] Creating default categories with translations for Store ${storeId}`,
     );
 
     const categoryMap = new Map<string, string>();
@@ -955,16 +955,24 @@ export class StoreService {
           sortOrder: catData.sortOrder,
           storeId,
           deletedAt: null,
+          translations: {
+            createMany: {
+              data: catData.translations.map((t) => ({
+                locale: t.locale,
+                name: t.name,
+              })),
+            },
+          },
         },
       });
       categoryMap.set(catData.name, category.id);
       this.logger.log(
-        `[${method}] Created category "${catData.name}" (ID: ${category.id})`,
+        `[${method}] Created category "${catData.name}" (ID: ${category.id}) with ${catData.translations.length} translations`,
       );
     }
 
     this.logger.log(
-      `[${method}] Created ${categoryMap.size} default categories`,
+      `[${method}] Created ${categoryMap.size} default categories with translations`,
     );
     return categoryMap;
   }
@@ -1051,7 +1059,7 @@ export class StoreService {
   }
 
   /**
-   * Creates default menu items for a new store
+   * Creates default menu items for a new store with translations
    * @private
    * @param tx Prisma transaction client
    * @param storeId Store ID
@@ -1067,7 +1075,7 @@ export class StoreService {
   ): Promise<Array<{ id: string; name: string }>> {
     const method = "createDefaultMenuItems";
     this.logger.log(
-      `[${method}] Creating default menu items for Store ${storeId}`,
+      `[${method}] Creating default menu items with translations for Store ${storeId}`,
     );
 
     const menuItems: Array<{ id: string; name: string }> = [];
@@ -1113,23 +1121,32 @@ export class StoreService {
           isOutOfStock: false,
           isHidden: false,
           deletedAt: null,
+          translations: {
+            createMany: {
+              data: itemData.translations.map((t) => ({
+                locale: t.locale,
+                name: t.name,
+                description: t.description ?? null,
+              })),
+            },
+          },
         },
       });
 
       menuItems.push({ id: menuItem.id, name: menuItem.name });
       this.logger.log(
-        `[${method}] Created menu item "${itemData.name}" (ID: ${menuItem.id})`,
+        `[${method}] Created menu item "${itemData.name}" (ID: ${menuItem.id}) with ${itemData.translations.length} translations`,
       );
     }
 
     this.logger.log(
-      `[${method}] Created ${menuItems.length} default menu items`,
+      `[${method}] Created ${menuItems.length} default menu items with translations`,
     );
     return menuItems;
   }
 
   /**
-   * Creates default customization groups and options for menu items
+   * Creates default customization groups and options for menu items with translations
    * @private
    * @param tx Prisma transaction client
    * @param menuItems Array of menu items with IDs and names
@@ -1140,7 +1157,7 @@ export class StoreService {
   ): Promise<void> {
     const method = "createDefaultCustomizations";
     this.logger.log(
-      `[${method}] Creating default customizations for ${menuItems.length} menu items`,
+      `[${method}] Creating default customizations with translations for ${menuItems.length} menu items`,
     );
 
     let totalGroupsCreated = 0;
@@ -1163,43 +1180,53 @@ export class StoreService {
           continue;
         }
 
-        // Create customization group
+        // Create customization group with translations
         const group = await tx.customizationGroup.create({
           data: {
             name: template.name,
             menuItemId: menuItem.id,
             minSelectable: template.minSelectable,
             maxSelectable: template.maxSelectable,
+            translations: {
+              createMany: {
+                data: template.translations.map((t) => ({
+                  locale: t.locale,
+                  name: t.name,
+                })),
+              },
+            },
           },
         });
 
-        // Create customization options
-        const optionsData = template.options.map(
-          (option: {
-            name: string;
-            additionalPrice: string | null;
-            sortOrder: number;
-          }) => ({
-            name: option.name,
-            customizationGroupId: group.id,
-            additionalPrice: toPrismaDecimal(option.additionalPrice),
-            sortOrder: option.sortOrder,
-          }),
-        );
-
-        await tx.customizationOption.createMany({
-          data: optionsData,
-        });
+        // Create customization options with translations
+        for (const option of template.options) {
+          await tx.customizationOption.create({
+            data: {
+              name: option.name,
+              customizationGroupId: group.id,
+              additionalPrice: toPrismaDecimal(option.additionalPrice),
+              sortOrder: option.sortOrder,
+              translations: {
+                createMany: {
+                  data: option.translations.map((t) => ({
+                    locale: t.locale,
+                    name: t.name,
+                  })),
+                },
+              },
+            },
+          });
+        }
 
         totalGroupsCreated++;
         this.logger.log(
-          `[${method}] Created "${template.name}" group for "${menuItem.name}" with ${optionsData.length} options`,
+          `[${method}] Created "${template.name}" group for "${menuItem.name}" with ${template.options.length} options and translations`,
         );
       }
     }
 
     this.logger.log(
-      `[${method}] Created ${totalGroupsCreated} customization groups total`,
+      `[${method}] Created ${totalGroupsCreated} customization groups with translations`,
     );
   }
 
