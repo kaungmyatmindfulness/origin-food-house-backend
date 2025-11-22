@@ -8,12 +8,19 @@
  * This script should be run ONCE after the Slice B migration.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 
-const prisma = new PrismaClient();
+import { PrismaClient } from "../../src/generated/prisma/client";
+import "dotenv/config";
+
+const connectionString = process.env.DATABASE_URL;
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function backfillStoreTiers() {
-  console.log('[Backfill] Starting store tier backfill...\n');
+  console.log("[Backfill] Starting store tier backfill...\n");
 
   try {
     // Find all stores without a tier
@@ -29,7 +36,7 @@ async function backfillStoreTiers() {
 
     if (storesWithoutTiers.length === 0) {
       console.log(
-        '[Backfill] No stores need backfilling. All stores have tiers assigned.',
+        "[Backfill] No stores need backfilling. All stores have tiers assigned.",
       );
       return;
     }
@@ -51,9 +58,9 @@ async function backfillStoreTiers() {
         await prisma.storeTier.create({
           data: {
             storeId: store.id,
-            tier: 'FREE',
-            subscriptionStatus: 'ACTIVE',
-            billingCycle: 'MONTHLY',
+            tier: "FREE",
+            subscriptionStatus: "ACTIVE",
+            billingCycle: "MONTHLY",
             trialEndsAt,
             // No subscriptionId for free tier
             // No currentPeriodStart/End for free tier
@@ -62,7 +69,7 @@ async function backfillStoreTiers() {
 
         successCount++;
         console.log(
-          `[Backfill] ✅ Created tier for store: ${store.slug} (FREE tier, trial ends: ${trialEndsAt.toISOString().split('T')[0]})`,
+          `[Backfill] ✅ Created tier for store: ${store.slug} (FREE tier, trial ends: ${trialEndsAt.toISOString().split("T")[0]})`,
         );
       } catch (error) {
         errorCount++;
@@ -83,7 +90,7 @@ async function backfillStoreTiers() {
     }
     console.log(`[Backfill] ========================================\n`);
   } catch (error) {
-    console.error('[Backfill] Fatal error during backfill:', error);
+    console.error("[Backfill] Fatal error during backfill:", error);
     throw error;
   } finally {
     await prisma.$disconnect();
@@ -93,10 +100,10 @@ async function backfillStoreTiers() {
 // Run the backfill
 backfillStoreTiers()
   .then(() => {
-    console.log('[Backfill] Script completed successfully');
+    console.log("[Backfill] Script completed successfully");
     process.exit(0);
   })
   .catch((error) => {
-    console.error('[Backfill] Script failed:', error);
+    console.error("[Backfill] Script failed:", error);
     process.exit(1);
   });

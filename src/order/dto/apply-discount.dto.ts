@@ -1,4 +1,3 @@
-import { DiscountType } from "@prisma/client";
 import {
   IsEnum,
   IsString,
@@ -6,6 +5,8 @@ import {
   MinLength,
   MaxLength,
 } from "class-validator";
+
+import { DiscountType } from "src/generated/prisma/client";
 
 /**
  * DTO for applying a discount to an order

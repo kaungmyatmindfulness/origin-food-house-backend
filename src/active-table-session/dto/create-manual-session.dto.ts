@@ -1,6 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { SessionType } from "@prisma/client";
 import { IsEnum, IsInt, IsOptional, IsString, Min } from "class-validator";
+
+import { SessionType } from "src/generated/prisma/client";
 
 export class CreateManualSessionDto {
   @ApiProperty({

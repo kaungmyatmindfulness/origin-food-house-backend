@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Tier } from "@prisma/client";
+
+import { Tier } from "src/generated/prisma/client";
 
 /**
  * DTO representing usage of a single resource with its limit

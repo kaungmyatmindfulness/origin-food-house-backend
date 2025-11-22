@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { AdminActionType, Prisma } from "@prisma/client";
 
+import { AdminActionType, Prisma } from "src/generated/prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 
 interface AdminActionLogData {

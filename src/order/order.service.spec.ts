@@ -5,14 +5,15 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+
+import { Decimal } from "src/common/types/decimal.type";
 import {
   OrderStatus,
   OrderType,
   SessionStatus,
   DiscountType,
   Role,
-} from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
+} from "src/generated/prisma/client";
 
 import { ApplyDiscountDto } from "./dto/apply-discount.dto";
 import { CheckoutCartDto } from "./dto/checkout-cart.dto";

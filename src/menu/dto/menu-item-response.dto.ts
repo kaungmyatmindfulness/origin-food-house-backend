@@ -1,11 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { RoutingArea } from "@prisma/client";
 import { Type } from "class-transformer";
 
 import {
   TranslationMap,
   TranslationWithDescriptionResponseDto,
 } from "src/common/dto/translation.dto";
+import { RoutingArea } from "src/generated/prisma/client";
 
 import { CategoryResponseDto } from "./category-response.dto";
 import { CustomizationGroupResponseDto } from "./customization-group-response.dto";

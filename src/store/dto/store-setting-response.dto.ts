@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Currency } from "@prisma/client";
+
+import { Currency } from "src/generated/prisma/client";
 
 export class StoreSettingResponseDto {
   @ApiProperty({ format: "uuid", description: "Setting record ID" })

@@ -9,8 +9,9 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from "@nestjs/websockets";
-import { Table } from "@prisma/client";
 import { Server, Socket } from "socket.io";
+
+import { Table } from "src/generated/prisma/client";
 
 /**
  * WebSocket Gateway for real-time table status synchronization

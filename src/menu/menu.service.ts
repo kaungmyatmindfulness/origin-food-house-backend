@@ -6,12 +6,13 @@ import {
   InternalServerErrorException,
   Logger,
 } from "@nestjs/common";
+
 import {
   Prisma,
   MenuItem,
   Role,
   CustomizationGroup as PrismaCustomizationGroup,
-} from "@prisma/client";
+} from "src/generated/prisma/client";
 
 import { AuditLogService } from "../audit-log/audit-log.service";
 import { AuthService } from "../auth/auth.service";

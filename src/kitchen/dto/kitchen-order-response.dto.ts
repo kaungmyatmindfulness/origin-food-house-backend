@@ -1,6 +1,11 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { OrderStatus, OrderType, RoutingArea } from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
+
+import { Decimal } from "src/common/types/decimal.type";
+import {
+  OrderStatus,
+  OrderType,
+  RoutingArea,
+} from "src/generated/prisma/client";
 
 /**
  * DTO for kitchen order display

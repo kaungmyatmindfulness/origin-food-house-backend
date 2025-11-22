@@ -1,6 +1,7 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { Role } from "@prisma/client";
+
+import { Role } from "src/generated/prisma/client";
 
 import { MenuService } from "./menu.service";
 import { AuditLogService } from "../audit-log/audit-log.service";

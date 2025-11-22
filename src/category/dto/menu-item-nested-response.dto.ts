@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Decimal } from "@prisma/client/runtime/library";
+
+import { Decimal } from "src/common/types/decimal.type";
 
 export class MenuItemNestedResponseDto {
   @ApiProperty({ example: 147 })

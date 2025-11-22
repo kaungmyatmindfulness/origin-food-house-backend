@@ -5,7 +5,8 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from "@nestjs/common";
-import { OrderStatus, Prisma, RoutingArea } from "@prisma/client";
+
+import { OrderStatus, Prisma, RoutingArea } from "src/generated/prisma/client";
 
 import { PrismaService } from "../prisma/prisma.service";
 import { KitchenOrderResponseDto } from "./dto/kitchen-order-response.dto";

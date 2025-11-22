@@ -1,8 +1,14 @@
 /* eslint-disable no-console */
+import "dotenv/config";
 import { faker } from "@faker-js/faker";
-import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 
-const prisma = new PrismaClient();
+import { PrismaClient } from "../src/generated/prisma/client";
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log(`🌱 Starting database seeding at ${new Date().toISOString()}...`);

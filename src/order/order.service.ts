@@ -7,8 +7,14 @@ import {
   ForbiddenException,
   UnauthorizedException,
 } from "@nestjs/common";
-import { Prisma, OrderStatus, DiscountType, Role } from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
+
+import { Decimal } from "src/common/types/decimal.type";
+import {
+  Prisma,
+  OrderStatus,
+  DiscountType,
+  Role,
+} from "src/generated/prisma/client";
 
 import { ApplyDiscountDto } from "./dto/apply-discount.dto";
 import { CheckoutCartDto } from "./dto/checkout-cart.dto";

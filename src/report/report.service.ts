@@ -3,8 +3,9 @@ import {
   Logger,
   InternalServerErrorException,
 } from "@nestjs/common";
-import { OrderStatus, Prisma } from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
+
+import { Decimal } from "src/common/types/decimal.type";
+import { OrderStatus, Prisma } from "src/generated/prisma/client";
 
 import { CacheService } from "../common/cache/cache.service";
 import { PrismaService } from "../prisma/prisma.service";

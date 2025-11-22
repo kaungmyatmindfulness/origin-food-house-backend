@@ -1,4 +1,4 @@
-import { Prisma, Role, User, UserStore } from "@prisma/client";
+import { Prisma, Role, User, UserStore } from "src/generated/prisma/client";
 
 // Define a type for the user profile response structure
 // Omit sensitive fields from base User, add specific relations/properties

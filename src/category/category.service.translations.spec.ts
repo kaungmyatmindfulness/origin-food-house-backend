@@ -1,6 +1,7 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { Role } from "@prisma/client";
+
+import { Role } from "src/generated/prisma/client";
 
 import { CategoryService } from "./category.service";
 import { AuthService } from "../auth/auth.service";

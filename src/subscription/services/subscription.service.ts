@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   InternalServerErrorException,
 } from "@nestjs/common";
+
 import {
   Prisma,
   Subscription,
@@ -14,7 +15,7 @@ import {
   SubscriptionTier,
   SubscriptionStatus,
   PaymentStatus,
-} from "@prisma/client";
+} from "src/generated/prisma/client";
 
 import { AuditLogService } from "../../audit-log/audit-log.service";
 import { AuthService } from "../../auth/auth.service";

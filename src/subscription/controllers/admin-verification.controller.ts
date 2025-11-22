@@ -19,7 +19,8 @@ import {
   ApiParam,
   ApiQuery,
 } from "@nestjs/swagger";
-import { PaymentStatus } from "@prisma/client";
+
+import { PaymentStatus } from "src/generated/prisma/client";
 
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { ApiSuccessResponse } from "../../common/decorators/api-success-response.decorator";

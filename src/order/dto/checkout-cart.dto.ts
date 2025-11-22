@@ -1,6 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { OrderType } from "@prisma/client";
 import { IsEnum, IsOptional, IsString } from "class-validator";
+
+import { OrderType } from "src/generated/prisma/client";
 
 export class CheckoutCartDto {
   @ApiProperty({

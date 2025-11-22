@@ -4,8 +4,9 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { OrderStatus, Role } from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
+
+import { Decimal } from "src/common/types/decimal.type";
+import { OrderStatus, Role } from "src/generated/prisma/client";
 
 import { PaymentService } from "./payment.service";
 import { AuditLogService } from "../audit-log/audit-log.service";

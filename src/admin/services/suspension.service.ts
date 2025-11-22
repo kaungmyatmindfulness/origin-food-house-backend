@@ -4,8 +4,8 @@ import {
   NotFoundException,
   BadRequestException,
 } from "@nestjs/common";
-import { SuspensionStatus } from "@prisma/client";
 
+import { SuspensionStatus } from "src/generated/prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 
 @Injectable()

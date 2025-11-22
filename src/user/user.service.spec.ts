@@ -5,7 +5,8 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
-import { Role, Prisma } from "@prisma/client";
+
+import { Role, Prisma } from "src/generated/prisma/client";
 
 import { UserService } from "./user.service";
 import { AuditLogService } from "../audit-log/audit-log.service";

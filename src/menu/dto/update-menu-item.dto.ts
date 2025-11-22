@@ -1,5 +1,4 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { RoutingArea } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
   IsArray,
@@ -14,6 +13,7 @@ import {
 
 import { IsPositiveNumericString } from "src/common/decorators/is-positive-numeric-string.decorator";
 import { IsImagePath } from "src/common/validators/is-image-path.validator";
+import { RoutingArea } from "src/generated/prisma/client";
 
 import { UpsertCategoryDto } from "./upsert-category.dto";
 import { UpsertCustomizationGroupDto } from "./upsert-customization-group.dto";

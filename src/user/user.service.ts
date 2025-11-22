@@ -10,6 +10,8 @@ import {
   forwardRef,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import * as disposableDomains from "disposable-email-domains";
+
 import {
   UserStore,
   Prisma,
@@ -17,9 +19,7 @@ import {
   StaffInvitation,
   User,
   AuditAction,
-} from "@prisma/client";
-import * as disposableDomains from "disposable-email-domains";
-
+} from "src/generated/prisma/client";
 import { UserProfileResponseDto } from "src/user/dto/user-profile-response.dto";
 import {
   UserPublicPayload,

@@ -1,6 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { PaymentMethod } from "@prisma/client";
 import { IsEnum, IsOptional, IsString } from "class-validator";
+
+import { PaymentMethod } from "src/generated/prisma/client";
 
 import { IsPositiveNumericString } from "../../common/decorators/is-positive-numeric-string.decorator";
 

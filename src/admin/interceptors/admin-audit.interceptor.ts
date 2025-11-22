@@ -5,9 +5,10 @@ import {
   CallHandler,
   Logger,
 } from "@nestjs/common";
-import { AdminActionType, AdminUser } from "@prisma/client";
 import { Observable } from "rxjs";
 import { tap } from "rxjs/operators";
+
+import { AdminActionType, AdminUser } from "src/generated/prisma/client";
 
 import { AdminAuditService } from "../services/admin-audit.service";
 

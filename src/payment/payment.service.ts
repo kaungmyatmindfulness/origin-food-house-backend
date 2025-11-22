@@ -6,14 +6,15 @@ import {
   ForbiddenException,
   InternalServerErrorException,
 } from "@nestjs/common";
+
+import { Decimal } from "src/common/types/decimal.type";
 import {
   Prisma,
   OrderStatus,
   Role,
   Order,
   PaymentMethod,
-} from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
+} from "src/generated/prisma/client";
 
 import { AuditLogService } from "../audit-log/audit-log.service";
 import { AuthService } from "../auth/auth.service";

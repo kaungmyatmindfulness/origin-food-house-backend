@@ -5,7 +5,8 @@ import {
   InternalServerErrorException,
 } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { Role, Prisma, TableStatus } from "@prisma/client";
+
+import { Role, Prisma, TableStatus } from "src/generated/prisma/client";
 
 import { TableGateway } from "./table.gateway";
 import { TableService } from "./table.service";

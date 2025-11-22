@@ -9,13 +9,14 @@ import {
   BadRequestException,
   ForbiddenException,
 } from "@nestjs/common";
+
 import {
   ActiveTableSession,
   SessionStatus,
   SessionType,
   Prisma,
   Role,
-} from "@prisma/client";
+} from "src/generated/prisma/client";
 
 import { AuthService } from "../auth/auth.service";
 import { PrismaService } from "../prisma/prisma.service";

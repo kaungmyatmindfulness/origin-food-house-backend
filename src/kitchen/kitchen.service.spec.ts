@@ -4,7 +4,8 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { OrderStatus, RoutingArea } from "@prisma/client";
+
+import { OrderStatus, RoutingArea } from "src/generated/prisma/client";
 
 import { KitchenService } from "./kitchen.service";
 import {

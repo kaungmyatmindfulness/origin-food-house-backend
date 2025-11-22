@@ -1,6 +1,7 @@
 import { ForbiddenException, BadRequestException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { Role, SessionStatus, SessionType } from "@prisma/client";
+
+import { Role, SessionStatus, SessionType } from "src/generated/prisma/client";
 
 import { ActiveTableSessionService } from "./active-table-session.service";
 import { AuthService } from "../auth/auth.service";

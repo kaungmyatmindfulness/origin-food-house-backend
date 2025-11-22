@@ -2,7 +2,7 @@ import { ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import * as cookieParser from "cookie-parser";
+import cookieParser from "cookie-parser";
 
 import { StandardApiErrorDetails } from "src/common/dto/standard-api-error-details.dto";
 import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";

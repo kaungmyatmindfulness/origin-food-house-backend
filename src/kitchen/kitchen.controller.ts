@@ -9,7 +9,8 @@ import {
   Req,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from "@nestjs/swagger";
-import { OrderStatus, Role, RoutingArea } from "@prisma/client";
+
+import { OrderStatus, Role, RoutingArea } from "src/generated/prisma/client";
 
 import { AuthService } from "../auth/auth.service";
 import { RequestWithUser } from "../auth/types";

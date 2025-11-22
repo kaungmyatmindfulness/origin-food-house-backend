@@ -1,7 +1,8 @@
 import { InternalServerErrorException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { OrderStatus, PaymentMethod } from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
+
+import { Decimal } from "src/common/types/decimal.type";
+import { OrderStatus, PaymentMethod } from "src/generated/prisma/client";
 
 import { ReportService } from "./report.service";
 import { CacheService } from "../common/cache/cache.service";

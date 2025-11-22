@@ -7,8 +7,9 @@ import {
   ForbiddenException,
   UnauthorizedException,
 } from "@nestjs/common";
-import { Prisma, Role, SessionStatus } from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
+
+import { Decimal } from "src/common/types/decimal.type";
+import { Prisma, Role, SessionStatus } from "src/generated/prisma/client";
 
 import { AuthService } from "../auth/auth.service";
 import { PrismaService } from "../prisma/prisma.service";

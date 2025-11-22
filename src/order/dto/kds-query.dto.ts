@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { OrderStatus } from "@prisma/client";
 import { IsEnum, IsOptional, IsString } from "class-validator";
+
+import { OrderStatus } from "src/generated/prisma/client";
 
 import { PaginationQueryDto } from "../../common/dto/pagination-query.dto";
 

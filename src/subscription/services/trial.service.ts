@@ -4,12 +4,13 @@ import {
   Logger,
   InternalServerErrorException,
 } from "@nestjs/common";
+
 import {
   Prisma,
   Subscription,
   SubscriptionTier,
   SubscriptionStatus,
-} from "@prisma/client";
+} from "src/generated/prisma/client";
 
 import { AuditLogService } from "../../audit-log/audit-log.service";
 import { getErrorDetails } from "../../common/utils/error.util";

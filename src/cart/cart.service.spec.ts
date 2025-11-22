@@ -5,7 +5,8 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { Role, SessionStatus } from "@prisma/client";
+
+import { Role, SessionStatus } from "src/generated/prisma/client";
 
 import { CartService } from "./cart.service";
 import { AuthService } from "../auth/auth.service";

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Role } from "@prisma/client";
+
+import { Role } from "src/generated/prisma/client";
 
 export class UserProfileResponseDto {
   @ApiProperty({ description: "User's unique identifier", example: 123 })

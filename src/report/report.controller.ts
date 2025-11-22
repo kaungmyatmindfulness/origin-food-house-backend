@@ -7,7 +7,8 @@ import {
   Req,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from "@nestjs/swagger";
-import { Role } from "@prisma/client";
+
+import { Role } from "src/generated/prisma/client";
 
 import { ReportService } from "./report.service";
 import { AuthService } from "../auth/auth.service";

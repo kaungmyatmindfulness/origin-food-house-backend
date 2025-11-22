@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { SessionStatus } from "@prisma/client";
+
+import { SessionStatus } from "src/generated/prisma/client";
 
 /**
  * Response DTO for session queries

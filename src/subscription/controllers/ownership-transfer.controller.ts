@@ -15,7 +15,8 @@ import {
   ApiBearerAuth,
   ApiParam,
 } from "@nestjs/swagger";
-import { Role } from "@prisma/client";
+
+import { Role } from "src/generated/prisma/client";
 
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { ApiSuccessResponse } from "../../common/decorators/api-success-response.decorator";

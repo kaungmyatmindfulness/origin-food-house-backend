@@ -28,7 +28,6 @@ import {
   ApiTags,
   ApiExtraModels,
 } from "@nestjs/swagger";
-import { Prisma, UserStore, StaffInvitation, User } from "@prisma/client";
 
 import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
 import { RequestWithUser } from "src/auth/types";
@@ -38,6 +37,12 @@ import { UseTierLimit } from "src/common/decorators/tier-limit.decorator";
 import { StandardApiErrorDetails } from "src/common/dto/standard-api-error-details.dto";
 import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
 import { TierLimitGuard } from "src/common/guards/tier-limit.guard";
+import {
+  Prisma,
+  UserStore,
+  StaffInvitation,
+  User,
+} from "src/generated/prisma/client";
 import { GetProfileQueryDto } from "src/user/dto/get-profile-query.dto";
 import { UserProfileResponseDto } from "src/user/dto/user-profile-response.dto";
 

@@ -1,6 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { OrderStatus } from "@prisma/client";
 import { IsEnum } from "class-validator";
+
+import { OrderStatus } from "src/generated/prisma/client";
 
 export class UpdateOrderStatusDto {
   @ApiProperty({

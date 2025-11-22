@@ -6,6 +6,15 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from "@nestjs/common";
+import { nanoid } from "nanoid";
+import slugify from "slugify";
+
+import { AuditLogService } from "src/audit-log/audit-log.service";
+import { AuthService } from "src/auth/auth.service";
+import { S3Service } from "src/common/infra/s3.service";
+import { Decimal } from "src/common/types/decimal.type";
+import { UploadService } from "src/common/upload/upload.service";
+import { getErrorDetails } from "src/common/utils/error.util";
 import {
   Prisma,
   Role,
@@ -14,16 +23,7 @@ import {
   StoreInformation,
   StoreSetting,
   UserStore,
-} from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
-import { nanoid } from "nanoid";
-import slugify from "slugify";
-
-import { AuditLogService } from "src/audit-log/audit-log.service";
-import { AuthService } from "src/auth/auth.service";
-import { S3Service } from "src/common/infra/s3.service";
-import { UploadService } from "src/common/upload/upload.service";
-import { getErrorDetails } from "src/common/utils/error.util";
+} from "src/generated/prisma/client";
 import { BusinessHoursDto } from "src/store/dto/business-hours.dto";
 import { CreateStoreDto } from "src/store/dto/create-store.dto";
 import { UpdateStoreInformationDto } from "src/store/dto/update-store-information.dto";
@@ -60,10 +60,10 @@ type TransactionClient = Parameters<
   Parameters<PrismaService["$transaction"]>[0]
 >[0];
 
-const storeWithDetailsInclude = Prisma.validator<Prisma.StoreInclude>()({
+const storeWithDetailsInclude = {
   information: true,
   setting: true,
-});
+} satisfies Prisma.StoreInclude;
 type StoreWithDetailsPayload = Prisma.StoreGetPayload<{
   include: typeof storeWithDetailsInclude;
 }>;

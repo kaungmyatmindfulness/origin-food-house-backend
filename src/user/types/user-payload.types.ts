@@ -1,7 +1,7 @@
-import { Prisma } from "@prisma/client";
+import { Prisma } from "src/generated/prisma/client";
 
 // Define a reusable select object to exclude password and sensitive tokens
-export const userSelectPublic = Prisma.validator<Prisma.UserSelect>()({
+export const userSelectPublic = {
   id: true,
   email: true,
   name: true,
@@ -9,7 +9,7 @@ export const userSelectPublic = Prisma.validator<Prisma.UserSelect>()({
   createdAt: true,
   updatedAt: true,
   // Add other non-sensitive fields as needed
-});
+} satisfies Prisma.UserSelect;
 
 // Define the public payload type based on the select object
 export type UserPublicPayload = Prisma.UserGetPayload<{
@@ -17,7 +17,7 @@ export type UserPublicPayload = Prisma.UserGetPayload<{
 }>;
 
 // Define a reusable select object for user with stores (excluding password)
-export const userSelectWithStores = Prisma.validator<Prisma.UserSelect>()({
+export const userSelectWithStores = {
   ...userSelectPublic,
   userStores: {
     include: {
@@ -28,7 +28,7 @@ export const userSelectWithStores = Prisma.validator<Prisma.UserSelect>()({
       },
     },
   },
-});
+} satisfies Prisma.UserSelect;
 
 // Define the public payload type for user with stores
 export type UserWithStoresPublicPayload = Prisma.UserGetPayload<{

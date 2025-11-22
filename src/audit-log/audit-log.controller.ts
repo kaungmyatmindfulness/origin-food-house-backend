@@ -9,8 +9,9 @@ import {
   Res,
 } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
-import { AuditAction, Role } from "@prisma/client";
 import { Response } from "express";
+
+import { AuditAction, Role } from "src/generated/prisma/client";
 
 import { AuditLogService } from "./audit-log.service";
 import { AuthService } from "../auth/auth.service";

@@ -1,6 +1,10 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { Prisma, SubscriptionStatus, SubscriptionTier } from "@prisma/client";
 
+import {
+  Prisma,
+  SubscriptionStatus,
+  SubscriptionTier,
+} from "src/generated/prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 
 import { SuspensionService } from "./suspension.service";

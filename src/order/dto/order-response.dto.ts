@@ -1,6 +1,11 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { OrderStatus, OrderType, DiscountType } from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
+
+import { Decimal } from "src/common/types/decimal.type";
+import {
+  OrderStatus,
+  OrderType,
+  DiscountType,
+} from "src/generated/prisma/client";
 
 export class OrderItemCustomizationResponseDto {
   @ApiProperty()

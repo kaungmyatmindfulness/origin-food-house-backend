@@ -6,9 +6,9 @@ import {
   InternalServerErrorException, // Keep for re-throwing truly unexpected errors
   Logger,
 } from "@nestjs/common";
-import { Role, Table, Prisma, TableStatus } from "@prisma/client";
 
 import { StandardErrorHandler } from "src/common/decorators/standard-error-handler.decorator";
+import { Role, Table, Prisma, TableStatus } from "src/generated/prisma/client";
 
 import { AuthService } from "../auth/auth.service"; // Assuming AuthService provides checkStorePermission
 import { PrismaService } from "../prisma/prisma.service";

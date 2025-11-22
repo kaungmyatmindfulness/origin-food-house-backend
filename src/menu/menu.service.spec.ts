@@ -4,7 +4,8 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { Role, Prisma } from "@prisma/client";
+
+import { Role, Prisma } from "src/generated/prisma/client";
 
 import { MenuService } from "./menu.service";
 import { AuditLogService } from "../audit-log/audit-log.service";

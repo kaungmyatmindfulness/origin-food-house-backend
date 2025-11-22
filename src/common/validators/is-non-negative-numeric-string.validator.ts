@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import { Decimal } from "@prisma/client/runtime/library";
 import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
   ValidationArguments,
 } from "class-validator";
+
+import { Decimal } from "src/common/types/decimal.type";
 
 @ValidatorConstraint({ name: "isPositiveNumericString", async: false })
 @Injectable()

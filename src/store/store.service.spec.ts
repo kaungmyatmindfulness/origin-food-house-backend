@@ -4,7 +4,8 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { Role, Prisma, Currency } from "@prisma/client";
+
+import { Role, Prisma, Currency } from "src/generated/prisma/client";
 
 import { StoreService } from "./store.service";
 import { AuditLogService } from "../audit-log/audit-log.service";

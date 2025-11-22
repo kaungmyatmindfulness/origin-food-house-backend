@@ -23,7 +23,6 @@ import {
   ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
-import { MenuItem as MenuItemModel } from "@prisma/client";
 
 import { RequestWithUser } from "src/auth/types";
 import { ApiSuccessResponse } from "src/common/decorators/api-success-response.decorator";
@@ -34,6 +33,7 @@ import {
   SUPPORTED_LOCALES,
 } from "src/common/dto/translation.dto";
 import { ParseLocalePipe } from "src/common/pipes/parse-locale.pipe";
+import { MenuItem as MenuItemModel } from "src/generated/prisma/client";
 import { CategoryResponseDto } from "src/menu/dto/category-response.dto";
 import { CustomizationGroupResponseDto } from "src/menu/dto/customization-group-response.dto";
 import { CustomizationOptionResponseDto } from "src/menu/dto/customization-option-response.dto";

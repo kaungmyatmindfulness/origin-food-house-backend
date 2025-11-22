@@ -8,8 +8,8 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
-import { Role, User } from "@prisma/client";
 
+import { Role, User } from "src/generated/prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 
 import { UserService } from "../user/user.service";

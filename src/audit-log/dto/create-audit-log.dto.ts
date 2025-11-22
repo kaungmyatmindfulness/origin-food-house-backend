@@ -1,5 +1,6 @@
-import { AuditAction } from "@prisma/client";
 import { IsString, IsEnum, IsOptional, IsObject } from "class-validator";
+
+import { AuditAction } from "src/generated/prisma/client";
 
 export class CreateAuditLogDto {
   @IsString()

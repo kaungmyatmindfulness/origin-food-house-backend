@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Decimal } from "@prisma/client/runtime/library";
+
+import { Decimal } from "src/common/types/decimal.type";
 
 /**
  * DTO for sales summary report

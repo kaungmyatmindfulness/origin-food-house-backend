@@ -5,9 +5,9 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test, TestingModule } from "@nestjs/testing";
-import { AdminRole } from "@prisma/client";
 
 import { createPrismaMock } from "src/common/testing/prisma-mock.helper";
+import { AdminRole } from "src/generated/prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 
 import { AdminAuthController } from "./admin-auth.controller";

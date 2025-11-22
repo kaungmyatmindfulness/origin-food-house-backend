@@ -6,8 +6,8 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { AdminRole } from "@prisma/client";
 
+import { AdminRole } from "src/generated/prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 
 import { AdminAuth0Service, AdminAuth0UserInfo } from "./admin-auth0.service";

@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { StoreTier, Tier } from "@prisma/client";
+
+import { StoreTier, Tier } from "src/generated/prisma/client";
 
 import { CacheService } from "../common/cache/cache.service";
 import { PrismaService } from "../prisma/prisma.service";

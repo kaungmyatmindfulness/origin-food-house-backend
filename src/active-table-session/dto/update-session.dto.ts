@@ -1,6 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { SessionStatus } from "@prisma/client";
 import { IsEnum, IsInt, IsOptional, Min } from "class-validator";
+
+import { SessionStatus } from "src/generated/prisma/client";
 
 export class UpdateSessionDto {
   @ApiProperty({

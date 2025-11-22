@@ -1,4 +1,8 @@
-import { Tier, SubscriptionStatus, BillingCycle } from "@prisma/client";
+import {
+  Tier,
+  SubscriptionStatus,
+  BillingCycle,
+} from "src/generated/prisma/client";
 
 export class TierResponseDto {
   id: string;

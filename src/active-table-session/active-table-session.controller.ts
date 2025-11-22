@@ -17,11 +17,11 @@ import {
   ApiParam,
   ApiQuery,
 } from "@nestjs/swagger";
-import { ActiveTableSession } from "@prisma/client";
 
 import { RequestWithUser } from "src/auth/types";
 import { GetUser } from "src/common/decorators/get-user.decorator";
 import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
+import { ActiveTableSession } from "src/generated/prisma/client";
 
 import { ActiveTableSessionService } from "./active-table-session.service";
 import { CreateManualSessionDto } from "./dto/create-manual-session.dto";

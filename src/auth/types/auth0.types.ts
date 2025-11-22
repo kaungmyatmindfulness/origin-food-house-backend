@@ -1,5 +1,6 @@
-import { User } from "@prisma/client";
 import { Request } from "express";
+
+import { User } from "src/generated/prisma/client";
 
 export interface Auth0UserInfo {
   sub: string;

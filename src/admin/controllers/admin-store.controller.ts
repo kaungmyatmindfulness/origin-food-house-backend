@@ -17,10 +17,10 @@ import {
   ApiForbiddenResponse,
   ApiBadRequestResponse,
 } from "@nestjs/swagger";
-import { SubscriptionTier } from "@prisma/client";
 
 import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
 import { GetUser } from "src/common/decorators/get-user.decorator";
+import { SubscriptionTier } from "src/generated/prisma/client";
 
 import { BanStoreDto } from "../dto/ban-store.dto";
 import { DowngradeTierDto } from "../dto/downgrade-tier.dto";

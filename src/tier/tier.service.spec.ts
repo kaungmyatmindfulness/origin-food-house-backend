@@ -1,6 +1,7 @@
 import { NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { Tier } from "@prisma/client";
+
+import { Tier } from "src/generated/prisma/client";
 
 import { TierService } from "./tier.service";
 import { CacheService } from "../common/cache/cache.service";

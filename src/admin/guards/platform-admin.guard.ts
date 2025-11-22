@@ -5,8 +5,8 @@ import {
   ForbiddenException,
   Logger,
 } from "@nestjs/common";
-import { AdminUser } from "@prisma/client";
 
+import { AdminUser } from "src/generated/prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 
 interface RequestWithUser {

@@ -6,10 +6,10 @@ import {
   InternalServerErrorException,
   Logger,
 } from "@nestjs/common";
-import { Prisma, Category, Role } from "@prisma/client";
 
 import { CategoryResponseDto } from "src/category/dto/category-response.dto";
 import { StandardErrorHandler } from "src/common/decorators/standard-error-handler.decorator";
+import { Prisma, Category, Role } from "src/generated/prisma/client";
 
 import { AuthService } from "../auth/auth.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -21,48 +21,47 @@ import { UpdateCategoryDto } from "./dto/update-category.dto";
 export class CategoryService {
   private readonly logger = new Logger(CategoryService.name);
 
-  private readonly categoryWithItemsInclude =
-    Prisma.validator<Prisma.CategoryInclude>()({
-      menuItems: {
-        where: { deletedAt: null }, // todo: also include is hidden if admin use
-        orderBy: { sortOrder: "asc" },
-        include: {
-          customizationGroups: {
-            include: {
-              customizationOptions: {
-                include: {
-                  translations: {
-                    select: {
-                      locale: true,
-                      name: true,
-                    },
+  private readonly categoryWithItemsInclude = {
+    menuItems: {
+      where: { deletedAt: null }, // todo: also include is hidden if admin use
+      orderBy: { sortOrder: "asc" },
+      include: {
+        customizationGroups: {
+          include: {
+            customizationOptions: {
+              include: {
+                translations: {
+                  select: {
+                    locale: true,
+                    name: true,
                   },
                 },
               },
-              translations: {
-                select: {
-                  locale: true,
-                  name: true,
-                },
+            },
+            translations: {
+              select: {
+                locale: true,
+                name: true,
               },
             },
           },
-          translations: {
-            select: {
-              locale: true,
-              name: true,
-              description: true,
-            },
+        },
+        translations: {
+          select: {
+            locale: true,
+            name: true,
+            description: true,
           },
         },
       },
-      translations: {
-        select: {
-          locale: true,
-          name: true,
-        },
+    },
+    translations: {
+      select: {
+        locale: true,
+        name: true,
       },
-    });
+    },
+  } satisfies Prisma.CategoryInclude;
 
   constructor(
     private readonly prisma: PrismaService,
