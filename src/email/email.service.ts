@@ -84,7 +84,7 @@ export class EmailService {
     } catch (error) {
       this.logger.error(
         `Failed to send verification email to ${to}`,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
         error.stack,
       );
       // Re-throw the error so the caller (e.g., UserService/AuthController) knows about the failure
@@ -131,7 +131,7 @@ export class EmailService {
     } catch (error) {
       this.logger.error(
         `Failed to send password reset email to ${to}`,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
         error.stack,
       );
       // Re-throw the error so the caller (AuthController) knows about the failure.
@@ -184,7 +184,7 @@ export class EmailService {
     } catch (error) {
       this.logger.error(
         `Failed to send staff invitation email to ${to}`,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
         error.stack,
       );
       throw new InternalServerErrorException(

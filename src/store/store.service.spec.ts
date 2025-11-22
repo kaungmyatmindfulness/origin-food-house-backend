@@ -28,7 +28,6 @@ describe("StoreService", () => {
   let prismaService: PrismaMock;
   let authService: jest.Mocked<AuthService>;
   let auditLogService: jest.Mocked<AuditLogService>;
-  let s3Service: jest.Mocked<S3Service>;
   let uploadService: jest.Mocked<UploadService>;
 
   const mockUserId = "user-123";
@@ -137,7 +136,6 @@ describe("StoreService", () => {
     prismaService = module.get(PrismaService);
     authService = module.get(AuthService);
     auditLogService = module.get(AuditLogService);
-    s3Service = module.get(S3Service);
     uploadService = module.get(UploadService);
 
     jest.clearAllMocks();
