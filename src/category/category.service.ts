@@ -9,6 +9,7 @@ import {
 
 import { CategoryResponseDto } from "src/category/dto/category-response.dto";
 import { StandardErrorHandler } from "src/common/decorators/standard-error-handler.decorator";
+import { calculateNextSortOrder } from "src/common/utils/sort-order.util";
 import { Prisma, Category, Role } from "src/generated/prisma/client";
 
 import { AuthService } from "../auth/auth.service";
@@ -139,12 +140,11 @@ export class CategoryService {
         );
       }
 
-      // Calculate the new sort order
-      const maxSortResult = await tx.category.aggregate({
-        _max: { sortOrder: true },
-        where: { storeId, deletedAt: null },
+      // Calculate the new sort order using shared utility
+      const newSortOrder = await calculateNextSortOrder(tx, "category", {
+        storeId,
+        deletedAt: null,
       });
-      const newSortOrder = (maxSortResult._max.sortOrder ?? -1) + 1;
       this.logger.verbose(
         `Calculated new sortOrder: ${newSortOrder} for category in Store ${storeId}.`,
       );

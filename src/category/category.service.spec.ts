@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
+import { calculateNextSortOrder } from "src/common/utils/sort-order.util";
 import { Role, Prisma } from "src/generated/prisma/client";
 
 import { CategoryService } from "./category.service";
@@ -14,6 +15,15 @@ import {
   PrismaMock,
 } from "../common/testing/prisma-mock.helper";
 import { PrismaService } from "../prisma/prisma.service";
+
+// Mock the sortOrder utility
+jest.mock("src/common/utils/sort-order.util", () => ({
+  calculateNextSortOrder: jest.fn(),
+}));
+
+// Type assertion for the mocked function
+const mockCalculateNextSortOrder =
+  calculateNextSortOrder as jest.MockedFunction<typeof calculateNextSortOrder>;
 
 describe("CategoryService", () => {
   let service: CategoryService;
@@ -112,9 +122,8 @@ describe("CategoryService", () => {
 
     it("should create category successfully", async () => {
       mockTransaction.category.findFirst.mockResolvedValue(null);
-      mockTransaction.category.aggregate.mockResolvedValue({
-        _max: { sortOrder: 5 },
-      } as any);
+      // Mock the utility to return next sortOrder
+      mockCalculateNextSortOrder.mockResolvedValue(6);
       mockTransaction.category.create.mockResolvedValue({
         ...mockCategory,
         name: createDto.name,
@@ -129,6 +138,12 @@ describe("CategoryService", () => {
         mockUserId,
         mockStoreId,
         [Role.OWNER, Role.ADMIN],
+      );
+      // Verify utility was called with correct parameters
+      expect(mockCalculateNextSortOrder).toHaveBeenCalledWith(
+        mockTransaction,
+        "category",
+        { storeId: mockStoreId, deletedAt: null },
       );
     });
 
@@ -152,9 +167,8 @@ describe("CategoryService", () => {
 
     it("should assign sortOrder 0 for first category", async () => {
       mockTransaction.category.findFirst.mockResolvedValue(null);
-      mockTransaction.category.aggregate.mockResolvedValue({
-        _max: { sortOrder: null },
-      } as any);
+      // Mock the utility to return 0 for first category
+      mockCalculateNextSortOrder.mockResolvedValue(0);
       mockTransaction.category.create.mockResolvedValue({
         ...mockCategory,
         sortOrder: 0,
@@ -163,6 +177,12 @@ describe("CategoryService", () => {
       const result = await service.create(mockUserId, mockStoreId, createDto);
 
       expect(result.sortOrder).toBe(0);
+      // Verify utility was called
+      expect(mockCalculateNextSortOrder).toHaveBeenCalledWith(
+        mockTransaction,
+        "category",
+        { storeId: mockStoreId, deletedAt: null },
+      );
     });
   });
 

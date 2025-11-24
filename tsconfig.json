@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "module": "esnext",
+    "module": "commonjs",
     "moduleResolution": "node",
     "declaration": true,
     "removeComments": true,
@@ -8,6 +8,7 @@
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
+    "strictPropertyInitialization": false,
     "esModuleInterop": true,
     "target": "ES2023",
     "sourceMap": true,

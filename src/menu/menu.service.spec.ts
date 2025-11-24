@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
+import { calculateNextSortOrder } from "src/common/utils/sort-order.util";
 import { Role, Prisma } from "src/generated/prisma/client";
 
 import { MenuService } from "./menu.service";
@@ -16,6 +17,15 @@ import {
 } from "../common/testing/prisma-mock.helper";
 import { PrismaService } from "../prisma/prisma.service";
 import { TierService } from "../tier/tier.service";
+
+// Mock the sortOrder utility
+jest.mock("src/common/utils/sort-order.util", () => ({
+  calculateNextSortOrder: jest.fn(),
+}));
+
+// Type assertion for the mocked function
+const mockCalculateNextSortOrder =
+  calculateNextSortOrder as jest.MockedFunction<typeof calculateNextSortOrder>;
 
 describe("MenuService", () => {
   let service: MenuService;
@@ -189,9 +199,8 @@ describe("MenuService", () => {
 
     it("should create menu item successfully", async () => {
       mockTransaction.category.findFirst.mockResolvedValue(mockCategory as any);
-      mockTransaction.menuItem.aggregate.mockResolvedValue({
-        _max: { sortOrder: 0 },
-      } as any);
+      // Mock the utility to return next sortOrder
+      mockCalculateNextSortOrder.mockResolvedValue(1);
       mockTransaction.menuItem.create.mockResolvedValue({
         id: mockItemId,
       } as any);
@@ -210,6 +219,12 @@ describe("MenuService", () => {
         mockUserId,
         mockStoreId,
         [Role.OWNER, Role.ADMIN],
+      );
+      // Verify utility was called with correct parameters
+      expect(mockCalculateNextSortOrder).toHaveBeenCalledWith(
+        mockTransaction,
+        "menuItem",
+        { storeId: mockStoreId, categoryId: mockCategoryId, deletedAt: null },
       );
     });
 
@@ -248,9 +263,8 @@ describe("MenuService", () => {
       };
 
       mockTransaction.category.findFirst.mockResolvedValue(mockCategory as any);
-      mockTransaction.menuItem.aggregate.mockResolvedValue({
-        _max: { sortOrder: 0 },
-      } as any);
+      // Mock the utility to return next sortOrder
+      mockCalculateNextSortOrder.mockResolvedValue(1);
       mockTransaction.menuItem.create.mockResolvedValue({
         id: mockItemId,
       } as any);

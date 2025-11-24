@@ -6,6 +6,8 @@ import {
 import { ConfigService } from "@nestjs/config";
 import * as nodemailer from "nodemailer";
 
+import { getErrorDetails } from "src/common/utils/error.util";
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
@@ -82,11 +84,8 @@ export class EmailService {
         `Verification email sent to ${to}. Message ID: ${info.messageId}`,
       );
     } catch (error) {
-      this.logger.error(
-        `Failed to send verification email to ${to}`,
-
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`Failed to send verification email to ${to}`, stack);
       // Re-throw the error so the caller (e.g., UserService/AuthController) knows about the failure
       throw new InternalServerErrorException(
         `Failed to send verification email to ${to}`,
@@ -129,11 +128,8 @@ export class EmailService {
         `Password reset email sent to ${to}. Message ID: ${info.messageId}`,
       );
     } catch (error) {
-      this.logger.error(
-        `Failed to send password reset email to ${to}`,
-
-        error.stack,
-      );
+      const { stack } = getErrorDetails(error);
+      this.logger.error(`Failed to send password reset email to ${to}`, stack);
       // Re-throw the error so the caller (AuthController) knows about the failure.
       // The AuthController can then decide whether to still return a generic success message to the user.
       throw new InternalServerErrorException(
@@ -182,10 +178,10 @@ export class EmailService {
         `Staff invitation email sent to ${to} for store ${storeId}. Message ID: ${info.messageId}`,
       );
     } catch (error) {
+      const { stack } = getErrorDetails(error);
       this.logger.error(
         `Failed to send staff invitation email to ${to}`,
-
-        error.stack,
+        stack,
       );
       throw new InternalServerErrorException(
         `Failed to send staff invitation email to ${to}`,

@@ -7,6 +7,7 @@ import {
   Logger,
 } from "@nestjs/common";
 
+import { calculateNextSortOrder } from "src/common/utils/sort-order.util";
 import {
   Prisma,
   MenuItem,
@@ -142,11 +143,12 @@ export class MenuService {
     try {
       const newItem = await this.prisma.$transaction(async (tx) => {
         const categoryId = await this.upsertCategory(tx, dto.category, storeId);
-        const maxSort = await tx.menuItem.aggregate({
-          where: { storeId, categoryId, deletedAt: null },
-          _max: { sortOrder: true },
+        // Calculate the new sort order using shared utility
+        const newSortOrder = await calculateNextSortOrder(tx, "menuItem", {
+          storeId,
+          categoryId,
+          deletedAt: null,
         });
-        const newSortOrder = (maxSort._max.sortOrder ?? -1) + 1;
         const menuItem = await tx.menuItem.create({
           data: {
             storeId,

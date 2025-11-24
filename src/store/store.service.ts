@@ -1,3 +1,18 @@
+/**
+ * Store Service
+ *
+ * ARCHITECTURAL NOTE: This service directly creates categories, menu items,
+ * and customizations during store seeding (createStore method) rather than
+ * delegating to CategoryService/MenuService. This is intentional because:
+ *
+ * 1. Transaction Atomicity: All default data must be created atomically
+ * 2. No Authorization: Seeding is a system operation (no userId context)
+ * 3. Performance: Single transaction is faster than multiple service calls
+ * 4. Different Context: Seeding uses pre-defined data, user creation is dynamic
+ *
+ * For user-initiated creation, see CategoryService.create() and MenuService.createMenuItem().
+ */
+
 import {
   Injectable,
   ForbiddenException,
@@ -931,7 +946,14 @@ export class StoreService {
   }
 
   /**
-   * Creates default categories for a new store with translations
+   * Creates default categories for a new store with translations.
+   *
+   * NOTE: This method uses pre-defined sortOrder values from DEFAULT_CATEGORIES
+   * for seeding purposes. For user-initiated category creation with dynamic
+   * sortOrder calculation, see CategoryService.create().
+   *
+   * @see CategoryService.create For user creation with RBAC and calculated sortOrder
+   * @see src/common/utils/sort-order.util.ts For shared sortOrder calculation logic
    * @private
    * @param tx Prisma transaction client
    * @param storeId Store ID
@@ -1059,7 +1081,14 @@ export class StoreService {
   }
 
   /**
-   * Creates default menu items for a new store with translations
+   * Creates default menu items for a new store with translations.
+   *
+   * NOTE: This method uses pre-defined sortOrder values from DEFAULT_MENU_ITEMS
+   * for seeding purposes. For user-initiated menu item creation with dynamic
+   * sortOrder calculation, see MenuService.createMenuItem().
+   *
+   * @see MenuService.createMenuItem For user creation with RBAC and calculated sortOrder
+   * @see src/common/utils/sort-order.util.ts For shared sortOrder calculation logic
    * @private
    * @param tx Prisma transaction client
    * @param storeId Store ID
