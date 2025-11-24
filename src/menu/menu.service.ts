@@ -20,6 +20,7 @@ import { AuthService } from "../auth/auth.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { TierService } from "../tier/tier.service";
 import { CreateMenuItemDto } from "./dto/create-menu-item.dto";
+import { PatchMenuItemDto } from "./dto/patch-menu-item.dto";
 import { UpdateMenuItemDto } from "./dto/update-menu-item.dto";
 import { UpsertCategoryDto } from "./dto/upsert-category.dto";
 import { UpsertCustomizationGroupDto } from "./dto/upsert-customization-group.dto";
@@ -338,6 +339,75 @@ export class MenuService {
         error,
       );
       throw new InternalServerErrorException("Failed to update menu item.");
+    }
+  }
+
+  /**
+   * Partially updates a menu item (for quick actions like toggling stock status).
+   * Supports updating isOutOfStock and isHidden fields without requiring the full entity.
+   * Requires OWNER, ADMIN, or CHEF role.
+   */
+  async patchMenuItem(
+    userId: string,
+    storeId: string,
+    itemId: string,
+    updateData: PatchMenuItemDto,
+  ): Promise<MenuItem> {
+    const method = this.patchMenuItem.name;
+    this.logger.log(
+      `[${method}] User ${userId} patching menu item ${itemId} in store ${storeId}`,
+    );
+
+    // Verify user has access (CHEF can also update stock status)
+    await this.authService.checkStorePermission(userId, storeId, [
+      Role.OWNER,
+      Role.ADMIN,
+      Role.CHEF,
+    ]);
+
+    try {
+      // Verify item exists and belongs to this store
+      const existingItem = await this.prisma.menuItem.findFirst({
+        where: {
+          id: itemId,
+          storeId,
+          deletedAt: null,
+        },
+      });
+
+      if (!existingItem) {
+        throw new NotFoundException(
+          `Menu item ${itemId} not found in store ${storeId}`,
+        );
+      }
+
+      // Update only the provided fields
+      const updatedItem = await this.prisma.menuItem.update({
+        where: { id: itemId },
+        data: updateData,
+        include: this.menuItemInclude,
+      });
+
+      this.logger.log(
+        `[${method}] Menu item ${itemId} patched successfully with data: ${JSON.stringify(updateData)}`,
+      );
+
+      return updatedItem;
+    } catch (error) {
+      if (
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException
+      ) {
+        this.logger.warn(
+          `Validation/Permission error patching menu item ${itemId} for store ${storeId}: ${error.message}`,
+        );
+        throw error;
+      }
+      this.logger.error(
+        `Unexpected error patching menu item ${itemId} for store ${storeId}`,
+        error,
+      );
+      throw new InternalServerErrorException("Failed to patch menu item.");
     }
   }
 

@@ -8,6 +8,7 @@ import {
   Logger,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   Query,
@@ -41,6 +42,7 @@ import { MenuItemDeletedResponseDto } from "src/menu/dto/menu-item-deleted-respo
 import { MenuItemResponseDto } from "src/menu/dto/menu-item-response.dto";
 
 import { CreateMenuItemDto } from "./dto/create-menu-item.dto";
+import { PatchMenuItemDto } from "./dto/patch-menu-item.dto";
 import { UpdateMenuItemDto } from "./dto/update-menu-item.dto";
 import {
   UpdateMenuItemTranslationsDto,
@@ -160,6 +162,38 @@ export class MenuController {
       `[${method}] User ${userId} updating menu item ${itemId} in Store ${storeId}`,
     );
     const updatedItem = await this.menuService.updateMenuItem(
+      userId,
+      storeId,
+      itemId,
+      dto,
+    );
+    return StandardApiResponse.success(
+      updatedItem,
+      "Menu item updated successfully",
+    );
+  }
+
+  @Patch(":id")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "Partially update a menu item (OWNER, ADMIN, or CHEF)",
+  })
+  @ApiSuccessResponse(MenuItemResponseDto, {
+    description: "Menu item updated successfully.",
+  })
+  async patchMenuItem(
+    @Req() req: RequestWithUser,
+    @Param("id", new ParseUUIDPipe({ version: "7" })) itemId: string,
+    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
+    @Body() dto: PatchMenuItemDto,
+  ): Promise<StandardApiResponse<MenuItemModel>> {
+    const method = this.patchMenuItem.name;
+    const userId = req.user.sub;
+    this.logger.log(
+      `[${method}] User ${userId} patching menu item ${itemId} in Store ${storeId}`,
+    );
+    const updatedItem = await this.menuService.patchMenuItem(
       userId,
       storeId,
       itemId,
