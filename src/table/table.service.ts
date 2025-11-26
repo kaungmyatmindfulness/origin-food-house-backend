@@ -20,6 +20,12 @@ import { UpdateTableDto } from "./dto/update-table.dto";
 import { TableGateway } from "./table.gateway";
 
 /**
+ * Type for Prisma transaction client
+ * Used in transaction callbacks to ensure type safety
+ */
+type TransactionClient = Prisma.TransactionClient;
+
+/**
  * Natural sort comparator function for strings containing numbers.
  * Handles cases like "T-1", "T-2", "T-10".
  */
@@ -551,5 +557,46 @@ export class TableService {
           `Valid transitions from ${currentStatus} are: ${validTransitions[currentStatus]?.join(", ") || "none"}`,
       );
     }
+  }
+
+  /**
+   * ============================================================================
+   * SEEDING METHODS (For Store Creation)
+   * ============================================================================
+   */
+
+  /**
+   * Creates default tables for store seeding.
+   * This method is designed to be called within an existing transaction.
+   *
+   * NOTE: This method bypasses RBAC as it's used for system-level seeding
+   * during store creation, not user-initiated operations.
+   *
+   * @param tx - Prisma transaction client
+   * @param storeId - Store UUID to create tables for
+   * @param tableNames - Array of table names to create
+   */
+  async createBulkForSeeding(
+    tx: TransactionClient,
+    storeId: string,
+    tableNames: string[],
+  ): Promise<void> {
+    const method = this.createBulkForSeeding.name;
+    this.logger.log(
+      `[${method}] Creating ${tableNames.length} tables for Store ${storeId}`,
+    );
+
+    const tableData = tableNames.map((name) => ({
+      name,
+      storeId,
+      currentStatus: "VACANT" as const,
+      deletedAt: null,
+    }));
+
+    await tx.table.createMany({
+      data: tableData,
+    });
+
+    this.logger.log(`[${method}] Created ${tableNames.length} default tables`);
   }
 } // End TableService

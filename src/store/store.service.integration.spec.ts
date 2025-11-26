@@ -12,7 +12,9 @@ import {
   PrismaMock,
 } from "../common/testing/prisma-mock.helper";
 import { UploadService } from "../common/upload/upload.service";
+import { MenuService } from "../menu/menu.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { TableService } from "../table/table.service";
 
 // Mock nanoid module
 jest.mock("nanoid", () => ({
@@ -76,6 +78,21 @@ describe("StoreService + CategoryService Integration (sortOrder)", () => {
         { provide: AuditLogService, useValue: mockAuditLogService },
         { provide: S3Service, useValue: mockS3Service },
         { provide: UploadService, useValue: mockUploadService },
+        {
+          provide: TableService,
+          useValue: {
+            createBulkForSeeding: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: MenuService,
+          useValue: {
+            createBulkMenuItemsForSeeding: jest.fn().mockResolvedValue([]),
+            createCustomizationsForSeeding: jest
+              .fn()
+              .mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
 

@@ -1252,6 +1252,83 @@ export class UserModule {}
 3. Restructure modules to have clear dependency direction
 4. Consider if modules are too tightly coupled (design smell)
 
+### Service Delegation Pattern
+
+**ALWAYS delegate entity operations to their owning service:**
+
+When one service needs to create/update/delete entities owned by another domain, delegate to that domain's service instead of using Prisma directly.
+
+```typescript
+// ❌ BAD - StoreService directly creates categories
+@Injectable()
+export class StoreService {
+  async createStore(dto: CreateStoreDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const store = await tx.store.create({ data: dto });
+      // ❌ Direct Prisma call for category creation
+      await tx.category.createMany({
+        data: [{ name: 'Appetizers', storeId: store.id }],
+      });
+      return store;
+    });
+  }
+}
+
+// ✅ GOOD - StoreService delegates to CategoryService
+@Injectable()
+export class StoreService {
+  constructor(
+    private categoryService: CategoryService,
+    private tableService: TableService,
+    private menuService: MenuService,
+  ) {}
+
+  async createStore(dto: CreateStoreDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const store = await tx.store.create({ data: dto });
+      // ✅ Delegate to CategoryService with transaction client
+      await this.categoryService.createBulkForSeeding(tx, store.id, DEFAULT_CATEGORIES);
+      await this.tableService.createBulkForSeeding(tx, store.id, DEFAULT_TABLES);
+      return store;
+    });
+  }
+}
+```
+
+**Service delegation rules:**
+
+1. **Single Responsibility**: Each service handles its own domain entities
+2. **Transaction Support**: Seeding methods accept `tx: TransactionClient` for atomicity
+3. **RBAC Bypass**: Seeding methods skip authorization (system operations)
+4. **Reusable Logic**: Entity creation logic is centralized in one place
+
+**Seeding method naming convention:**
+
+```typescript
+// For bulk creation during store seeding (no RBAC)
+async createBulkForSeeding(
+  tx: TransactionClient,
+  storeId: string,
+  data: SeedInput[],
+): Promise<Map<string, string>>
+
+// For user-initiated creation (with RBAC)
+async create(
+  userId: string,
+  storeId: string,
+  dto: CreateDto,
+): Promise<Entity>
+```
+
+**When to delegate vs direct Prisma:**
+
+| Scenario | Approach |
+|----------|----------|
+| Creating entities for another domain | Delegate to owning service |
+| Querying own domain entities | Use Prisma directly |
+| Seeding default data | Use seeding methods with tx client |
+| User-initiated CRUD | Use standard service methods |
+
 ## Architecture Patterns
 
 ### Multi-Tenancy

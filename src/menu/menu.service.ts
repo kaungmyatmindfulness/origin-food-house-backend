@@ -12,6 +12,7 @@ import {
   Prisma,
   MenuItem,
   Role,
+  RoutingArea,
   CustomizationGroup as PrismaCustomizationGroup,
 } from "src/generated/prisma/client";
 
@@ -24,6 +25,47 @@ import { PatchMenuItemDto } from "./dto/patch-menu-item.dto";
 import { UpdateMenuItemDto } from "./dto/update-menu-item.dto";
 import { UpsertCategoryDto } from "./dto/upsert-category.dto";
 import { UpsertCustomizationGroupDto } from "./dto/upsert-customization-group.dto";
+
+/**
+ * Type for Prisma transaction client
+ * Used in transaction callbacks to ensure type safety
+ */
+type TransactionClient = Prisma.TransactionClient;
+
+/**
+ * Input type for seeding menu items with translations
+ */
+export interface SeedMenuItemInput {
+  name: string;
+  description: string;
+  basePrice: Prisma.Decimal | null;
+  categoryId: string;
+  imagePath: string | null;
+  preparationTimeMinutes: number;
+  sortOrder: number;
+  routingArea: RoutingArea;
+  translations: Array<{
+    locale: string;
+    name: string;
+    description?: string | null;
+  }>;
+}
+
+/**
+ * Input type for seeding customization groups with options and translations
+ */
+export interface SeedCustomizationGroupInput {
+  name: string;
+  minSelectable: number;
+  maxSelectable: number;
+  translations: Array<{ locale: string; name: string }>;
+  options: Array<{
+    name: string;
+    additionalPrice: Prisma.Decimal | null;
+    sortOrder: number;
+    translations: Array<{ locale: string; name: string }>;
+  }>;
+}
 
 @Injectable()
 export class MenuService {
@@ -1074,6 +1116,152 @@ export class MenuService {
 
     this.logger.log(
       `[${method}] Updated ${translations.length} translations for customization option ${optionId}`,
+    );
+  }
+
+  /**
+   * ============================================================================
+   * SEEDING METHODS (For Store Creation)
+   * ============================================================================
+   */
+
+  /**
+   * Creates menu items with translations for store seeding.
+   * This method is designed to be called within an existing transaction.
+   *
+   * NOTE: This method bypasses RBAC as it's used for system-level seeding
+   * during store creation, not user-initiated operations.
+   *
+   * @param tx - Prisma transaction client
+   * @param storeId - Store UUID to create menu items for
+   * @param menuItems - Array of menu item data with translations
+   * @returns Array of created menu items with IDs and names
+   */
+  async createBulkMenuItemsForSeeding(
+    tx: TransactionClient,
+    storeId: string,
+    menuItems: SeedMenuItemInput[],
+  ): Promise<Array<{ id: string; name: string }>> {
+    const method = this.createBulkMenuItemsForSeeding.name;
+    this.logger.log(
+      `[${method}] Creating ${menuItems.length} menu items with translations for Store ${storeId}`,
+    );
+
+    const createdItems: Array<{ id: string; name: string }> = [];
+
+    for (const itemData of menuItems) {
+      if (!itemData.basePrice) {
+        this.logger.warn(
+          `[${method}] Skipping item "${itemData.name}" - missing base price`,
+        );
+        continue;
+      }
+
+      const menuItem = await tx.menuItem.create({
+        data: {
+          name: itemData.name,
+          description: itemData.description,
+          basePrice: itemData.basePrice,
+          categoryId: itemData.categoryId,
+          storeId,
+          imagePath: itemData.imagePath,
+          preparationTimeMinutes: itemData.preparationTimeMinutes,
+          sortOrder: itemData.sortOrder,
+          routingArea: itemData.routingArea,
+          isOutOfStock: false,
+          isHidden: false,
+          deletedAt: null,
+          translations: {
+            createMany: {
+              data: itemData.translations.map((t) => ({
+                locale: t.locale,
+                name: t.name,
+                description: t.description ?? null,
+              })),
+            },
+          },
+        },
+      });
+
+      createdItems.push({ id: menuItem.id, name: menuItem.name });
+      this.logger.log(
+        `[${method}] Created menu item "${itemData.name}" (ID: ${menuItem.id}) with ${itemData.translations.length} translations`,
+      );
+    }
+
+    this.logger.log(
+      `[${method}] Created ${createdItems.length} menu items with translations`,
+    );
+    return createdItems;
+  }
+
+  /**
+   * Creates customization groups with options and translations for store seeding.
+   * This method is designed to be called within an existing transaction.
+   *
+   * NOTE: This method bypasses RBAC as it's used for system-level seeding
+   * during store creation, not user-initiated operations.
+   *
+   * @param tx - Prisma transaction client
+   * @param menuItemId - Menu item UUID to attach customizations to
+   * @param customizationGroups - Array of customization group data with options and translations
+   */
+  async createCustomizationsForSeeding(
+    tx: TransactionClient,
+    menuItemId: string,
+    customizationGroups: SeedCustomizationGroupInput[],
+  ): Promise<void> {
+    const method = this.createCustomizationsForSeeding.name;
+    this.logger.log(
+      `[${method}] Creating ${customizationGroups.length} customization groups for menu item ${menuItemId}`,
+    );
+
+    for (const groupData of customizationGroups) {
+      // Create customization group with translations
+      const group = await tx.customizationGroup.create({
+        data: {
+          name: groupData.name,
+          menuItemId,
+          minSelectable: groupData.minSelectable,
+          maxSelectable: groupData.maxSelectable,
+          translations: {
+            createMany: {
+              data: groupData.translations.map((t) => ({
+                locale: t.locale,
+                name: t.name,
+              })),
+            },
+          },
+        },
+      });
+
+      // Create customization options with translations
+      for (const optionData of groupData.options) {
+        await tx.customizationOption.create({
+          data: {
+            name: optionData.name,
+            customizationGroupId: group.id,
+            additionalPrice: optionData.additionalPrice,
+            sortOrder: optionData.sortOrder,
+            translations: {
+              createMany: {
+                data: optionData.translations.map((t) => ({
+                  locale: t.locale,
+                  name: t.name,
+                })),
+              },
+            },
+          },
+        });
+      }
+
+      this.logger.log(
+        `[${method}] Created "${groupData.name}" group with ${groupData.options.length} options and translations`,
+      );
+    }
+
+    this.logger.log(
+      `[${method}] Created ${customizationGroups.length} customization groups`,
     );
   }
 }

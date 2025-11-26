@@ -10,13 +10,16 @@ import { Role, Prisma, Currency } from "src/generated/prisma/client";
 import { StoreService } from "./store.service";
 import { AuditLogService } from "../audit-log/audit-log.service";
 import { AuthService } from "../auth/auth.service";
+import { CategoryService } from "../category/category.service";
 import { S3Service } from "../common/infra/s3.service";
 import {
   createPrismaMock,
   PrismaMock,
 } from "../common/testing/prisma-mock.helper";
 import { UploadService } from "../common/upload/upload.service";
+import { MenuService } from "../menu/menu.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { TableService } from "../table/table.service";
 
 // Mock nanoid module
 jest.mock("nanoid", () => ({
@@ -127,6 +130,27 @@ describe("StoreService", () => {
           useValue: {
             uploadImage: jest.fn(),
             deleteImage: jest.fn(),
+          },
+        },
+        {
+          provide: CategoryService,
+          useValue: {
+            createBulkForSeeding: jest.fn().mockResolvedValue(new Map()),
+          },
+        },
+        {
+          provide: TableService,
+          useValue: {
+            createBulkForSeeding: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: MenuService,
+          useValue: {
+            createBulkMenuItemsForSeeding: jest.fn().mockResolvedValue([]),
+            createCustomizationsForSeeding: jest
+              .fn()
+              .mockResolvedValue(undefined),
           },
         },
       ],

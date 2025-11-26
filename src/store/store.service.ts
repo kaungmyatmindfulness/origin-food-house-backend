@@ -1,16 +1,20 @@
 /**
  * Store Service
  *
- * ARCHITECTURAL NOTE: This service directly creates categories, menu items,
- * and customizations during store seeding (createStore method) rather than
- * delegating to CategoryService/MenuService. This is intentional because:
+ * ARCHITECTURAL NOTE: This service delegates entity creation to their respective
+ * services (CategoryService, TableService, MenuService) during store seeding.
+ * Each service provides seeding methods that accept a transaction client for atomicity.
  *
- * 1. Transaction Atomicity: All default data must be created atomically
- * 2. No Authorization: Seeding is a system operation (no userId context)
- * 3. Performance: Single transaction is faster than multiple service calls
- * 4. Different Context: Seeding uses pre-defined data, user creation is dynamic
+ * Benefits:
+ * 1. Single Responsibility: Each service handles its own domain
+ * 2. Code Reuse: Seeding logic is centralized in domain services
+ * 3. Maintainability: Changes to entity creation only need to be made in one place
+ * 4. Transaction Support: Services accept tx client for atomic operations
  *
- * For user-initiated creation, see CategoryService.create() and MenuService.createMenuItem().
+ * @see CategoryService.createBulkForSeeding
+ * @see TableService.createBulkForSeeding
+ * @see MenuService.createBulkMenuItemsForSeeding
+ * @see MenuService.createCustomizationsForSeeding
  */
 
 import {
@@ -26,6 +30,7 @@ import slugify from "slugify";
 
 import { AuditLogService } from "src/audit-log/audit-log.service";
 import { AuthService } from "src/auth/auth.service";
+import { CategoryService } from "src/category/category.service";
 import { S3Service } from "src/common/infra/s3.service";
 import { Decimal } from "src/common/types/decimal.type";
 import { UploadService } from "src/common/upload/upload.service";
@@ -39,10 +44,16 @@ import {
   StoreSetting,
   UserStore,
 } from "src/generated/prisma/client";
+import {
+  MenuService,
+  SeedMenuItemInput,
+  SeedCustomizationGroupInput,
+} from "src/menu/menu.service";
 import { BusinessHoursDto } from "src/store/dto/business-hours.dto";
 import { CreateStoreDto } from "src/store/dto/create-store.dto";
 import { UpdateStoreInformationDto } from "src/store/dto/update-store-information.dto";
 import { UpdateStoreSettingDto } from "src/store/dto/update-store-setting.dto";
+import { TableService } from "src/table/table.service";
 
 import {
   CUSTOMIZATION_TEMPLATES,
@@ -93,6 +104,9 @@ export class StoreService {
     private auditLogService: AuditLogService,
     private s3Service: S3Service,
     private uploadService: UploadService,
+    private categoryService: CategoryService,
+    private tableService: TableService,
+    private menuService: MenuService,
   ) {}
 
   /**
@@ -217,25 +231,33 @@ export class StoreService {
           `[${method}] User ${userId} assigned as OWNER for Store ${baseStore.id}`,
         );
 
-        // Create default categories
-        const categoryMap = await this.createDefaultCategories(
+        // Create default categories (delegated to CategoryService)
+        const categoryMap = await this.categoryService.createBulkForSeeding(
           tx,
           baseStore.id,
+          DEFAULT_CATEGORIES,
         );
 
-        // Create default tables
-        await this.createDefaultTables(tx, baseStore.id);
-
-        // Create default menu items with images
-        const menuItems = await this.createDefaultMenuItems(
+        // Create default tables (delegated to TableService)
+        await this.tableService.createBulkForSeeding(
           tx,
           baseStore.id,
+          DEFAULT_TABLE_NAMES,
+        );
+
+        // Create default menu items with images (delegated to MenuService)
+        const menuItemInputs = this.prepareMenuItemsForSeeding(
           categoryMap,
           imagePathMap,
         );
+        const menuItems = await this.menuService.createBulkMenuItemsForSeeding(
+          tx,
+          baseStore.id,
+          menuItemInputs,
+        );
 
-        // Create default customization groups and options
-        await this.createDefaultCustomizations(tx, menuItems);
+        // Create default customization groups and options (delegated to MenuService)
+        await this.createCustomizationsForMenuItems(tx, menuItems);
 
         this.logger.log(
           `[${method}] All default data created successfully for Store ${baseStore.id}`,
@@ -946,89 +968,6 @@ export class StoreService {
   }
 
   /**
-   * Creates default categories for a new store with translations.
-   *
-   * NOTE: This method uses pre-defined sortOrder values from DEFAULT_CATEGORIES
-   * for seeding purposes. For user-initiated category creation with dynamic
-   * sortOrder calculation, see CategoryService.create().
-   *
-   * @see CategoryService.create For user creation with RBAC and calculated sortOrder
-   * @see src/common/utils/sort-order.util.ts For shared sortOrder calculation logic
-   * @private
-   * @param tx Prisma transaction client
-   * @param storeId Store ID
-   * @returns Map of category name to category ID
-   */
-  private async createDefaultCategories(
-    tx: TransactionClient,
-    storeId: string,
-  ): Promise<Map<string, string>> {
-    const method = "createDefaultCategories";
-    this.logger.log(
-      `[${method}] Creating default categories with translations for Store ${storeId}`,
-    );
-
-    const categoryMap = new Map<string, string>();
-
-    for (const catData of DEFAULT_CATEGORIES) {
-      const category = await tx.category.create({
-        data: {
-          name: catData.name,
-          sortOrder: catData.sortOrder,
-          storeId,
-          deletedAt: null,
-          translations: {
-            createMany: {
-              data: catData.translations.map((t) => ({
-                locale: t.locale,
-                name: t.name,
-              })),
-            },
-          },
-        },
-      });
-      categoryMap.set(catData.name, category.id);
-      this.logger.log(
-        `[${method}] Created category "${catData.name}" (ID: ${category.id}) with ${catData.translations.length} translations`,
-      );
-    }
-
-    this.logger.log(
-      `[${method}] Created ${categoryMap.size} default categories with translations`,
-    );
-    return categoryMap;
-  }
-
-  /**
-   * Creates default tables for a new store
-   * @private
-   * @param tx Prisma transaction client
-   * @param storeId Store ID
-   */
-  private async createDefaultTables(
-    tx: TransactionClient,
-    storeId: string,
-  ): Promise<void> {
-    const method = "createDefaultTables";
-    this.logger.log(`[${method}] Creating default tables for Store ${storeId}`);
-
-    const tableData = DEFAULT_TABLE_NAMES.map((name) => ({
-      name,
-      storeId,
-      currentStatus: "VACANT" as const,
-      deletedAt: null,
-    }));
-
-    await tx.table.createMany({
-      data: tableData,
-    });
-
-    this.logger.log(
-      `[${method}] Created ${DEFAULT_TABLE_NAMES.length} default tables`,
-    );
-  }
-
-  /**
    * Processes menu seed images for a new store.
    * Reads local seed image files and uploads them as multi-size WebP versions.
    * This ensures consistency with the new image system that uses base paths
@@ -1081,33 +1020,20 @@ export class StoreService {
   }
 
   /**
-   * Creates default menu items for a new store with translations.
+   * Prepares menu item data for seeding by transforming DEFAULT_MENU_ITEMS
+   * into SeedMenuItemInput format.
    *
-   * NOTE: This method uses pre-defined sortOrder values from DEFAULT_MENU_ITEMS
-   * for seeding purposes. For user-initiated menu item creation with dynamic
-   * sortOrder calculation, see MenuService.createMenuItem().
-   *
-   * @see MenuService.createMenuItem For user creation with RBAC and calculated sortOrder
-   * @see src/common/utils/sort-order.util.ts For shared sortOrder calculation logic
    * @private
-   * @param tx Prisma transaction client
-   * @param storeId Store ID
    * @param categoryMap Map of category name to category ID
    * @param imagePathMap Map of image filename to base S3 path
-   * @returns Array of created menu items with IDs
+   * @returns Array of SeedMenuItemInput ready for MenuService
    */
-  private async createDefaultMenuItems(
-    tx: TransactionClient,
-    storeId: string,
+  private prepareMenuItemsForSeeding(
     categoryMap: Map<string, string>,
     imagePathMap: Map<string, string>,
-  ): Promise<Array<{ id: string; name: string }>> {
-    const method = "createDefaultMenuItems";
-    this.logger.log(
-      `[${method}] Creating default menu items with translations for Store ${storeId}`,
-    );
-
-    const menuItems: Array<{ id: string; name: string }> = [];
+  ): SeedMenuItemInput[] {
+    const method = "prepareMenuItemsForSeeding";
+    const menuItemInputs: SeedMenuItemInput[] = [];
 
     for (const itemData of DEFAULT_MENU_ITEMS) {
       const categoryId = categoryMap.get(itemData.categoryName);
@@ -1125,68 +1051,49 @@ export class StoreService {
         imagePath = imagePathMap.get(imageKey) ?? null;
       }
 
-      // Convert basePrice to Decimal (should never be null in default data)
+      // Convert basePrice to Decimal
       const basePrice = toPrismaDecimal(itemData.basePrice);
-      if (!basePrice) {
-        this.logger.warn(
-          `[${method}] Skipping item "${itemData.name}" - missing base price`,
-        );
-        continue;
-      }
 
-      const menuItem = await tx.menuItem.create({
-        data: {
-          name: itemData.name,
-          description: itemData.description,
-          basePrice,
-          categoryId,
-          storeId,
-          imagePath,
-          preparationTimeMinutes: itemData.preparationTimeMinutes,
-          sortOrder: itemData.sortOrder,
-          routingArea:
-            (itemData.routingArea as RoutingArea | undefined) ??
-            RoutingArea.OTHER,
-          isOutOfStock: false,
-          isHidden: false,
-          deletedAt: null,
-          translations: {
-            createMany: {
-              data: itemData.translations.map((t) => ({
-                locale: t.locale,
-                name: t.name,
-                description: t.description ?? null,
-              })),
-            },
-          },
-        },
+      menuItemInputs.push({
+        name: itemData.name,
+        description: itemData.description,
+        basePrice,
+        categoryId,
+        imagePath,
+        preparationTimeMinutes: itemData.preparationTimeMinutes,
+        sortOrder: itemData.sortOrder,
+        routingArea:
+          (itemData.routingArea as RoutingArea | undefined) ??
+          RoutingArea.OTHER,
+        translations: itemData.translations.map((t) => ({
+          locale: t.locale,
+          name: t.name,
+          description: t.description ?? null,
+        })),
       });
-
-      menuItems.push({ id: menuItem.id, name: menuItem.name });
-      this.logger.log(
-        `[${method}] Created menu item "${itemData.name}" (ID: ${menuItem.id}) with ${itemData.translations.length} translations`,
-      );
     }
 
     this.logger.log(
-      `[${method}] Created ${menuItems.length} default menu items with translations`,
+      `[${method}] Prepared ${menuItemInputs.length} menu items for seeding`,
     );
-    return menuItems;
+    return menuItemInputs;
   }
 
   /**
-   * Creates default customization groups and options for menu items with translations
+   * Creates customization groups for menu items using MenuService.
+   * Maps menu item names to customization templates and delegates creation.
+   *
    * @private
    * @param tx Prisma transaction client
    * @param menuItems Array of menu items with IDs and names
    */
-  private async createDefaultCustomizations(
+  private async createCustomizationsForMenuItems(
     tx: TransactionClient,
     menuItems: Array<{ id: string; name: string }>,
   ): Promise<void> {
-    const method = "createDefaultCustomizations";
+    const method = "createCustomizationsForMenuItems";
     this.logger.log(
-      `[${method}] Creating default customizations with translations for ${menuItems.length} menu items`,
+      `[${method}] Creating customizations for ${menuItems.length} menu items`,
     );
 
     let totalGroupsCreated = 0;
@@ -1196,6 +1103,9 @@ export class StoreService {
       if (!customizationKeys || customizationKeys.length === 0) {
         continue;
       }
+
+      // Build customization groups from templates
+      const customizationGroups: SeedCustomizationGroupInput[] = [];
 
       for (const templateKey of customizationKeys) {
         const template =
@@ -1209,53 +1119,38 @@ export class StoreService {
           continue;
         }
 
-        // Create customization group with translations
-        const group = await tx.customizationGroup.create({
-          data: {
-            name: template.name,
-            menuItemId: menuItem.id,
-            minSelectable: template.minSelectable,
-            maxSelectable: template.maxSelectable,
-            translations: {
-              createMany: {
-                data: template.translations.map((t) => ({
-                  locale: t.locale,
-                  name: t.name,
-                })),
-              },
-            },
-          },
+        customizationGroups.push({
+          name: template.name,
+          minSelectable: template.minSelectable,
+          maxSelectable: template.maxSelectable,
+          translations: template.translations.map((t) => ({
+            locale: t.locale,
+            name: t.name,
+          })),
+          options: template.options.map((opt) => ({
+            name: opt.name,
+            additionalPrice: toPrismaDecimal(opt.additionalPrice),
+            sortOrder: opt.sortOrder,
+            translations: opt.translations.map((t) => ({
+              locale: t.locale,
+              name: t.name,
+            })),
+          })),
         });
+      }
 
-        // Create customization options with translations
-        for (const option of template.options) {
-          await tx.customizationOption.create({
-            data: {
-              name: option.name,
-              customizationGroupId: group.id,
-              additionalPrice: toPrismaDecimal(option.additionalPrice),
-              sortOrder: option.sortOrder,
-              translations: {
-                createMany: {
-                  data: option.translations.map((t) => ({
-                    locale: t.locale,
-                    name: t.name,
-                  })),
-                },
-              },
-            },
-          });
-        }
-
-        totalGroupsCreated++;
-        this.logger.log(
-          `[${method}] Created "${template.name}" group for "${menuItem.name}" with ${template.options.length} options and translations`,
+      if (customizationGroups.length > 0) {
+        await this.menuService.createCustomizationsForSeeding(
+          tx,
+          menuItem.id,
+          customizationGroups,
         );
+        totalGroupsCreated += customizationGroups.length;
       }
     }
 
     this.logger.log(
-      `[${method}] Created ${totalGroupsCreated} customization groups with translations`,
+      `[${method}] Created ${totalGroupsCreated} customization groups`,
     );
   }
 

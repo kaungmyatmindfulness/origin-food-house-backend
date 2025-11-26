@@ -357,14 +357,11 @@ export class ActiveTableSessionService {
         throw new NotFoundException(`Session with ID ${sessionId} not found`);
       }
 
-      if (!existingSession.table) {
-        throw new BadRequestException("Session has no associated table");
-      }
-
       // SECURITY FIX: Validate user has permission to this store
+      // Use session.storeId directly (works for both table and manual sessions)
       await this.authService.checkStorePermission(
         userId,
-        existingSession.table.storeId,
+        existingSession.storeId,
         [Role.OWNER, Role.ADMIN, Role.SERVER, Role.CASHIER],
       );
 
@@ -430,16 +427,14 @@ export class ActiveTableSessionService {
         throw new NotFoundException(`Session with ID ${sessionId} not found`);
       }
 
-      if (!session.table) {
-        throw new BadRequestException("Session has no associated table");
-      }
-
       // SECURITY FIX: Validate user has permission to this store
-      await this.authService.checkStorePermission(
-        userId,
-        session.table.storeId,
-        [Role.OWNER, Role.ADMIN, Role.SERVER, Role.CASHIER],
-      );
+      // Use session.storeId directly (works for both table and manual sessions)
+      await this.authService.checkStorePermission(userId, session.storeId, [
+        Role.OWNER,
+        Role.ADMIN,
+        Role.SERVER,
+        Role.CASHIER,
+      ]);
 
       if (session.status === SessionStatus.CLOSED) {
         throw new BadRequestException("Session is already closed");

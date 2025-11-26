@@ -15,7 +15,7 @@ export class UpsertTableDto {
     example: "018ec1a8-0f9b-7d9c-a4f2-0d3f1a0f9b8c",
   })
   @IsOptional()
-  @IsUUID("all", { message: "Provided ID must be a valid UUID" })
+  @IsUUID(7, { message: "Provided ID must be a valid UUID" })
   id?: string;
 
   @ApiProperty({

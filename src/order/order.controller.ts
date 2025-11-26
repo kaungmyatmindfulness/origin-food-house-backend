@@ -26,6 +26,7 @@ import {
 import { ApplyDiscountDto } from "./dto/apply-discount.dto";
 import { CheckoutCartDto } from "./dto/checkout-cart.dto";
 import { OrderResponseDto } from "./dto/order-response.dto";
+import { QuickSaleCheckoutDto } from "./dto/quick-sale-checkout.dto";
 import { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
 import { OrderService } from "./order.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -81,6 +82,46 @@ export class OrderController {
       sessionToken,
       userId,
     );
+    return StandardApiResponse.success(order);
+  }
+
+  @Post("quick-checkout")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: "Quick sale checkout (POS)",
+    description:
+      "Creates session, cart items, and order in a single atomic operation. " +
+      "Optimized for quick sale (counter/phone/takeout) orders where speed is critical. " +
+      "Bypasses the normal flow of creating session → adding items → checkout.",
+  })
+  @ApiResponse({
+    status: 201,
+    description: "Order created successfully",
+    type: OrderResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: "Invalid session type or empty items array",
+  })
+  @ApiResponse({
+    status: 401,
+    description: "Authentication required",
+  })
+  @ApiResponse({
+    status: 403,
+    description: "Insufficient permissions for this store",
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Menu item not found",
+  })
+  async quickCheckout(
+    @GetUser("sub") userId: string,
+    @Body() dto: QuickSaleCheckoutDto,
+  ): Promise<StandardApiResponse<OrderResponseDto>> {
+    const order = await this.orderService.quickCheckout(dto, userId);
     return StandardApiResponse.success(order);
   }
 

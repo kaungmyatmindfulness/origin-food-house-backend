@@ -1,3 +1,5 @@
+import * as crypto from "crypto";
+
 import {
   Injectable,
   Logger,
@@ -14,12 +16,18 @@ import {
   OrderStatus,
   DiscountType,
   Role,
+  SessionType,
+  SessionStatus,
 } from "src/generated/prisma/client";
 
 import { ApplyDiscountDto } from "./dto/apply-discount.dto";
 import { CheckoutCartDto } from "./dto/checkout-cart.dto";
 import { KdsQueryDto } from "./dto/kds-query.dto";
 import { OrderResponseDto } from "./dto/order-response.dto";
+import {
+  QuickSaleCheckoutDto,
+  QuickSaleItemDto,
+} from "./dto/quick-sale-checkout.dto";
 import { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
 import { AuthService } from "../auth/auth.service";
 import { PaginatedResponseDto } from "../common/dto/paginated-response.dto";
@@ -71,10 +79,6 @@ export class OrderService {
         throw new BadRequestException("Session is already closed");
       }
 
-      if (!session.table) {
-        throw new BadRequestException("Session has no associated table");
-      }
-
       // SECURITY FIX: Validate session ownership (customer with session token)
       if (sessionToken && session.sessionToken !== sessionToken) {
         this.logger.warn(
@@ -84,12 +88,15 @@ export class OrderService {
       }
 
       // SECURITY FIX: Validate staff store permission (staff with JWT)
+      // Use session.storeId directly (works for both table and manual sessions)
       if (userId) {
-        await this.authService.checkStorePermission(
-          userId,
-          session.table.storeId,
-          [Role.OWNER, Role.ADMIN, Role.SERVER, Role.CASHIER, Role.CHEF],
-        );
+        await this.authService.checkStorePermission(userId, session.storeId, [
+          Role.OWNER,
+          Role.ADMIN,
+          Role.SERVER,
+          Role.CASHIER,
+          Role.CHEF,
+        ]);
       }
 
       // SECURITY FIX: Require at least one auth method
@@ -141,12 +148,18 @@ export class OrderService {
         const grandTotal = subTotal.add(vatAmount).add(serviceChargeAmount);
 
         // Create order
+        // For table sessions, use table name; for manual sessions, use session type label
+        const tableName =
+          dto.tableName ??
+          session.table?.name ??
+          this.getSessionTypeLabel(session.sessionType);
+
         const newOrder = await tx.order.create({
           data: {
             orderNumber,
             storeId: session.storeId,
             sessionId: session.id,
-            tableName: dto.tableName ?? session.table?.name ?? "Counter Order",
+            tableName,
             status: OrderStatus.PENDING,
             orderType: dto.orderType,
             subTotal,
@@ -238,6 +251,283 @@ export class OrderService {
       );
       throw new InternalServerErrorException("Failed to create order");
     }
+  }
+
+  /**
+   * Quick checkout for quick sale (counter/phone/takeout)
+   * Creates session and order in a single atomic transaction
+   *
+   * This bypasses the normal cart flow for faster checkout:
+   * - No cart is created
+   * - Session and order are created directly
+   * - All operations happen in one transaction
+   *
+   * @param dto - Quick sale checkout data
+   * @param userId - Authenticated user ID
+   * @returns Created order with payment status
+   */
+  async quickCheckout(
+    dto: QuickSaleCheckoutDto,
+    userId: string,
+  ): Promise<OrderResponseDto> {
+    const method = this.quickCheckout.name;
+
+    try {
+      // Validate permissions
+      await this.authService.checkStorePermission(userId, dto.storeId, [
+        Role.OWNER,
+        Role.ADMIN,
+        Role.SERVER,
+        Role.CASHIER,
+      ]);
+
+      // Validate session type is not TABLE
+      if (dto.sessionType === SessionType.TABLE) {
+        throw new BadRequestException(
+          "Quick checkout cannot be used with TABLE session type. Use the regular checkout flow.",
+        );
+      }
+
+      // Get store settings for VAT and service charge
+      const storeSetting = await this.prisma.storeSetting.findUnique({
+        where: { storeId: dto.storeId },
+      });
+
+      const vatRate = storeSetting?.vatRate ?? new Decimal("0");
+      const serviceChargeRate =
+        storeSetting?.serviceChargeRate ?? new Decimal("0");
+
+      // Fetch all menu items with their customization options
+      const menuItemIds = dto.items.map((item) => item.menuItemId);
+      const menuItems = await this.prisma.menuItem.findMany({
+        where: {
+          id: { in: menuItemIds },
+          storeId: dto.storeId,
+          deletedAt: null,
+        },
+        include: {
+          customizationGroups: {
+            include: {
+              customizationOptions: true,
+            },
+          },
+        },
+      });
+
+      // Validate all menu items exist
+      if (menuItems.length !== menuItemIds.length) {
+        const foundIds = new Set(menuItems.map((m) => m.id));
+        const missingIds = menuItemIds.filter((id) => !foundIds.has(id));
+        throw new NotFoundException(
+          `Menu items not found: ${missingIds.join(", ")}`,
+        );
+      }
+
+      // Create order in a single transaction
+      const order = await this.prisma.$transaction(async (tx) => {
+        // Generate session token
+        const sessionToken = crypto.randomBytes(32).toString("hex");
+
+        // Create manual session (no table)
+        const session = await tx.activeTableSession.create({
+          data: {
+            storeId: dto.storeId,
+            tableId: null,
+            sessionType: dto.sessionType,
+            sessionToken,
+            guestCount: 1,
+            customerName: dto.customerName,
+            customerPhone: dto.customerPhone,
+            status: SessionStatus.ACTIVE,
+          },
+        });
+
+        // Generate order number
+        const orderNumber = await this.generateOrderNumber(tx, dto.storeId);
+
+        // Calculate order items and totals
+        const { orderItemsData, subTotal } = this.calculateOrderItems(
+          dto.items,
+          menuItems,
+        );
+
+        // Calculate totals with VAT and service charge
+        const vatAmount = subTotal.mul(vatRate);
+        const serviceChargeAmount = subTotal.mul(serviceChargeRate);
+        const grandTotal = subTotal.add(vatAmount).add(serviceChargeAmount);
+
+        // Get table name from session type
+        const tableName = this.getSessionTypeLabel(dto.sessionType);
+
+        // Create order
+        // Note: Order model doesn't have a notes field - notes are only at the item level
+        const newOrder = await tx.order.create({
+          data: {
+            orderNumber,
+            storeId: dto.storeId,
+            sessionId: session.id,
+            tableName,
+            status: OrderStatus.PENDING,
+            orderType: dto.orderType,
+            subTotal,
+            vatRateSnapshot: vatRate,
+            serviceChargeRateSnapshot: serviceChargeRate,
+            vatAmount,
+            serviceChargeAmount,
+            grandTotal,
+          },
+        });
+
+        // Create order items
+        for (const itemData of orderItemsData) {
+          const orderItem = await tx.orderItem.create({
+            data: {
+              orderId: newOrder.id,
+              menuItemId: itemData.menuItemId,
+              price: itemData.price,
+              quantity: itemData.quantity,
+              finalPrice: itemData.finalPrice,
+              notes: itemData.notes,
+            },
+          });
+
+          // Create order item customizations
+          if (itemData.customizations.length > 0) {
+            await tx.orderItemCustomization.createMany({
+              data: itemData.customizations.map((c) => ({
+                orderItemId: orderItem.id,
+                customizationOptionId: c.optionId,
+                finalPrice: c.totalPrice,
+              })),
+            });
+          }
+        }
+
+        this.logger.log(
+          `[${method}] Quick checkout order ${newOrder.orderNumber} created for session ${session.id}`,
+        );
+
+        return newOrder;
+      });
+
+      // Broadcast new order to kitchen screens
+      await this.kitchenGateway.broadcastNewOrder(dto.storeId, order.id);
+
+      // Return full order with items
+      return await this.findOne(order.id);
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(
+        `[${method}] Failed to quick checkout`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw new InternalServerErrorException("Failed to create order");
+    }
+  }
+
+  /**
+   * Calculate order items and subtotal from draft items
+   * @private
+   */
+  private calculateOrderItems(
+    draftItems: QuickSaleItemDto[],
+    menuItems: Array<{
+      id: string;
+      basePrice: Prisma.Decimal;
+      customizationGroups: Array<{
+        customizationOptions: Array<{
+          id: string;
+          additionalPrice: Prisma.Decimal | null;
+        }>;
+      }>;
+    }>,
+  ): {
+    orderItemsData: Array<{
+      menuItemId: string;
+      price: Decimal;
+      quantity: number;
+      finalPrice: Decimal;
+      notes?: string;
+      customizations: Array<{
+        optionId: string;
+        totalPrice: Decimal;
+      }>;
+    }>;
+    subTotal: Decimal;
+  } {
+    const menuItemMap = new Map(menuItems.map((m) => [m.id, m]));
+    let subTotal = new Decimal("0");
+    const orderItemsData: Array<{
+      menuItemId: string;
+      price: Decimal;
+      quantity: number;
+      finalPrice: Decimal;
+      notes?: string;
+      customizations: Array<{
+        optionId: string;
+        totalPrice: Decimal;
+      }>;
+    }> = [];
+
+    for (const draftItem of draftItems) {
+      const menuItem = menuItemMap.get(draftItem.menuItemId);
+      if (!menuItem) {
+        continue; // Already validated above
+      }
+
+      // Build option price map
+      const optionPriceMap = new Map<string, Decimal>();
+      for (const group of menuItem.customizationGroups) {
+        for (const option of group.customizationOptions) {
+          optionPriceMap.set(
+            option.id,
+            option.additionalPrice
+              ? new Decimal(option.additionalPrice.toString())
+              : new Decimal("0"),
+          );
+        }
+      }
+
+      // Calculate item price with customizations
+      let itemPrice = new Decimal(menuItem.basePrice.toString());
+      const customizations: Array<{
+        optionId: string;
+        totalPrice: Decimal;
+      }> = [];
+
+      if (draftItem.customizationOptionIds) {
+        for (const optionId of draftItem.customizationOptionIds) {
+          const additionalPrice =
+            optionPriceMap.get(optionId) ?? new Decimal("0");
+          itemPrice = itemPrice.add(additionalPrice);
+          customizations.push({
+            optionId,
+            totalPrice: additionalPrice.mul(draftItem.quantity),
+          });
+        }
+      }
+
+      const finalPrice = itemPrice.mul(draftItem.quantity);
+      subTotal = subTotal.add(finalPrice);
+
+      orderItemsData.push({
+        menuItemId: draftItem.menuItemId,
+        price: itemPrice,
+        quantity: draftItem.quantity,
+        finalPrice,
+        notes: draftItem.notes,
+        customizations,
+      });
+    }
+
+    return { orderItemsData, subTotal };
   }
 
   /**
@@ -999,5 +1289,20 @@ export class OrderService {
     }
 
     await this.authService.checkStorePermission(userId, storeId, requiredRoles);
+  }
+
+  /**
+   * Get human-readable label for session type
+   * Used for order tableName when no table is associated (manual sessions)
+   * @private
+   */
+  private getSessionTypeLabel(sessionType: SessionType): string {
+    const labels: Record<SessionType, string> = {
+      [SessionType.TABLE]: "Table Order",
+      [SessionType.COUNTER]: "Counter",
+      [SessionType.PHONE]: "Phone Order",
+      [SessionType.TAKEOUT]: "Takeout",
+    };
+    return labels[sessionType] ?? "Counter";
   }
 }

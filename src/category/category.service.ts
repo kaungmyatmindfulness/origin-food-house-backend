@@ -18,6 +18,21 @@ import { CreateCategoryDto } from "./dto/create-category.dto";
 import { SortCategoriesPayloadDto } from "./dto/sort-categories-payload.dto";
 import { UpdateCategoryDto } from "./dto/update-category.dto";
 
+/**
+ * Type for Prisma transaction client
+ * Used in transaction callbacks to ensure type safety
+ */
+type TransactionClient = Prisma.TransactionClient;
+
+/**
+ * Input type for seeding categories with translations
+ */
+export interface SeedCategoryInput {
+  name: string;
+  sortOrder: number;
+  translations: Array<{ locale: string; name: string }>;
+}
+
 @Injectable()
 export class CategoryService {
   private readonly logger = new Logger(CategoryService.name);
@@ -657,5 +672,64 @@ export class CategoryService {
     this.logger.log(
       `[${method}] Deleted ${locale} translation for category ${categoryId}`,
     );
+  }
+
+  /**
+   * ============================================================================
+   * SEEDING METHODS (For Store Creation)
+   * ============================================================================
+   */
+
+  /**
+   * Creates default categories with translations for store seeding.
+   * This method is designed to be called within an existing transaction.
+   *
+   * NOTE: This method bypasses RBAC as it's used for system-level seeding
+   * during store creation, not user-initiated operations.
+   *
+   * @param tx - Prisma transaction client
+   * @param storeId - Store UUID to create categories for
+   * @param categories - Array of category data with translations
+   * @returns Map of category name to category ID
+   */
+  async createBulkForSeeding(
+    tx: TransactionClient,
+    storeId: string,
+    categories: SeedCategoryInput[],
+  ): Promise<Map<string, string>> {
+    const method = this.createBulkForSeeding.name;
+    this.logger.log(
+      `[${method}] Creating ${categories.length} categories with translations for Store ${storeId}`,
+    );
+
+    const categoryMap = new Map<string, string>();
+
+    for (const catData of categories) {
+      const category = await tx.category.create({
+        data: {
+          name: catData.name,
+          sortOrder: catData.sortOrder,
+          storeId,
+          deletedAt: null,
+          translations: {
+            createMany: {
+              data: catData.translations.map((t) => ({
+                locale: t.locale,
+                name: t.name,
+              })),
+            },
+          },
+        },
+      });
+      categoryMap.set(catData.name, category.id);
+      this.logger.log(
+        `[${method}] Created category "${catData.name}" (ID: ${category.id}) with ${catData.translations.length} translations`,
+      );
+    }
+
+    this.logger.log(
+      `[${method}] Created ${categoryMap.size} categories with translations`,
+    );
+    return categoryMap;
   }
 }
