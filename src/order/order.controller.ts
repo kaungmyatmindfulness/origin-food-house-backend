@@ -25,7 +25,6 @@ import {
 
 import { ApplyDiscountDto } from "./dto/apply-discount.dto";
 import { CheckoutCartDto } from "./dto/checkout-cart.dto";
-import { KdsQueryDto } from "./dto/kds-query.dto";
 import { OrderResponseDto } from "./dto/order-response.dto";
 import { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
 import { OrderService } from "./order.service";
@@ -99,60 +98,6 @@ export class OrderController {
   ): Promise<StandardApiResponse<OrderResponseDto>> {
     const order = await this.orderService.findOne(orderId);
     return StandardApiResponse.success(order);
-  }
-
-  @Get("session/:sessionId")
-  @ApiOperation({ summary: "Get all orders for a session (SOS)" })
-  @ApiParam({ name: "sessionId", description: "Active table session ID" })
-  @ApiResponse({
-    status: 200,
-    description: "Orders retrieved successfully",
-    type: [OrderResponseDto],
-  })
-  async findBySession(
-    @Param("sessionId") sessionId: string,
-  ): Promise<StandardApiResponse<OrderResponseDto[]>> {
-    const orders = await this.orderService.findBySession(sessionId);
-    return StandardApiResponse.success(orders);
-  }
-
-  @Get("kds")
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: "Get orders for Kitchen Display System (KDS)",
-    description:
-      "Returns active kitchen orders with optional status filtering. Optimized for real-time kitchen operations.",
-  })
-  @ApiQuery({ name: "storeId", description: "Store ID", required: true })
-  @ApiQuery({
-    name: "status",
-    description: "Filter by order status (defaults to active orders)",
-    required: false,
-    enum: ["PENDING", "PREPARING", "READY", "SERVED", "COMPLETED", "CANCELLED"],
-  })
-  @ApiQuery({
-    name: "page",
-    description: "Page number (1-indexed)",
-    required: false,
-    type: Number,
-  })
-  @ApiQuery({
-    name: "limit",
-    description: "Items per page (max 100)",
-    required: false,
-    type: Number,
-  })
-  @ApiResponse({
-    status: 200,
-    description: "KDS orders retrieved successfully",
-    type: PaginatedResponseDto<OrderResponseDto>,
-  })
-  async findForKds(
-    @Query() queryDto: KdsQueryDto,
-  ): Promise<StandardApiResponse<PaginatedResponseDto<OrderResponseDto>>> {
-    const orders = await this.orderService.findForKds(queryDto);
-    return StandardApiResponse.success(orders);
   }
 
   @Get()
@@ -254,7 +199,7 @@ export class OrderController {
   @Delete(":orderId/discount")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: "Remove discount from order (POS)",
     description:

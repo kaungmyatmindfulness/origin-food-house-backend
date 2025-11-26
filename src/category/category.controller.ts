@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -11,7 +10,6 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
-  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -21,12 +19,10 @@ import {
   ApiExtraModels,
   ApiOperation,
   ApiParam,
-  ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
 
 import { RequestWithUser } from "src/auth/types";
-import { GetCategoriesQueryDto } from "src/category/dto/get-categories-query.dto";
 import { ApiSuccessResponse } from "src/common/decorators/api-success-response.decorator";
 import { StandardApiErrorDetails } from "src/common/dto/standard-api-error-details.dto";
 import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
@@ -49,8 +45,8 @@ import { SortCategoriesPayloadDto } from "./dto/sort-categories-payload.dto";
 import { UpdateCategoryDto } from "./dto/update-category.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 
-@ApiTags("Categories")
-@Controller("categories")
+@ApiTags("Stores / Categories")
+@Controller("stores/:storeId/categories")
 @ApiExtraModels(
   StandardApiResponse,
   CategoryResponseDto,
@@ -71,13 +67,18 @@ export class CategoryController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Create a new category (OWNER/ADMIN Required)" })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
   @ApiSuccessResponse(CategoryBasicResponseDto, {
     status: HttpStatus.CREATED,
     description: "Category created successfully.",
   })
   async create(
     @Req() req: RequestWithUser,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Body() dto: CreateCategoryDto,
   ): Promise<StandardApiResponse<CategoryBasicResponseDto>> {
     const userId = req.user.sub;
@@ -94,7 +95,7 @@ export class CategoryController {
   }
 
   /**
-   * GET All Categories for a Store (by ID or Slug)
+   * GET All Categories for a Store
    */
   @Get()
   @HttpCode(HttpStatus.OK)
@@ -102,32 +103,34 @@ export class CategoryController {
     summary:
       "Get all active categories (with items) for a specific store (Public)",
     description:
-      "Retrieves categories for a store using EITHER storeId OR storeSlug query parameter. Query parameters are defined in the GetCategoriesQueryDto schema.",
+      "Retrieves categories for a store. The storeId parameter can be either a UUID or a store slug for public access.",
+  })
+  @ApiParam({
+    name: "storeId",
+    description: "Store UUID or slug",
+    type: String,
   })
   @ApiSuccessResponse(CategoryResponseDto, {
     isArray: true,
     description: "List of active categories with included active menu items.",
   })
   async findAll(
-    @Query() query: GetCategoriesQueryDto,
+    @Param("storeId") storeIdentifier: string,
   ): Promise<StandardApiResponse<CategoryResponseDto[]>> {
     const method = this.findAll.name;
 
-    const identifier: { storeId?: string; storeSlug?: string } = {};
-    let identifierLog: string;
+    // Determine if it's a UUID or slug
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isUuid = uuidRegex.test(storeIdentifier);
 
-    if (query.storeId) {
-      identifier.storeId = query.storeId;
-      identifierLog = `ID ${query.storeId}`;
-    } else if (query.storeSlug) {
-      identifier.storeSlug = query.storeSlug;
-      identifierLog = `Slug ${query.storeSlug}`;
-    } else {
-      throw new BadRequestException(
-        "Internal error: No store identifier found after validation.",
-      );
-    }
+    const identifier = isUuid
+      ? { storeId: storeIdentifier }
+      : { storeSlug: storeIdentifier };
 
+    const identifierLog = isUuid
+      ? `ID ${storeIdentifier}`
+      : `Slug ${storeIdentifier}`;
     const includeItems = true;
 
     this.logger.log(
@@ -148,29 +151,30 @@ export class CategoryController {
   @Get(":id")
   @ApiOperation({ summary: "Get a specific category by ID (Public)" })
   @ApiParam({
+    name: "storeId",
+    description: "Store UUID or slug",
+    type: String,
+  })
+  @ApiParam({
     name: "id",
     description: "ID (UUID) of the category to fetch",
     type: String,
     format: "uuid",
   })
-  @ApiQuery({
-    name: "storeId",
-    required: true,
-    type: String,
-    format: "uuid",
-    description: "ID (UUID) of the store this category belongs to",
-    example: "018ebc9a-7e1c-7f5e-b48a-3f4f72c55a1e",
-  })
   async findOne(
+    @Param("storeId") storeIdentifier: string,
     @Param("id", new ParseUUIDPipe({ version: "7" })) categoryId: string,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
   ): Promise<StandardApiResponse<CategoryBasicResponseDto>> {
     const method = this.findOne.name;
     this.logger.log(
-      `[${method}] Fetching category ID ${categoryId} within Store ${storeId} context.`,
+      `[${method}] Fetching category ID ${categoryId} within Store ${storeIdentifier} context.`,
     );
 
-    const category = await this.categoryService.findOne(categoryId, storeId);
+    // Service accepts store identifier (UUID or slug)
+    const category = await this.categoryService.findOne(
+      categoryId,
+      storeIdentifier,
+    );
     return StandardApiResponse.success(
       category as CategoryBasicResponseDto,
       "Category retrieved successfully.",
@@ -183,12 +187,17 @@ export class CategoryController {
   @ApiOperation({
     summary: "Reorder categories and their menu items (OWNER/ADMIN Required)",
   })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
   @ApiSuccessResponse(String, {
     description: "Categories and items reordered successfully.",
   })
   async sortCategories(
     @Req() req: RequestWithUser,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Body() payload: SortCategoriesPayloadDto,
   ): Promise<StandardApiResponse<null>> {
     const userId = req.user.sub;
@@ -210,6 +219,11 @@ export class CategoryController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Update a category name (OWNER/ADMIN Required)" })
   @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
+  @ApiParam({
     name: "id",
     description: "ID (UUID) of the category to update",
     type: String,
@@ -221,9 +235,8 @@ export class CategoryController {
   )
   async update(
     @Req() req: RequestWithUser,
-
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Param("id", new ParseUUIDPipe({ version: "7" })) categoryId: string,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Body() dto: UpdateCategoryDto,
   ): Promise<StandardApiResponse<CategoryBasicResponseDto>> {
     const userId = req.user.sub;
@@ -246,7 +259,13 @@ export class CategoryController {
   @Delete(":id")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Delete a category (OWNER/ADMIN Required)" })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
   @ApiParam({
     name: "id",
     description: "ID (UUID) of the category to delete",
@@ -259,8 +278,7 @@ export class CategoryController {
   )
   async remove(
     @Req() req: RequestWithUser,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
-
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Param("id", new ParseUUIDPipe({ version: "7" })) categoryId: string,
   ): Promise<StandardApiResponse<CategoryDeletedResponseDto>> {
     const userId = req.user.sub;
@@ -295,6 +313,11 @@ export class CategoryController {
       "Add or update translations for a category. Supports multiple locales: en, zh, my, th",
   })
   @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
+  @ApiParam({
     name: "id",
     description: "ID (UUID) of the category",
     type: String,
@@ -324,8 +347,8 @@ export class CategoryController {
   @ApiSuccessResponse(String, "Category translations updated successfully.")
   async updateCategoryTranslations(
     @Req() req: RequestWithUser,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Param("id", new ParseUUIDPipe({ version: "7" })) categoryId: string,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Body() dto: UpdateCategoryTranslationsDto,
   ): Promise<StandardApiResponse<unknown>> {
     const method = this.updateCategoryTranslations.name;
@@ -350,11 +373,16 @@ export class CategoryController {
   @Delete(":id/translations/:locale")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: "Delete a specific translation for a category (OWNER or ADMIN)",
     description:
       "Remove a translation in a specific locale (en, zh, my, th) from a category",
+  })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
   })
   @ApiParam({
     name: "id",
@@ -371,9 +399,9 @@ export class CategoryController {
   @ApiSuccessResponse(String, "Category translation deleted successfully.")
   async deleteCategoryTranslation(
     @Req() req: RequestWithUser,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Param("id", new ParseUUIDPipe({ version: "7" })) categoryId: string,
     @Param("locale", ParseLocalePipe) locale: SupportedLocale,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
   ): Promise<StandardApiResponse<unknown>> {
     const method = this.deleteCategoryTranslation.name;
     const userId = req.user.sub;

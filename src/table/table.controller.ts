@@ -258,7 +258,7 @@ export class TableController {
   @Delete(":tableId")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("access-token")
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Delete a table (OWNER/ADMIN Required)" })
   @ApiParam({
     name: "storeId",

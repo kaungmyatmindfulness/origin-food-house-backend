@@ -7,8 +7,16 @@ import {
   Body,
   UseGuards,
   Req,
+  ParseUUIDPipe,
 } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiQuery,
+  ApiParam,
+  ApiBearerAuth,
+} from "@nestjs/swagger";
 
 import { OrderStatus, Role, RoutingArea } from "src/generated/prisma/client";
 
@@ -23,9 +31,10 @@ import { StandardApiResponse } from "../common/dto/standard-api-response.dto";
 /**
  * Controller for Kitchen Display System (KDS) endpoints
  */
-@ApiTags("Kitchen")
-@Controller("kitchen")
+@ApiTags("Stores / Kitchen")
+@Controller("stores/:storeId/kitchen")
 @UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class KitchenController {
   constructor(
     private readonly kitchenService: KitchenService,
@@ -36,11 +45,12 @@ export class KitchenController {
    * Get orders for kitchen display
    */
   @Get("orders")
-  @ApiOperation({ summary: "Get orders for kitchen display" })
-  @ApiQuery({
+  @ApiOperation({
+    summary: "Get orders for kitchen display (CHEF, SERVER, ADMIN, OWNER)",
+  })
+  @ApiParam({
     name: "storeId",
-    required: true,
-    description: "Store ID",
+    description: "ID (UUID) of the store",
     type: String,
   })
   @ApiQuery({
@@ -62,7 +72,7 @@ export class KitchenController {
   })
   async getOrders(
     @Req() req: RequestWithUser,
-    @Query("storeId") storeId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Query("status") status?: OrderStatus,
     @Query("routingArea") routingArea?: RoutingArea,
   ): Promise<StandardApiResponse<KitchenOrderResponseDto[]>> {
@@ -88,7 +98,20 @@ export class KitchenController {
    * Get single order details for kitchen
    */
   @Get("orders/:orderId")
-  @ApiOperation({ summary: "Get order details for kitchen display" })
+  @ApiOperation({
+    summary:
+      "Get order details for kitchen display (CHEF, SERVER, ADMIN, OWNER)",
+  })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
+  @ApiParam({
+    name: "orderId",
+    description: "ID (UUID) of the order",
+    type: String,
+  })
   @ApiResponse({
     status: 200,
     description: "Order details retrieved successfully",
@@ -96,19 +119,20 @@ export class KitchenController {
   })
   async getOrderDetails(
     @Req() req: RequestWithUser,
-    @Param("orderId") orderId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
+    @Param("orderId", new ParseUUIDPipe({ version: "7" })) orderId: string,
   ): Promise<StandardApiResponse<KitchenOrderResponseDto>> {
     const userId = req.user.sub;
-    const order = await this.kitchenService.getOrderDetails(orderId);
 
-    // Check permission after getting order to validate storeId
-    await this.authService.checkStorePermission(userId, order.storeId, [
+    // Check permission before getting order
+    await this.authService.checkStorePermission(userId, storeId, [
       Role.CHEF,
       Role.SERVER,
       Role.ADMIN,
       Role.OWNER,
     ]);
 
+    const order = await this.kitchenService.getOrderDetails(orderId);
     return StandardApiResponse.success(order);
   }
 
@@ -116,11 +140,17 @@ export class KitchenController {
    * Update order kitchen status
    */
   @Patch("orders/:orderId/status")
-  @ApiOperation({ summary: "Update order kitchen status" })
-  @ApiQuery({
+  @ApiOperation({
+    summary: "Update order kitchen status (CHEF, SERVER, ADMIN, OWNER)",
+  })
+  @ApiParam({
     name: "storeId",
-    required: true,
-    description: "Store ID",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
+  @ApiParam({
+    name: "orderId",
+    description: "ID (UUID) of the order",
     type: String,
   })
   @ApiResponse({
@@ -130,8 +160,8 @@ export class KitchenController {
   })
   async updateOrderStatus(
     @Req() req: RequestWithUser,
-    @Param("orderId") orderId: string,
-    @Query("storeId") storeId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
+    @Param("orderId", new ParseUUIDPipe({ version: "7" })) orderId: string,
     @Body() dto: UpdateKitchenStatusDto,
   ): Promise<StandardApiResponse<KitchenOrderResponseDto>> {
     const userId = req.user.sub;

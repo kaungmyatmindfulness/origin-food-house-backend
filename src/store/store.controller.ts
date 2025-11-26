@@ -202,26 +202,31 @@ export class StoreController {
     );
   }
 
-  @Post(":id/invite-assign-role")
+  @Post(":id/members")
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @ApiUnauthorizedResponse({
-    description: "Unauthorized - Invalid or missing JWT.",
-  })
+  @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary:
-      "Invite a new user or assign/update role for an existing user by email (Role permissions apply)",
+    summary: "Add store member or update existing member role (OWNER, ADMIN)",
     description:
-      "Owner can assign any role. Admin can assign STAFF/CHEF roles. If user email doesnt exist, an invite might be implicitly handled by the service (or throw error).",
+      "Invite a new user or update role for an existing user by email. Owner can assign any role. Admin can assign SERVER/CHEF/CASHIER roles.",
+  })
+  @ApiParam({
+    name: "id",
+    description: "ID (UUID) of the store",
+    type: String,
   })
   @ApiSuccessResponse(String, {
-    status: HttpStatus.OK,
-    description: "Role assigned successfully.",
+    status: HttpStatus.CREATED,
+    description: "Member added or role updated successfully.",
+  })
+  @ApiUnauthorizedResponse({
+    description: "Unauthorized - Invalid or missing JWT.",
   })
   @ApiNotFoundResponse({ description: "Store not found." })
   async inviteOrAssignRoleByEmail(
     @Req() req: RequestWithUser,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
+    @Param("id", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Body() dto: InviteOrAssignRoleDto,
   ): Promise<StandardApiResponse<unknown>> {
     const requestingUserId = req.user.sub;

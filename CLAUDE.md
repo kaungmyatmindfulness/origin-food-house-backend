@@ -392,7 +392,460 @@ async getStore(@Param('id') id: string): Promise<StoreResponseDto> {
 - ALWAYS document error responses (`@ApiNotFoundResponse`, `@ApiBadRequestResponse`, etc.)
 - ALWAYS create response DTOs (don't expose Prisma entities directly)
 
-### 8. Testing Requirements
+### 8. REST API Design Conventions
+
+**ALWAYS follow RESTful design principles for all API endpoints:**
+
+#### Resource Naming
+
+```typescript
+// ✅ CORRECT - Nouns (plural) for resource names
+@Controller('stores')         // Plural noun
+@Controller('menu-items')     // Plural noun, kebab-case
+@Controller('orders')         // Plural noun
+
+// ❌ INCORRECT - Verbs or singular forms
+@Controller('getStores')      // Verb
+@Controller('store')          // Singular
+@Controller('CreateOrder')    // Verb + PascalCase
+```
+
+#### HTTP Methods Semantic Usage
+
+**ALWAYS use HTTP methods for their intended purpose:**
+
+```typescript
+// ✅ CORRECT - Semantic HTTP method usage
+@Get('stores')                    // Read collection
+@Get('stores/:id')                // Read single resource
+@Post('stores')                   // Create new resource
+@Patch('stores/:id')              // Partial update
+@Put('stores/:id')                // Full replacement (rarely used)
+@Delete('stores/:id')             // Soft delete (updates deletedAt)
+
+// ❌ INCORRECT - Verbs in URLs
+@Post('stores/create')            // Redundant - POST already means create
+@Get('stores/getById/:id')        // Redundant - GET already means read
+@Post('stores/:id/update')        // Should be PATCH
+@Post('stores/:id/delete')        // Should be DELETE
+```
+
+#### Hierarchical Resource Relationships
+
+**ALWAYS use nested paths to show resource relationships:**
+
+```typescript
+// ✅ CORRECT - Hierarchical structure shows relationships
+@Get('stores/:storeId/menu-items')              // Menu items belong to store
+@Get('stores/:storeId/orders')                  // Orders belong to store
+@Get('orders/:orderId/items')                   // Order items belong to order
+@Get('stores/:storeId/users')                   // Store staff/members
+@Post('stores/:storeId/menu-items')             // Create item in store context
+
+// ❌ INCORRECT - Flat structure, unclear relationships
+@Get('menu-items')                              // Which store?
+@Get('menu-items/by-store/:storeId')            // Use nested route instead
+@Post('menu-items/:storeId')                    // Confusing - ID should be in path
+```
+
+**Rules for nested resources:**
+
+- Nest up to 2-3 levels maximum (avoid deep nesting)
+- Use query parameters instead of deep nesting for filtering
+- For complex relationships, consider separate endpoints
+
+```typescript
+// ✅ GOOD - 2 levels of nesting
+GET /stores/:storeId/orders/:orderId
+
+// ⚠️ ACCEPTABLE - 3 levels (maximum)
+GET /stores/:storeId/orders/:orderId/items
+
+// ❌ BAD - Too deep (4+ levels)
+GET /stores/:storeId/orders/:orderId/items/:itemId/modifiers
+// Better: GET /order-items/:itemId/modifiers
+```
+
+#### Query Parameters for Filtering, Sorting, Pagination
+
+**ALWAYS use query parameters for list operations:**
+
+```typescript
+// ✅ CORRECT - Query parameters for filtering, sorting, pagination
+@Get('stores/:storeId/menu-items')
+async getMenuItems(
+  @Param('storeId') storeId: string,
+  @Query('category') category?: string,           // Filter by category
+  @Query('isActive') isActive?: boolean,          // Filter by status
+  @Query('search') search?: string,               // Search by name
+  @Query('sortBy') sortBy?: string,               // Sort field
+  @Query('sortOrder') sortOrder?: 'asc' | 'desc', // Sort direction
+  @Query('page') page?: number,                   // Page number
+  @Query('limit') limit?: number,                 // Items per page
+) {
+  // Implementation
+}
+
+// Example requests:
+// GET /stores/abc123/menu-items?category=appetizers
+// GET /stores/abc123/menu-items?isActive=true&sortBy=price&sortOrder=asc
+// GET /stores/abc123/menu-items?page=2&limit=20
+// GET /stores/abc123/menu-items?search=pizza&category=main-course
+
+// ❌ INCORRECT - Filters in URL path
+@Get('stores/:storeId/menu-items/category/:category')  // Don't do this
+@Get('stores/:storeId/menu-items/active')              // Use ?isActive=true
+@Get('stores/:storeId/menu-items/page/:page')          // Use ?page=2
+```
+
+**Standard query parameter conventions:**
+
+```typescript
+// Pagination
+?page=1&limit=20              // Page-based pagination
+?cursor=abc123&limit=20       // Cursor-based pagination
+
+// Sorting
+?sortBy=createdAt&sortOrder=desc
+?sort=-createdAt              // Alternative: minus for descending
+
+// Filtering
+?status=ACTIVE                // Exact match
+?minPrice=10&maxPrice=50      // Range
+?tags=vegan,gluten-free       // Multiple values (comma-separated)
+
+// Search
+?search=pizza                 // Full-text search
+?q=pizza                      // Alternative query param
+
+// Field selection
+?fields=id,name,price         // Return only specific fields
+```
+
+#### Consistent Naming Convention
+
+**ALWAYS use camelCase for JSON properties (this project standard):**
+
+```typescript
+// ✅ CORRECT - camelCase for JSON properties
+export class MenuItemResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty()
+  menuCategoryId: string;  // camelCase
+
+  @ApiProperty()
+  isActive: boolean;       // camelCase
+
+  @ApiProperty()
+  createdAt: Date;         // camelCase
+
+  @ApiProperty()
+  updatedAt: Date;         // camelCase
+}
+
+// ❌ INCORRECT - snake_case or PascalCase
+export class MenuItemResponseDto {
+  menu_category_id: string;  // snake_case - don't use
+  IsActive: boolean;         // PascalCase - don't use
+  created_at: Date;          // snake_case - don't use
+}
+```
+
+**URL path conventions:**
+
+```typescript
+// ✅ CORRECT - kebab-case for URL segments
+@Controller('menu-items')
+@Controller('active-table-sessions')
+@Controller('payment-methods')
+
+// ❌ INCORRECT - camelCase or snake_case in URLs
+@Controller('menuItems')           // Don't use camelCase in URLs
+@Controller('menu_items')          // Don't use snake_case in URLs
+```
+
+#### HTTP Status Codes
+
+**ALWAYS return appropriate HTTP status codes:**
+
+```typescript
+// ✅ CORRECT - Proper status codes
+@Post('stores')
+@HttpCode(HttpStatus.CREATED)        // 201 for resource creation
+async create() { }
+
+@Get('stores/:id')
+// 200 OK by default for successful GET
+
+@Patch('stores/:id')
+// 200 OK by default for successful update
+
+@Delete('stores/:id')
+@HttpCode(HttpStatus.NO_CONTENT)    // 204 for successful deletion (no body)
+async delete() { }
+
+@Post('stores/:id/activate')
+@HttpCode(HttpStatus.OK)            // 200 for action endpoints
+async activate() { }
+
+// Error responses (handled by NestJS exception filters)
+throw new BadRequestException()     // 400 - Invalid input
+throw new UnauthorizedException()   // 401 - Not authenticated
+throw new ForbiddenException()      // 403 - Not authorized
+throw new NotFoundException()       // 404 - Resource not found
+throw new ConflictException()       // 409 - Duplicate resource
+throw new InternalServerErrorException() // 500 - Server error
+```
+
+**Common status codes:**
+
+- **2xx Success**
+  - `200 OK` - Successful GET, PATCH, PUT, or action
+  - `201 Created` - Successful POST (resource created)
+  - `204 No Content` - Successful DELETE (no response body)
+
+- **4xx Client Errors**
+  - `400 Bad Request` - Invalid input/validation error
+  - `401 Unauthorized` - Not authenticated
+  - `403 Forbidden` - Authenticated but not authorized
+  - `404 Not Found` - Resource doesn't exist
+  - `409 Conflict` - Duplicate resource or constraint violation
+  - `422 Unprocessable Entity` - Semantic validation error
+
+- **5xx Server Errors**
+  - `500 Internal Server Error` - Unexpected server error
+  - `503 Service Unavailable` - Temporary unavailability
+
+#### JSON Response Format
+
+**ALWAYS return JSON responses (NestJS default):**
+
+```typescript
+// ✅ CORRECT - Return objects directly (NestJS serializes to JSON)
+@Get('stores/:id')
+async getStore(@Param('id') id: string): Promise<StoreResponseDto> {
+  return this.storeService.findOne(id);
+}
+
+// ✅ CORRECT - Consistent success response structure
+{
+  "id": "abc123",
+  "name": "My Restaurant",
+  "slug": "my-restaurant",
+  "createdAt": "2025-01-15T10:30:00Z"
+}
+
+// ✅ CORRECT - Consistent error response structure (automatic via NestJS)
+{
+  "statusCode": 404,
+  "message": "Store with ID abc123 not found",
+  "error": "Not Found"
+}
+
+// ✅ CORRECT - List response with metadata
+{
+  "data": [
+    { "id": "1", "name": "Item 1" },
+    { "id": "2", "name": "Item 2" }
+  ],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 42,
+    "totalPages": 3
+  }
+}
+```
+
+#### API Versioning
+
+**ALWAYS prepare for versioning (future-proofing):**
+
+```typescript
+// ✅ CURRENT - No version prefix (v1 assumed)
+@Controller('stores')
+export class StoreController {}
+
+// ✅ FUTURE - Version prefix when breaking changes needed
+@Controller('v2/stores')
+export class StoreV2Controller {}
+
+// Application-level versioning setup (when needed)
+app.setGlobalPrefix('api/v1');
+
+// URLs:
+// v1: http://localhost:3000/api/v1/stores
+// v2: http://localhost:3000/api/v2/stores
+```
+
+**Versioning strategies:**
+
+1. **URL Path** (recommended for public APIs): `/api/v1/stores`
+2. **Query Parameter**: `/api/stores?version=1`
+3. **Header-based**: `Accept: application/vnd.api+json;version=1`
+
+**This project's approach:**
+
+- Currently no version prefix (implicit v1)
+- Add version prefix when breaking changes are needed
+- Keep old versions running until clients migrate
+
+#### Avoid Verbs in URLs
+
+**ALWAYS use nouns for resources, HTTP methods for actions:**
+
+```typescript
+// ✅ CORRECT - Nouns + HTTP methods
+POST   /stores                  // Create store
+GET    /stores/:id              // Get store
+PATCH  /stores/:id              // Update store
+DELETE /stores/:id              // Delete store
+
+// ✅ CORRECT - Sub-resources for actions (when necessary)
+POST   /stores/:id/publish      // Publish store (state change)
+POST   /stores/:id/archive      // Archive store (state change)
+POST   /orders/:id/cancel       // Cancel order (state change)
+POST   /payments/:id/refund     // Refund payment (business action)
+
+// ❌ INCORRECT - Verbs as resources
+POST   /createStore             // Use POST /stores
+GET    /getStoreById/:id        // Use GET /stores/:id
+POST   /updateStore/:id         // Use PATCH /stores/:id
+POST   /deleteStore/:id         // Use DELETE /stores/:id
+GET    /searchStores            // Use GET /stores?search=...
+```
+
+**When verbs are acceptable (rare exceptions):**
+
+- Actions that don't fit CRUD (e.g., `POST /orders/:id/cancel`)
+- Calculations or transformations (e.g., `POST /calculate-shipping`)
+- Batch operations (e.g., `POST /stores/batch-update`)
+
+#### Meaningful Error Format
+
+**ALWAYS return structured error responses:**
+
+```typescript
+// ✅ CORRECT - NestJS default error format (use as-is)
+{
+  "statusCode": 400,
+  "message": "Validation failed: name must be at least 3 characters",
+  "error": "Bad Request"
+}
+
+// ✅ CORRECT - Enhanced error format (for complex validations)
+{
+  "statusCode": 400,
+  "message": "Validation failed",
+  "error": "Bad Request",
+  "details": [
+    {
+      "field": "name",
+      "message": "Name must be at least 3 characters"
+    },
+    {
+      "field": "email",
+      "message": "Email must be a valid email address"
+    }
+  ]
+}
+
+// ✅ CORRECT - Business logic error
+{
+  "statusCode": 409,
+  "message": "Store with slug 'my-restaurant' already exists",
+  "error": "Conflict",
+  "errorCode": "DUPLICATE_SLUG"  // Optional: machine-readable code
+}
+```
+
+#### Stateless Requests
+
+**ALWAYS design stateless API endpoints:**
+
+```typescript
+// ✅ CORRECT - Stateless (all context in request)
+@Get('stores/:storeId/orders')
+@UseGuards(JwtAuthGuard)
+async getOrders(
+  @Param('storeId') storeId: string,
+  @GetUser('userId') userId: string,  // From JWT token
+  @Query() filters: OrderFiltersDto,
+) {
+  // All required context passed in request
+  return this.orderService.findAll(storeId, userId, filters);
+}
+
+// ❌ INCORRECT - Stateful (relies on session state)
+@Get('orders')
+async getOrders(@Session() session: any) {
+  const storeId = session.currentStore;  // Don't rely on session state
+  return this.orderService.findAll(storeId);
+}
+```
+
+**Stateless design principles:**
+
+- All authentication via JWT tokens (not server sessions)
+- All required context in request (URL params, query params, body, headers)
+- No server-side state between requests
+- Session tokens for guest cart/order flow (exception: client-managed state)
+
+#### HATEOAS (Optional)
+
+**HATEOAS (Hypermedia as the Engine of Application State) is OPTIONAL in this project:**
+
+```typescript
+// ✅ OPTIONAL - HATEOAS links (not required)
+{
+  "id": "abc123",
+  "name": "My Restaurant",
+  "_links": {
+    "self": { "href": "/stores/abc123" },
+    "menu-items": { "href": "/stores/abc123/menu-items" },
+    "orders": { "href": "/stores/abc123/orders" },
+    "update": { "href": "/stores/abc123", "method": "PATCH" },
+    "delete": { "href": "/stores/abc123", "method": "DELETE" }
+  }
+}
+
+// ✅ STANDARD - Simple response (preferred)
+{
+  "id": "abc123",
+  "name": "My Restaurant",
+  "slug": "my-restaurant"
+}
+```
+
+**HATEOAS guidelines:**
+
+- NOT required for internal APIs or mobile apps
+- Consider for public APIs consumed by unknown clients
+- Adds complexity - only use if clients benefit from discoverability
+- This project: Simple responses (no HATEOAS) for now
+
+#### REST API Checklist
+
+Before marking API endpoints complete:
+
+- [ ] Resource names are nouns (plural form)
+- [ ] HTTP methods used semantically (GET/POST/PATCH/DELETE)
+- [ ] Nested paths show resource relationships
+- [ ] Query parameters for filtering/sorting/pagination
+- [ ] camelCase for JSON properties, kebab-case for URL paths
+- [ ] Appropriate HTTP status codes returned
+- [ ] JSON response format (default)
+- [ ] No verbs in URL paths (except necessary actions)
+- [ ] Structured error responses with context
+- [ ] Stateless design (all context in request)
+- [ ] Swagger documentation for all endpoints
+
+### 9. Testing Requirements
 
 **ALWAYS write tests for new code (target: 85% coverage):**
 
@@ -1786,6 +2239,7 @@ Before marking ANY task complete:
 - [ ] Swagger documentation added
 - [ ] JSDoc comments on public methods
 - [ ] No security vulnerabilities introduced
+- [ ] REST API conventions followed (nouns, HTTP methods, proper status codes)
 
 **If ANY item fails, the task is NOT complete.**
 
@@ -2071,6 +2525,19 @@ Before marking ANY task complete, verify ALL of the following:
 - [ ] Input validation with class-validator decorators
 - [ ] No SQL injection vulnerabilities (Prisma parameterized queries)
 - [ ] Sensitive data not exposed in responses
+
+### REST API Conventions
+
+- [ ] Resource names are nouns (plural form)
+- [ ] HTTP methods used semantically (GET/POST/PATCH/DELETE)
+- [ ] Nested paths show resource relationships
+- [ ] Query parameters for filtering/sorting/pagination
+- [ ] camelCase for JSON properties, kebab-case for URL paths
+- [ ] Appropriate HTTP status codes returned
+- [ ] JSON response format (default)
+- [ ] No verbs in URL paths (except necessary actions)
+- [ ] Structured error responses with context
+- [ ] Stateless design (all context in request)
 
 ### Documentation & Logging
 

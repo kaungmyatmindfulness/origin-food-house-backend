@@ -5,8 +5,17 @@ import {
   UseGuards,
   BadRequestException,
   Req,
+  Param,
+  ParseUUIDPipe,
 } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiQuery,
+  ApiParam,
+  ApiBearerAuth,
+} from "@nestjs/swagger";
 
 import { Role } from "src/generated/prisma/client";
 
@@ -24,9 +33,10 @@ import { StandardApiResponse } from "../common/dto/standard-api-response.dto";
  * Controller for analytics and reporting endpoints
  * Only accessible by OWNER and ADMIN roles
  */
-@ApiTags("Reports")
-@Controller("reports")
+@ApiTags("Stores / Reports")
+@Controller("stores/:storeId/reports")
 @UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class ReportController {
   constructor(
     private readonly reportService: ReportService,
@@ -37,11 +47,10 @@ export class ReportController {
    * Get sales summary report
    */
   @Get("sales-summary")
-  @ApiOperation({ summary: "Get sales summary report" })
-  @ApiQuery({
+  @ApiOperation({ summary: "Get sales summary report (OWNER, ADMIN)" })
+  @ApiParam({
     name: "storeId",
-    required: true,
-    description: "Store ID",
+    description: "ID (UUID) of the store",
     type: String,
   })
   @ApiQuery({
@@ -65,7 +74,7 @@ export class ReportController {
   })
   async getSalesSummary(
     @Req() req: RequestWithUser,
-    @Query("storeId") storeId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Query("startDate") startDateStr: string,
     @Query("endDate") endDateStr: string,
   ): Promise<StandardApiResponse<SalesSummaryDto>> {
@@ -95,11 +104,12 @@ export class ReportController {
    * Get payment method breakdown report
    */
   @Get("payment-breakdown")
-  @ApiOperation({ summary: "Get payment method breakdown report" })
-  @ApiQuery({
+  @ApiOperation({
+    summary: "Get payment method breakdown report (OWNER, ADMIN)",
+  })
+  @ApiParam({
     name: "storeId",
-    required: true,
-    description: "Store ID",
+    description: "ID (UUID) of the store",
     type: String,
   })
   @ApiQuery({
@@ -123,7 +133,7 @@ export class ReportController {
   })
   async getPaymentBreakdown(
     @Req() req: RequestWithUser,
-    @Query("storeId") storeId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Query("startDate") startDateStr: string,
     @Query("endDate") endDateStr: string,
   ): Promise<StandardApiResponse<PaymentBreakdownDto>> {
@@ -153,11 +163,10 @@ export class ReportController {
    * Get popular menu items report
    */
   @Get("popular-items")
-  @ApiOperation({ summary: "Get popular menu items report" })
-  @ApiQuery({
+  @ApiOperation({ summary: "Get popular menu items report (OWNER, ADMIN)" })
+  @ApiParam({
     name: "storeId",
-    required: true,
-    description: "Store ID",
+    description: "ID (UUID) of the store",
     type: String,
   })
   @ApiQuery({
@@ -188,7 +197,7 @@ export class ReportController {
   })
   async getPopularItems(
     @Req() req: RequestWithUser,
-    @Query("storeId") storeId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Query("limit") limitStr?: string,
     @Query("startDate") startDateStr?: string,
     @Query("endDate") endDateStr?: string,
@@ -226,11 +235,12 @@ export class ReportController {
    * Get order status distribution report
    */
   @Get("order-status")
-  @ApiOperation({ summary: "Get order status distribution report" })
-  @ApiQuery({
+  @ApiOperation({
+    summary: "Get order status distribution report (OWNER, ADMIN)",
+  })
+  @ApiParam({
     name: "storeId",
-    required: true,
-    description: "Store ID",
+    description: "ID (UUID) of the store",
     type: String,
   })
   @ApiQuery({
@@ -254,7 +264,7 @@ export class ReportController {
   })
   async getOrderStatusReport(
     @Req() req: RequestWithUser,
-    @Query("storeId") storeId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Query("startDate") startDateStr: string,
     @Query("endDate") endDateStr: string,
   ): Promise<StandardApiResponse<OrderStatusReportDto>> {

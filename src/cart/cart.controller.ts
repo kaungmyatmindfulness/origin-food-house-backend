@@ -134,7 +134,7 @@ export class CartController {
   }
 
   @Delete("items/:cartItemId")
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Remove item from cart" })
   @ApiQuery({ name: "sessionId", description: "Active table session ID" })
   @ApiParam({ name: "cartItemId", description: "Cart item ID" })
@@ -168,7 +168,7 @@ export class CartController {
   }
 
   @Delete()
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Clear all items from cart" })
   @ApiQuery({ name: "sessionId", description: "Active table session ID" })
   @ApiHeader({

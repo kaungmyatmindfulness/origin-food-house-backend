@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
   Req,
+  ParseUUIDPipe,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -22,6 +23,8 @@ import { RequestWithUser } from "src/auth/types";
 import { GetUser } from "src/common/decorators/get-user.decorator";
 import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
 import { ActiveTableSession } from "src/generated/prisma/client";
+import { OrderResponseDto } from "src/order/dto/order-response.dto";
+import { OrderService } from "src/order/order.service";
 
 import { ActiveTableSessionService } from "./active-table-session.service";
 import { CreateManualSessionDto } from "./dto/create-manual-session.dto";
@@ -34,7 +37,10 @@ import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 @ApiTags("Active Table Sessions")
 @Controller("active-table-sessions")
 export class ActiveTableSessionController {
-  constructor(private readonly sessionService: ActiveTableSessionService) {}
+  constructor(
+    private readonly sessionService: ActiveTableSessionService,
+    private readonly orderService: OrderService,
+  ) {}
 
   /**
    * Helper: Maps session to response DTO WITHOUT session token (security)
@@ -211,5 +217,29 @@ export class ActiveTableSessionController {
   ): Promise<StandardApiResponse<SessionResponseDto>> {
     const session = await this.sessionService.close(sessionId, userId);
     return StandardApiResponse.success(this.mapToSessionResponse(session));
+  }
+
+  @Get(":sessionId/orders")
+  @ApiOperation({
+    summary: "Get all orders for a session (SOS - Self-Order System)",
+    description:
+      "Retrieves all orders associated with an active table session. Public endpoint for customers.",
+  })
+  @ApiParam({
+    name: "sessionId",
+    description: "Active table session ID",
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Orders retrieved successfully",
+    type: [OrderResponseDto],
+  })
+  @ApiResponse({ status: 404, description: "Session not found" })
+  async getSessionOrders(
+    @Param("sessionId", new ParseUUIDPipe({ version: "7" })) sessionId: string,
+  ): Promise<StandardApiResponse<OrderResponseDto[]>> {
+    const orders = await this.orderService.findBySession(sessionId);
+    return StandardApiResponse.success(orders);
   }
 }

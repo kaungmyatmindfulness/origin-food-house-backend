@@ -11,7 +11,6 @@ import {
   Patch,
   Post,
   Put,
-  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -21,7 +20,6 @@ import {
   ApiExtraModels,
   ApiOperation,
   ApiParam,
-  ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
 
@@ -54,8 +52,8 @@ import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { UseTierLimit } from "../common/decorators/tier-limit.decorator";
 import { TierLimitGuard } from "../common/guards/tier-limit.guard";
 
-@ApiTags("Menu")
-@Controller("menu-items")
+@ApiTags("Stores / Menu Items")
+@Controller("stores/:storeId/menu-items")
 @ApiExtraModels(
   MenuItemDeletedResponseDto,
   MenuItemResponseDto,
@@ -72,20 +70,17 @@ export class MenuController {
 
   @Get()
   @ApiOperation({ summary: "Get all menu items for a specific store (Public)" })
-  @ApiQuery({
+  @ApiParam({
     name: "storeId",
-    required: true,
+    description: "ID (UUID) of the store",
     type: String,
-    format: "uuid",
-    description: "ID (UUID) of the store whose menu items to fetch",
-    example: "018ebc9a-7e1c-7f5e-b48a-3f4f72c55a1e",
   })
   @ApiSuccessResponse(MenuItemResponseDto, {
     isArray: true,
     description: "List of menu items retrieved successfully.",
   })
   async getStoreMenuItems(
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
   ): Promise<StandardApiResponse<MenuItemModel[]>> {
     const method = this.getStoreMenuItems.name;
     this.logger.log(`[${method}] Fetching menu items for Store ${storeId}`);
@@ -99,15 +94,28 @@ export class MenuController {
 
   @Get(":id")
   @ApiOperation({ summary: "Get a single menu item by ID (Public)" })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
+  @ApiParam({
+    name: "id",
+    description: "ID (UUID) of the menu item",
+    type: String,
+  })
   @ApiSuccessResponse(
     MenuItemResponseDto,
     "Menu item details retrieved successfully.",
   )
   async getMenuItemById(
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Param("id", new ParseUUIDPipe({ version: "7" })) itemId: string,
   ): Promise<StandardApiResponse<MenuItemModel>> {
     const method = this.getMenuItemById.name;
-    this.logger.log(`[${method}] Fetching menu item by ID ${itemId}`);
+    this.logger.log(
+      `[${method}] Fetching menu item ${itemId} from Store ${storeId}`,
+    );
     const item = await this.menuService.getMenuItemById(itemId);
     return StandardApiResponse.success(
       item,
@@ -121,13 +129,18 @@ export class MenuController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Create a menu item (OWNER or ADMIN)" })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
   @ApiSuccessResponse(String, {
     status: HttpStatus.CREATED,
     description: "Menu item created successfully.",
   })
   async createMenuItem(
     @Req() req: RequestWithUser,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Body() dto: CreateMenuItemDto,
   ): Promise<StandardApiResponse<MenuItemModel>> {
     const method = this.createMenuItem.name;
@@ -147,13 +160,23 @@ export class MenuController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Update a menu item (OWNER or ADMIN)" })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
+  @ApiParam({
+    name: "id",
+    description: "ID (UUID) of the menu item",
+    type: String,
+  })
   @ApiSuccessResponse(MenuItemResponseDto, {
     description: "Menu item updated successfully.",
   })
   async updateMenuItem(
     @Req() req: RequestWithUser,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Param("id", new ParseUUIDPipe({ version: "7" })) itemId: string,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Body() dto: UpdateMenuItemDto,
   ): Promise<StandardApiResponse<MenuItemModel>> {
     const method = this.updateMenuItem.name;
@@ -179,13 +202,23 @@ export class MenuController {
   @ApiOperation({
     summary: "Partially update a menu item (OWNER, ADMIN, or CHEF)",
   })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
+  @ApiParam({
+    name: "id",
+    description: "ID (UUID) of the menu item",
+    type: String,
+  })
   @ApiSuccessResponse(MenuItemResponseDto, {
     description: "Menu item updated successfully.",
   })
   async patchMenuItem(
     @Req() req: RequestWithUser,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Param("id", new ParseUUIDPipe({ version: "7" })) itemId: string,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Body() dto: PatchMenuItemDto,
   ): Promise<StandardApiResponse<MenuItemModel>> {
     const method = this.patchMenuItem.name;
@@ -208,16 +241,26 @@ export class MenuController {
   @Delete(":id")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Delete a menu item (OWNER or ADMIN)" })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
+  @ApiParam({
+    name: "id",
+    description: "ID (UUID) of the menu item",
+    type: String,
+  })
   @ApiSuccessResponse(
     MenuItemDeletedResponseDto,
     "Menu item deleted successfully.",
   )
   async deleteMenuItem(
     @Req() req: RequestWithUser,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Param("id", new ParseUUIDPipe({ version: "7" })) itemId: string,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
   ): Promise<StandardApiResponse<unknown>> {
     const method = this.deleteMenuItem.name;
     const userId = req.user.sub;
@@ -249,6 +292,16 @@ export class MenuController {
     summary: "Update menu item translations (OWNER or ADMIN)",
     description:
       "Add or update translations for a menu item. Supports multiple locales: en, zh, my, th",
+  })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
+  @ApiParam({
+    name: "id",
+    description: "ID (UUID) of the menu item",
+    type: String,
   })
   @ApiBody({
     type: UpdateMenuItemTranslationsDto,
@@ -284,8 +337,8 @@ export class MenuController {
   @ApiSuccessResponse(String, "Menu item translations updated successfully.")
   async updateMenuItemTranslations(
     @Req() req: RequestWithUser,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Param("id", new ParseUUIDPipe({ version: "7" })) itemId: string,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Body() dto: UpdateMenuItemTranslationsDto,
   ): Promise<StandardApiResponse<unknown>> {
     const method = this.updateMenuItemTranslations.name;
@@ -310,11 +363,21 @@ export class MenuController {
   @Delete(":id/translations/:locale")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: "Delete a specific translation for a menu item (OWNER or ADMIN)",
     description:
       "Remove a translation in a specific locale (en, zh, my, th) from a menu item",
+  })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
+  @ApiParam({
+    name: "id",
+    description: "ID (UUID) of the menu item",
+    type: String,
   })
   @ApiParam({
     name: "locale",
@@ -325,9 +388,9 @@ export class MenuController {
   @ApiSuccessResponse(String, "Menu item translation deleted successfully.")
   async deleteMenuItemTranslation(
     @Req() req: RequestWithUser,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Param("id", new ParseUUIDPipe({ version: "7" })) itemId: string,
     @Param("locale", ParseLocalePipe) locale: SupportedLocale,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
   ): Promise<StandardApiResponse<unknown>> {
     const method = this.deleteMenuItemTranslation.name;
     const userId = req.user.sub;
@@ -352,8 +415,8 @@ export class MenuController {
 /**
  * Controller for customization group and option translations
  */
-@ApiTags("Menu - Customizations")
-@Controller("customizations")
+@ApiTags("Stores / Menu - Customizations")
+@Controller("stores/:storeId/customizations")
 export class CustomizationController {
   private readonly logger = new Logger(CustomizationController.name);
 
@@ -368,14 +431,24 @@ export class CustomizationController {
     description:
       "Add or update translations for a customization group (e.g., 'Size', 'Spice Level')",
   })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
+  @ApiParam({
+    name: "id",
+    description: "ID (UUID) of the customization group",
+    type: String,
+  })
   @ApiSuccessResponse(
     String,
     "Customization group translations updated successfully.",
   )
   async updateGroupTranslations(
     @Req() req: RequestWithUser,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Param("id", new ParseUUIDPipe({ version: "7" })) groupId: string,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Body() dto: UpdateCustomizationGroupTranslationsDto,
   ): Promise<StandardApiResponse<unknown>> {
     const method = this.updateGroupTranslations.name;
@@ -406,14 +479,24 @@ export class CustomizationController {
     description:
       "Add or update translations for a customization option (e.g., 'Large', 'Spicy')",
   })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
+  @ApiParam({
+    name: "id",
+    description: "ID (UUID) of the customization option",
+    type: String,
+  })
   @ApiSuccessResponse(
     String,
     "Customization option translations updated successfully.",
   )
   async updateOptionTranslations(
     @Req() req: RequestWithUser,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Param("id", new ParseUUIDPipe({ version: "7" })) optionId: string,
-    @Query("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Body() dto: UpdateCustomizationOptionTranslationsDto,
   ): Promise<StandardApiResponse<unknown>> {
     const method = this.updateOptionTranslations.name;

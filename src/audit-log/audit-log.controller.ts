@@ -7,8 +7,15 @@ import {
   Logger,
   Header,
   Res,
+  ParseUUIDPipe,
 } from "@nestjs/common";
-import { ApiTags, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiParam,
+  ApiOperation,
+} from "@nestjs/swagger";
 import { Response } from "express";
 
 import { AuditAction, Role } from "src/generated/prisma/client";
@@ -18,8 +25,10 @@ import { AuthService } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { GetUser } from "../common/decorators/get-user.decorator";
 
-@ApiTags("Audit Logs")
-@Controller("audit-logs")
+@ApiTags("Stores / Audit Logs")
+@Controller("stores/:storeId/audit-logs")
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class AuditLogController {
   private readonly logger = new Logger(AuditLogController.name);
 
@@ -38,16 +47,20 @@ export class AuditLogController {
    * @param userId Filter by user ID
    * @returns Paginated audit logs
    */
-  @Get(":storeId")
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @Get()
+  @ApiOperation({ summary: "Get audit logs for a store (OWNER only)" })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiQuery({ name: "action", required: false, enum: AuditAction })
   @ApiQuery({ name: "userId", required: false, type: String })
   async getStoreAuditLogs(
     @GetUser("sub") currentUserId: string,
-    @Param("storeId") storeId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Query("page") page?: string,
     @Query("limit") limit?: string,
     @Query("action") action?: AuditAction,
@@ -88,9 +101,13 @@ export class AuditLogController {
    * @param res Response object for streaming CSV
    * @returns CSV file download
    */
-  @Get(":storeId/export")
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @Get("export")
+  @ApiOperation({ summary: "Export audit logs to CSV (OWNER only)" })
+  @ApiParam({
+    name: "storeId",
+    description: "ID (UUID) of the store",
+    type: String,
+  })
   @Header("Content-Type", "text/csv")
   @ApiQuery({ name: "action", required: false, enum: AuditAction })
   @ApiQuery({ name: "userId", required: false, type: String })
@@ -98,7 +115,7 @@ export class AuditLogController {
   @ApiQuery({ name: "endDate", required: false, type: String })
   async exportAuditLogs(
     @GetUser("sub") currentUserId: string,
-    @Param("storeId") storeId: string,
+    @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Query("action") action?: AuditAction,
     @Query("userId") userId?: string,
     @Query("startDate") startDate?: string,
