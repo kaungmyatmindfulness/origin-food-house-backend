@@ -3,13 +3,9 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { StoreTier, Tier } from "src/generated/prisma/client";
 
 import { CacheService } from "../common/cache/cache.service";
+import { getErrorDetails } from "../common/utils/error.util";
 import { PrismaService } from "../prisma/prisma.service";
-import {
-  StoreUsageDto,
-  ResourceUsageDto,
-  UsageBreakdownDto,
-  FeatureAccessDto,
-} from "./dto/store-usage.dto";
+import { ResourceUsageDto, StoreUsageDto } from "./dto/store-usage.dto";
 
 /**
  * Tier limits configuration
@@ -91,10 +87,48 @@ export class TierService {
     } catch (error) {
       this.logger.error(
         `[${method}] Error fetching tier for store ${storeId}`,
-        error instanceof Error ? error.stack : String(error),
+        getErrorDetails(error),
       );
       throw error;
     }
+  }
+
+  /**
+   * Get store tier or throw NotFoundException
+   * Helper to reduce code duplication across methods
+   * @private
+   * @param storeId Store ID
+   * @param methodName Name of the calling method for logging
+   * @returns StoreTier object
+   * @throws {NotFoundException} If tier not found for store
+   */
+  private async getStoreTierOrThrow(
+    storeId: string,
+    methodName: string,
+  ): Promise<StoreTier> {
+    const storeTier = await this.getStoreTier(storeId);
+    if (!storeTier) {
+      this.logger.warn(`[${methodName}] Store tier not found for ${storeId}`);
+      throw new NotFoundException(`Store tier not found for ${storeId}`);
+    }
+    return storeTier;
+  }
+
+  /**
+   * Create a ResourceUsageDto instance with proper percentage calculation
+   * @private
+   * @param current Current usage count
+   * @param limit Maximum allowed by tier
+   * @returns ResourceUsageDto instance
+   */
+  private createResourceUsage(
+    current: number,
+    limit: number,
+  ): ResourceUsageDto {
+    const dto = new ResourceUsageDto();
+    dto.current = current;
+    dto.limit = limit;
+    return dto;
   }
 
   /**
@@ -116,11 +150,7 @@ export class TierService {
       }
 
       // Get tier information
-      const tier = await this.getStoreTier(storeId);
-      if (!tier) {
-        throw new NotFoundException(`Store tier not found for ${storeId}`);
-      }
-
+      const tier = await this.getStoreTierOrThrow(storeId, method);
       const limits = TIER_LIMITS[tier.tier];
 
       // Calculate usage (run in parallel for performance)
@@ -136,28 +166,22 @@ export class TierService {
       const usage: StoreUsageDto = {
         tier: tier.tier,
         usage: {
-          tables: {
-            current: tableCount,
-            limit: limits.maxTables,
-          } as ResourceUsageDto,
-          menuItems: {
-            current: menuItemCount,
-            limit: limits.maxMenuItems,
-          } as ResourceUsageDto,
-          staff: {
-            current: staffCount,
-            limit: limits.maxStaff,
-          } as ResourceUsageDto,
-          monthlyOrders: {
-            current: orderCount,
-            limit: limits.maxMonthlyOrders,
-          } as ResourceUsageDto,
-        } as UsageBreakdownDto,
+          tables: this.createResourceUsage(tableCount, limits.maxTables),
+          menuItems: this.createResourceUsage(
+            menuItemCount,
+            limits.maxMenuItems,
+          ),
+          staff: this.createResourceUsage(staffCount, limits.maxStaff),
+          monthlyOrders: this.createResourceUsage(
+            orderCount,
+            limits.maxMonthlyOrders,
+          ),
+        },
         features: {
           kds: limits.features.kds,
           loyalty: limits.features.loyalty,
           advancedReports: limits.features.advancedReports,
-        } as FeatureAccessDto,
+        },
       };
 
       // Cache for 5 minutes
@@ -170,7 +194,7 @@ export class TierService {
     } catch (error) {
       this.logger.error(
         `[${method}] Error calculating usage for store ${storeId}`,
-        error instanceof Error ? error.stack : String(error),
+        getErrorDetails(error),
       );
       throw error;
     }
@@ -214,10 +238,7 @@ export class TierService {
 
     try {
       // Get tier
-      const storeTier = await this.getStoreTier(storeId);
-      if (!storeTier) {
-        throw new NotFoundException(`Store tier not found for ${storeId}`);
-      }
+      const storeTier = await this.getStoreTierOrThrow(storeId, method);
 
       // Get current usage
       const usage = await this.getStoreUsage(storeId);
@@ -241,7 +262,7 @@ export class TierService {
     } catch (error) {
       this.logger.error(
         `[${method}] Error checking tier limit for store ${storeId}, resource: ${resource}`,
-        error instanceof Error ? error.stack : String(error),
+        getErrorDetails(error),
       );
       throw error;
     }
@@ -260,11 +281,7 @@ export class TierService {
     const method = this.hasFeatureAccess.name;
 
     try {
-      const storeTier = await this.getStoreTier(storeId);
-      if (!storeTier) {
-        throw new NotFoundException(`Store tier not found for ${storeId}`);
-      }
-
+      const storeTier = await this.getStoreTierOrThrow(storeId, method);
       const hasAccess = TIER_LIMITS[storeTier.tier].features[feature];
 
       this.logger.log(
@@ -275,7 +292,7 @@ export class TierService {
     } catch (error) {
       this.logger.error(
         `[${method}] Error checking feature access for store ${storeId}, feature: ${feature}`,
-        error instanceof Error ? error.stack : String(error),
+        getErrorDetails(error),
       );
       throw error;
     }
@@ -298,7 +315,7 @@ export class TierService {
     } catch (error) {
       this.logger.error(
         `[${method}] Error invalidating cache for store ${storeId}`,
-        error instanceof Error ? error.stack : String(error),
+        getErrorDetails(error),
       );
       // Don't throw - cache invalidation failure shouldn't break the app
     }

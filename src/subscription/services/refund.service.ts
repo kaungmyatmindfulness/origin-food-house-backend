@@ -1,9 +1,9 @@
 import {
-  Injectable,
   BadRequestException,
-  NotFoundException,
-  Logger,
+  Injectable,
   InternalServerErrorException,
+  Logger,
+  NotFoundException,
 } from "@nestjs/common";
 
 import {
@@ -18,6 +18,12 @@ import { AuditLogService } from "../../audit-log/audit-log.service";
 import { getErrorDetails } from "../../common/utils/error.util";
 import { PrismaService } from "../../prisma/prisma.service";
 
+/** HTTP exceptions that should be re-thrown without wrapping */
+type HttpException =
+  | BadRequestException
+  | NotFoundException
+  | InternalServerErrorException;
+
 @Injectable()
 export class RefundService {
   private readonly logger = new Logger(RefundService.name);
@@ -28,18 +34,77 @@ export class RefundService {
     private readonly auditLogService: AuditLogService,
   ) {}
 
+  /**
+   * Checks if error is an HTTP exception that should be re-thrown
+   */
+  private isHttpException(error: unknown): error is HttpException {
+    return (
+      error instanceof BadRequestException ||
+      error instanceof NotFoundException ||
+      error instanceof InternalServerErrorException
+    );
+  }
+
+  /**
+   * Checks if error is a Prisma "record not found" error (P2025)
+   */
+  private isPrismaNotFoundError(
+    error: unknown,
+  ): error is Prisma.PrismaClientKnownRequestError {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    );
+  }
+
+  /**
+   * Handles errors consistently across all methods
+   * Re-throws HTTP exceptions, converts Prisma P2025 to NotFoundException,
+   * and wraps other errors in InternalServerErrorException
+   */
+  private handleError(
+    error: unknown,
+    methodName: string,
+    notFoundMessage: string,
+    fallbackMessage: string,
+  ): never {
+    if (this.isHttpException(error)) {
+      throw error;
+    }
+
+    if (this.isPrismaNotFoundError(error)) {
+      throw new NotFoundException(notFoundMessage);
+    }
+
+    const { stack } = getErrorDetails(error);
+    this.logger.error(`[${methodName}] ${fallbackMessage}`, stack);
+    throw new InternalServerErrorException(fallbackMessage);
+  }
+
+  /**
+   * Creates a refund request for a specific transaction
+   * @param userId - User requesting the refund
+   * @param subscriptionId - Subscription ID
+   * @param transactionId - Transaction to refund
+   * @param reason - Reason for refund request
+   * @param skipValidation - Skip eligibility validation (used when called from createRefundRequest)
+   * @returns Created refund request
+   */
   async requestRefund(
     userId: string,
     subscriptionId: string,
     transactionId: string,
     reason: string,
+    skipValidation = false,
   ): Promise<RefundRequest> {
     const method = this.requestRefund.name;
     this.logger.log(
       `[${method}] User ${userId} requesting refund for transaction ${transactionId}`,
     );
 
-    await this.validateRefundEligibility(subscriptionId, transactionId);
+    if (!skipValidation) {
+      await this.validateRefundEligibility(subscriptionId, transactionId);
+    }
 
     try {
       const transaction =
@@ -80,19 +145,22 @@ export class RefundService {
 
       return refundRequest;
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2025"
-      ) {
-        throw new NotFoundException("Transaction not found");
-      }
-
-      const { stack } = getErrorDetails(error);
-      this.logger.error(`[${method}] Failed to create refund request`, stack);
-      throw new InternalServerErrorException("Failed to request refund");
+      this.handleError(
+        error,
+        method,
+        "Transaction not found",
+        "Failed to request refund",
+      );
     }
   }
 
+  /**
+   * Validates whether a transaction is eligible for refund
+   * @param subscriptionId - Subscription ID to validate against
+   * @param transactionId - Transaction ID to check eligibility
+   * @throws BadRequestException if transaction is not eligible
+   * @throws NotFoundException if transaction not found
+   */
   async validateRefundEligibility(
     subscriptionId: string,
     transactionId: string,
@@ -140,9 +208,13 @@ export class RefundService {
         );
       }
 
+      const { processedAt } = transaction;
+      if (!processedAt) {
+        throw new BadRequestException("Transaction has not been processed yet");
+      }
+
       const daysSincePayment = Math.floor(
-        (Date.now() - transaction.processedAt.getTime()) /
-          (1000 * 60 * 60 * 24),
+        (Date.now() - processedAt.getTime()) / (1000 * 60 * 60 * 24),
       );
 
       if (daysSincePayment > this.REFUND_WINDOW_DAYS) {
@@ -155,28 +227,22 @@ export class RefundService {
         `[${method}] Transaction eligible for refund (${daysSincePayment} days old)`,
       );
     } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2025"
-      ) {
-        throw new NotFoundException("Transaction not found");
-      }
-
-      const { stack } = getErrorDetails(error);
-      this.logger.error(
-        `[${method}] Failed to validate refund eligibility`,
-        stack,
-      );
-      throw new InternalServerErrorException(
+      this.handleError(
+        error,
+        method,
+        "Transaction not found",
         "Failed to validate refund eligibility",
       );
     }
   }
 
+  /**
+   * Approves a refund request
+   * @param adminId - Admin user ID approving the request
+   * @param refundRequestId - Refund request ID
+   * @param approvalNotes - Optional notes for approval
+   * @returns Updated refund request
+   */
   async approveRefund(
     adminId: string,
     refundRequestId: string,
@@ -218,19 +284,22 @@ export class RefundService {
 
       return refundRequest;
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2025"
-      ) {
-        throw new NotFoundException("Refund request not found");
-      }
-
-      const { stack } = getErrorDetails(error);
-      this.logger.error(`[${method}] Failed to approve refund request`, stack);
-      throw new InternalServerErrorException("Failed to approve refund");
+      this.handleError(
+        error,
+        method,
+        "Refund request not found",
+        "Failed to approve refund",
+      );
     }
   }
 
+  /**
+   * Rejects a refund request
+   * @param adminId - Admin user ID rejecting the request
+   * @param refundRequestId - Refund request ID
+   * @param rejectionReason - Reason for rejection
+   * @returns Updated refund request
+   */
   async rejectRefund(
     adminId: string,
     refundRequestId: string,
@@ -271,19 +340,23 @@ export class RefundService {
 
       return refundRequest;
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2025"
-      ) {
-        throw new NotFoundException("Refund request not found");
-      }
-
-      const { stack } = getErrorDetails(error);
-      this.logger.error(`[${method}] Failed to reject refund request`, stack);
-      throw new InternalServerErrorException("Failed to reject refund");
+      this.handleError(
+        error,
+        method,
+        "Refund request not found",
+        "Failed to reject refund",
+      );
     }
   }
 
+  /**
+   * Processes an approved refund request
+   * Creates a refund transaction and downgrades subscription to FREE tier
+   * @param financeId - Finance user ID processing the refund
+   * @param refundRequestId - Refund request ID
+   * @param refundMethod - Method used for refund (e.g., "bank_transfer")
+   * @param refundProofPath - Optional path to refund proof document
+   */
   async processRefund(
     financeId: string,
     refundRequestId: string,
@@ -367,23 +440,22 @@ export class RefundService {
         `[${method}] Refund processed successfully: ${refundRequestId}`,
       );
     } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2025"
-      ) {
-        throw new NotFoundException("Refund request not found");
-      }
-
-      const { stack } = getErrorDetails(error);
-      this.logger.error(`[${method}] Failed to process refund`, stack);
-      throw new InternalServerErrorException("Failed to process refund");
+      this.handleError(
+        error,
+        method,
+        "Refund request not found",
+        "Failed to process refund",
+      );
     }
   }
 
+  /**
+   * Creates a refund request for the latest payment transaction of a subscription
+   * @param userId - User requesting the refund
+   * @param subscriptionId - Subscription ID
+   * @param reason - Reason for refund request
+   * @returns Created refund request
+   */
   async createRefundRequest(
     userId: string,
     subscriptionId: string,
@@ -419,16 +491,19 @@ export class RefundService {
         throw new BadRequestException("No payment found for this subscription");
       }
 
+      // Validate eligibility first
       await this.validateRefundEligibility(
         subscriptionId,
         latestTransaction.id,
       );
 
+      // Skip validation in requestRefund since we already validated above
       const refundRequest = await this.requestRefund(
         userId,
         subscriptionId,
         latestTransaction.id,
         reason,
+        true, // skipValidation
       );
 
       this.logger.log(
@@ -437,19 +512,20 @@ export class RefundService {
 
       return refundRequest;
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-
-      const { stack } = getErrorDetails(error);
-      this.logger.error(`[${method}] Failed to create refund request`, stack);
-      throw new InternalServerErrorException("Failed to create refund request");
+      this.handleError(
+        error,
+        method,
+        "Subscription not found",
+        "Failed to create refund request",
+      );
     }
   }
 
+  /**
+   * Gets all refund requests for a store
+   * @param storeId - Store ID to fetch refund requests for
+   * @returns Array of refund requests, empty if no subscription exists
+   */
   async getStoreRefundRequests(storeId: string): Promise<RefundRequest[]> {
     const method = this.getStoreRefundRequests.name;
     this.logger.log(

@@ -92,10 +92,9 @@ export class OwnershipTransferService {
 
       return transfer;
     } catch (error) {
-      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to initiate ownership transfer`,
-        stack,
+        getErrorDetails(error),
       );
       throw new InternalServerErrorException(
         "Failed to initiate ownership transfer",
@@ -117,8 +116,14 @@ export class OwnershipTransferService {
       transfer = await this.prisma.ownershipTransfer.findUniqueOrThrow({
         where: { id: transferId },
       });
-    } catch (_error) {
-      throw new NotFoundException("Transfer not found");
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        throw new NotFoundException("Transfer not found");
+      }
+      throw error;
     }
 
     if (transfer.status !== TransferStatus.PENDING_OTP) {
@@ -126,24 +131,20 @@ export class OwnershipTransferService {
     }
 
     if (new Date() > transfer.otpExpiresAt) {
-      await this.prisma.ownershipTransfer.update({
-        where: { id: transferId },
-        data: {
-          status: TransferStatus.EXPIRED,
-          cancellationReason: "OTP expired",
-        },
-      });
+      await this.updateTransferStatus(
+        transferId,
+        TransferStatus.EXPIRED,
+        "OTP expired",
+      );
       throw new UnauthorizedException("OTP has expired");
     }
 
     if (transfer.otpAttempts >= this.MAX_OTP_ATTEMPTS) {
-      await this.prisma.ownershipTransfer.update({
-        where: { id: transferId },
-        data: {
-          status: TransferStatus.CANCELLED,
-          cancellationReason: "Too many failed OTP attempts",
-        },
-      });
+      await this.updateTransferStatus(
+        transferId,
+        TransferStatus.CANCELLED,
+        "Too many failed OTP attempts",
+      );
       throw new UnauthorizedException(
         "Too many failed attempts. Transfer cancelled.",
       );
@@ -168,10 +169,9 @@ export class OwnershipTransferService {
         `[${method}] Ownership transferred successfully: ${transferId}`,
       );
     } catch (error) {
-      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to complete ownership transfer`,
-        stack,
+        getErrorDetails(error),
       );
       throw error;
     }
@@ -250,10 +250,9 @@ export class OwnershipTransferService {
         throw new NotFoundException("Transfer not found");
       }
 
-      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to complete ownership transfer`,
-        stack,
+        getErrorDetails(error),
       );
       throw new InternalServerErrorException(
         "Failed to complete ownership transfer",
@@ -311,13 +310,35 @@ export class OwnershipTransferService {
         throw new NotFoundException("Transfer not found");
       }
 
-      const { stack } = getErrorDetails(error);
-      this.logger.error(`[${method}] Failed to cancel transfer`, stack);
+      this.logger.error(
+        `[${method}] Failed to cancel transfer`,
+        getErrorDetails(error),
+      );
       throw new InternalServerErrorException("Failed to cancel transfer");
     }
   }
 
   private generateOTP(): string {
     return crypto.randomInt(100000, 999999).toString();
+  }
+
+  /**
+   * Updates transfer status with cancellation reason
+   * @param transferId - ID of the transfer to update
+   * @param status - New status to set
+   * @param reason - Reason for the status change
+   */
+  private async updateTransferStatus(
+    transferId: string,
+    status: TransferStatus,
+    reason: string,
+  ): Promise<void> {
+    await this.prisma.ownershipTransfer.update({
+      where: { id: transferId },
+      data: {
+        status,
+        cancellationReason: reason,
+      },
+    });
   }
 }

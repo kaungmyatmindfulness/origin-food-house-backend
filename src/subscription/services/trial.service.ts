@@ -21,6 +21,7 @@ export class TrialService {
   private readonly logger = new Logger(TrialService.name);
   private readonly TRIAL_DURATION_DAYS = 30;
   private readonly MAX_TRIALS_PER_USER = 2;
+  private readonly MS_PER_DAY = 1000 * 60 * 60 * 24;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -46,10 +47,9 @@ export class TrialService {
 
       return canStartTrial;
     } catch (error) {
-      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to check trial eligibility for user ${userId}`,
-        stack,
+        getErrorDetails(error),
       );
       throw new InternalServerErrorException(
         "Failed to check trial eligibility",
@@ -126,10 +126,9 @@ export class TrialService {
         return subscription;
       });
     } catch (error) {
-      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to auto-grant trial for store ${storeId}`,
-        stack,
+        getErrorDetails(error),
       );
       throw new InternalServerErrorException("Failed to grant trial");
     }
@@ -157,16 +156,14 @@ export class TrialService {
 
       const now = new Date();
       const daysRemaining = Math.ceil(
-        (subscription.trialEndsAt.getTime() - now.getTime()) /
-          (1000 * 60 * 60 * 24),
+        (subscription.trialEndsAt.getTime() - now.getTime()) / this.MS_PER_DAY,
       );
 
       return Math.max(0, daysRemaining);
     } catch (error) {
-      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to get trial days remaining for store ${storeId}`,
-        stack,
+        getErrorDetails(error),
       );
       return 0;
     }
@@ -227,10 +224,9 @@ export class TrialService {
         );
       }
 
-      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to expire trial for store ${storeId}`,
-        stack,
+        getErrorDetails(error),
       );
       throw new InternalServerErrorException("Failed to expire trial");
     }
@@ -261,10 +257,9 @@ export class TrialService {
           await this.expireTrial(subscription.storeId);
           downgradeCount++;
         } catch (error) {
-          const { stack } = getErrorDetails(error);
           this.logger.error(
             `[${method}] Failed to downgrade trial for store ${subscription.storeId}`,
-            stack,
+            getErrorDetails(error),
           );
         }
       }
@@ -275,10 +270,9 @@ export class TrialService {
 
       return downgradeCount;
     } catch (error) {
-      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to auto-downgrade expired trials`,
-        stack,
+        getErrorDetails(error),
       );
       throw new InternalServerErrorException(
         "Failed to downgrade expired trials",
@@ -318,26 +312,27 @@ export class TrialService {
 
       for (const subscription of expiringTrials) {
         try {
+          const { trialEndsAt } = subscription;
+          const daysRemaining = trialEndsAt
+            ? Math.ceil((trialEndsAt.getTime() - Date.now()) / this.MS_PER_DAY)
+            : 0;
+
           await this.auditLogService.createLog({
             storeId: subscription.storeId,
             action: "TRIAL_WARNING_SENT",
             entityType: "Subscription",
             entityId: subscription.id,
             details: {
-              trialEndsAt: subscription.trialEndsAt?.toISOString(),
-              daysRemaining: Math.ceil(
-                (subscription.trialEndsAt!.getTime() - Date.now()) /
-                  (1000 * 60 * 60 * 24),
-              ),
+              trialEndsAt: trialEndsAt?.toISOString() ?? null,
+              daysRemaining,
             },
           });
 
           warningCount++;
         } catch (error) {
-          const { stack } = getErrorDetails(error);
           this.logger.error(
             `[${method}] Failed to log trial warning for store ${subscription.storeId}`,
-            stack,
+            getErrorDetails(error),
           );
         }
       }
@@ -348,8 +343,10 @@ export class TrialService {
 
       return warningCount;
     } catch (error) {
-      const { stack } = getErrorDetails(error);
-      this.logger.error(`[${method}] Failed to send trial warnings`, stack);
+      this.logger.error(
+        `[${method}] Failed to send trial warnings`,
+        getErrorDetails(error),
+      );
       throw new InternalServerErrorException("Failed to send trial warnings");
     }
   }
@@ -408,10 +405,9 @@ export class TrialService {
         canStartTrial: !subscription.isTrialUsed,
       };
     } catch (error) {
-      const { stack } = getErrorDetails(error);
       this.logger.error(
         `[${method}] Failed to get trial info for store ${storeId}`,
-        stack,
+        getErrorDetails(error),
       );
       throw new InternalServerErrorException("Failed to get trial info");
     }
