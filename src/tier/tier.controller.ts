@@ -6,27 +6,24 @@ import {
   Logger,
   ParseUUIDPipe,
 } from "@nestjs/common";
-import {
-  ApiTags,
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiForbiddenResponse,
-  ApiNotFoundResponse,
-  ApiExtraModels,
-} from "@nestjs/swagger";
+import { ApiTags, ApiExtraModels } from "@nestjs/swagger";
 
 import { StoreUsageDto } from "./dto/store-usage.dto";
 import { TierResponseDto } from "./dto/tier-response.dto";
 import { TierService } from "./tier.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { ApiSuccessResponse } from "../common/decorators/api-success-response.decorator";
+import {
+  ApiAuth,
+  ApiStoreGetAll,
+  ApiStoreIdParam,
+  ApiResourceErrors,
+} from "../common/decorators/api-crud.decorator";
 import { StandardApiResponse } from "../common/dto/standard-api-response.dto";
 
 @ApiTags("Stores / Tiers")
 @Controller("stores/:storeId/tiers")
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
+@ApiAuth()
 @ApiExtraModels(StandardApiResponse, TierResponseDto, StoreUsageDto)
 export class TierController {
   private readonly logger = new Logger(TierController.name);
@@ -39,17 +36,11 @@ export class TierController {
    * @returns StoreTier object
    */
   @Get()
-  @ApiOperation({ summary: "Get tier information for a store (Authenticated)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiSuccessResponse(TierResponseDto, {
+  @ApiStoreGetAll(TierResponseDto, "tier information", {
+    summary: "Get tier information for a store (Authenticated)",
     description: "Tier information retrieved successfully",
   })
-  @ApiForbiddenResponse({ description: "Insufficient permissions" })
-  @ApiNotFoundResponse({ description: "Store not found" })
+  @ApiResourceErrors()
   async getStoreTier(
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
   ): Promise<StandardApiResponse<TierResponseDto>> {
@@ -66,17 +57,12 @@ export class TierController {
    * @returns Usage statistics
    */
   @Get("usage")
-  @ApiOperation({ summary: "Get usage statistics for a store (Authenticated)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiSuccessResponse(StoreUsageDto, {
+  @ApiStoreGetAll(StoreUsageDto, "usage statistics", {
+    summary: "Get usage statistics for a store (Authenticated)",
     description: "Usage statistics retrieved successfully",
   })
-  @ApiForbiddenResponse({ description: "Insufficient permissions" })
-  @ApiNotFoundResponse({ description: "Store not found" })
+  @ApiStoreIdParam()
+  @ApiResourceErrors()
   async getStoreUsage(
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
   ): Promise<StandardApiResponse<StoreUsageDto>> {

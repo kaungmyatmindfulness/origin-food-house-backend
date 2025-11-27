@@ -11,12 +11,8 @@ import {
 } from "@nestjs/common";
 import {
   ApiTags,
-  ApiBearerAuth,
   ApiQuery,
-  ApiParam,
   ApiOperation,
-  ApiForbiddenResponse,
-  ApiNotFoundResponse,
   ApiExtraModels,
   ApiProduces,
 } from "@nestjs/swagger";
@@ -31,14 +27,19 @@ import {
 } from "./dto/audit-log-response.dto";
 import { AuthService } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { ApiSuccessResponse } from "../common/decorators/api-success-response.decorator";
+import {
+  ApiAuth,
+  ApiStoreGetAll,
+  ApiStoreIdParam,
+  ApiResourceErrors,
+} from "../common/decorators/api-crud.decorator";
 import { GetUser } from "../common/decorators/get-user.decorator";
 import { StandardApiResponse } from "../common/dto/standard-api-response.dto";
 
 @ApiTags("Stores / Audit Logs")
 @Controller("stores/:storeId/audit-logs")
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
+@ApiAuth()
 @ApiExtraModels(
   StandardApiResponse,
   AuditLogEntryDto,
@@ -63,12 +64,11 @@ export class AuditLogController {
    * @returns Paginated audit logs
    */
   @Get()
-  @ApiOperation({ summary: "Get audit logs for a store (OWNER only)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
+  @ApiStoreGetAll(AuditLogPaginatedResponseDto, "audit logs", {
+    summary: "Get audit logs for a store (OWNER only)",
+    description: "Audit logs retrieved successfully",
   })
+  @ApiResourceErrors()
   @ApiQuery({
     name: "page",
     required: false,
@@ -93,13 +93,6 @@ export class AuditLogController {
     type: String,
     description: "Filter by user ID",
   })
-  @ApiSuccessResponse(AuditLogPaginatedResponseDto, {
-    description: "Audit logs retrieved successfully",
-  })
-  @ApiForbiddenResponse({
-    description: "Only store owners can view audit logs",
-  })
-  @ApiNotFoundResponse({ description: "Store not found" })
   async getStoreAuditLogs(
     @GetUser("sub") currentUserId: string,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -146,11 +139,8 @@ export class AuditLogController {
     summary: "Export audit logs to CSV (OWNER only)",
     description: "Downloads audit logs as a CSV file with optional filters",
   })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
+  @ApiStoreIdParam()
+  @ApiResourceErrors()
   @Header("Content-Type", "text/csv")
   @ApiProduces("text/csv")
   @ApiQuery({
@@ -179,10 +169,6 @@ export class AuditLogController {
     description: "End date filter (ISO 8601 format)",
     example: "2025-12-31T23:59:59.999Z",
   })
-  @ApiForbiddenResponse({
-    description: "Only store owners can export audit logs",
-  })
-  @ApiNotFoundResponse({ description: "Store not found" })
   async exportAuditLogs(
     @GetUser("sub") currentUserId: string,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,

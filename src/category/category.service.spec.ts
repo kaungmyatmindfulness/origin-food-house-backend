@@ -42,6 +42,7 @@ describe("CategoryService", () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     deletedAt: null,
+    translations: [],
   };
 
   const mockCategoryWithItems = {
@@ -58,6 +59,7 @@ describe("CategoryService", () => {
         sortOrder: 0,
         deletedAt: null,
         customizationGroups: [],
+        translations: [],
       },
     ],
   };
@@ -202,6 +204,7 @@ describe("CategoryService", () => {
           createdAt: mockCategory.createdAt,
           updatedAt: mockCategory.updatedAt,
           menuItems: [],
+          translations: [],
         },
       ]);
       expect(prismaService.category.findMany).toHaveBeenCalledWith({
@@ -227,6 +230,7 @@ describe("CategoryService", () => {
           sortOrder: mockCategory.sortOrder,
           createdAt: mockCategory.createdAt,
           updatedAt: mockCategory.updatedAt,
+          translations: [],
           menuItems: [
             {
               id: "item-123",
@@ -235,6 +239,8 @@ describe("CategoryService", () => {
               basePrice: "9.99",
               imagePath: undefined,
               sortOrder: 0,
+              translations: [],
+              customizationGroups: [],
             },
           ],
         },

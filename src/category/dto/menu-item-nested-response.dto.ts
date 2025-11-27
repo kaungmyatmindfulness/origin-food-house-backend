@@ -1,22 +1,29 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 
-import { Decimal } from "src/common/types/decimal.type";
+import { TranslationWithDescriptionResponseDto } from "src/common/dto/translation.dto";
+
+import { CustomizationGroupResponseDto } from "./customization-group-response.dto";
 
 export class MenuItemNestedResponseDto {
-  @ApiProperty({ example: 147 })
+  @ApiProperty({ example: "0194ca3b-xxxx-xxxx-xxxx-xxxxxxxxxxxx" })
   id: string;
 
-  @ApiProperty({ example: "Generic Granite Cheese" })
+  @ApiProperty({ example: "Pad Thai" })
   name: string;
 
   @ApiPropertyOptional({
-    example: "The lavender Bike combines...",
+    example: "Classic Thai stir-fried rice noodles",
     nullable: true,
   })
   description: string | null;
 
-  @ApiPropertyOptional({ type: String, example: "49.11", nullable: true })
-  basePrice: Decimal | string | null;
+  @ApiProperty({
+    type: String,
+    example: "49.11",
+    description: "Base price, formatted as string.",
+  })
+  basePrice: string;
 
   @ApiPropertyOptional({
     example: "uploads/abc-123-def",
@@ -27,4 +34,26 @@ export class MenuItemNestedResponseDto {
 
   @ApiProperty({ example: 2 })
   sortOrder: number;
+
+  @ApiPropertyOptional({
+    description: "Translations for the menu item in different locales.",
+    type: () => [TranslationWithDescriptionResponseDto],
+    example: [
+      {
+        locale: "en",
+        name: "Pad Thai",
+        description: "Classic Thai stir-fried rice noodles",
+      },
+      { locale: "th", name: "ผัดไทย", description: "ผัดไทยแบบดั้งเดิม" },
+    ],
+  })
+  @Type(() => TranslationWithDescriptionResponseDto)
+  translations?: TranslationWithDescriptionResponseDto[];
+
+  @ApiPropertyOptional({
+    description: "Customization groups for this menu item.",
+    type: () => [CustomizationGroupResponseDto],
+  })
+  @Type(() => CustomizationGroupResponseDto)
+  customizationGroups?: CustomizationGroupResponseDto[];
 }

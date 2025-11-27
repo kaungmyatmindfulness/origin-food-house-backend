@@ -86,17 +86,39 @@ export class CategoryService {
 
   /**
    * Maps a Prisma Category result to CategoryResponseDto.
-   * Handles type conversion for nested menuItems and Decimal values.
+   * Handles type conversion for nested menuItems, translations, and Decimal values.
    */
   private mapToCategoryResponse(
     category: Category & {
+      translations?: Array<{ locale: string; name: string }>;
       menuItems?: Array<{
         id: string;
         name: string;
         description: string | null;
-        basePrice: Prisma.Decimal;
+        basePrice: Prisma.Decimal | null;
         imagePath: string | null;
         sortOrder: number;
+        translations?: Array<{
+          locale: string;
+          name: string;
+          description: string | null;
+        }>;
+        customizationGroups?: Array<{
+          id: string;
+          name: string;
+          required: boolean;
+          minSelectable: number;
+          maxSelectable: number;
+          menuItemId: string;
+          translations?: Array<{ locale: string; name: string }>;
+          customizationOptions?: Array<{
+            id: string;
+            name: string;
+            additionalPrice: Prisma.Decimal | null;
+            customizationGroupId: string;
+            translations?: Array<{ locale: string; name: string }>;
+          }>;
+        }>;
       }>;
     },
   ): CategoryResponseDto {
@@ -105,6 +127,10 @@ export class CategoryService {
       name: category.name,
       storeId: category.storeId,
       sortOrder: category.sortOrder,
+      translations: category.translations?.map((t) => ({
+        locale: t.locale as "en" | "zh" | "my" | "th",
+        name: t.name,
+      })),
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
       menuItems:
@@ -116,6 +142,37 @@ export class CategoryService {
               basePrice: item.basePrice?.toString() ?? "0",
               imagePath: item.imagePath,
               sortOrder: item.sortOrder,
+              translations: item.translations?.map((t) => ({
+                locale: t.locale as "en" | "zh" | "my" | "th",
+                name: t.name,
+                description: t.description,
+              })),
+              customizationGroups: (item.customizationGroups ?? []).map(
+                (group) => ({
+                  id: group.id,
+                  name: group.name,
+                  required: group.required,
+                  minSelectable: group.minSelectable,
+                  maxSelectable: group.maxSelectable,
+                  menuItemId: group.menuItemId,
+                  translations: group.translations?.map((t) => ({
+                    locale: t.locale as "en" | "zh" | "my" | "th",
+                    name: t.name,
+                  })),
+                  customizationOptions: (group.customizationOptions ?? []).map(
+                    (opt) => ({
+                      id: opt.id,
+                      name: opt.name,
+                      additionalPrice: opt.additionalPrice?.toString() ?? null,
+                      customizationGroupId: opt.customizationGroupId,
+                      translations: opt.translations?.map((t) => ({
+                        locale: t.locale as "en" | "zh" | "my" | "th",
+                        name: t.name,
+                      })),
+                    }),
+                  ),
+                }),
+              ),
             }))
           : [],
     };

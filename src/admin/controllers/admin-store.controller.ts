@@ -8,17 +8,17 @@ import {
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiNotFoundResponse,
-  ApiForbiddenResponse,
-  ApiBadRequestResponse,
-} from "@nestjs/swagger";
+import { ApiTags } from "@nestjs/swagger";
 
 import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
+import {
+  ApiAuthWithRoles,
+  ApiGetAll,
+  ApiGetOneAuth,
+  ApiAction,
+  ApiResourceErrors,
+} from "src/common/decorators/api-crud.decorator";
+import { ApiSuccessResponse } from "src/common/decorators/api-success-response.decorator";
 import { GetUser } from "src/common/decorators/get-user.decorator";
 import { SubscriptionTier } from "src/generated/prisma/client";
 
@@ -31,46 +31,43 @@ import { PlatformAdminGuard } from "../guards/platform-admin.guard";
 import { AdminAuditInterceptor } from "../interceptors/admin-audit.interceptor";
 import { AdminStoreService } from "../services/admin-store.service";
 
+// Placeholder response class for untyped responses
+class StoreResponseDto {}
+class StoreDetailResponseDto {}
+class StoreActionResponseDto {}
+class StoreAnalyticsResponseDto {}
+
 @ApiTags("Admin - Store Management")
 @Controller("admin/stores")
 @UseGuards(JwtAuthGuard, PlatformAdminGuard)
 @UseInterceptors(AdminAuditInterceptor)
-@ApiBearerAuth()
 export class AdminStoreController {
   constructor(private readonly adminStoreService: AdminStoreService) {}
 
   @Get()
-  @ApiOperation({
+  @ApiAuthWithRoles()
+  @ApiGetAll(StoreResponseDto, "stores", {
     summary: "List all stores",
-    description: "Get paginated list of all stores with filters",
+    description: "Stores retrieved successfully",
   })
-  @ApiOkResponse({ description: "Stores retrieved successfully" })
-  @ApiForbiddenResponse({ description: "Insufficient permissions" })
   async listStores(@Query() query: ListStoresDto) {
     return await this.adminStoreService.listStores(query);
   }
 
   @Get(":id")
-  @ApiOperation({
+  @ApiGetOneAuth(StoreDetailResponseDto, "store", {
     summary: "Get store detail",
-    description: "Get detailed information for a specific store",
+    description: "Store detail retrieved successfully",
   })
-  @ApiOkResponse({ description: "Store detail retrieved successfully" })
-  @ApiNotFoundResponse({ description: "Store not found" })
-  @ApiForbiddenResponse({ description: "Insufficient permissions" })
   async getStoreDetail(@Param("id") id: string) {
     return await this.adminStoreService.getStoreDetail(id);
   }
 
   @Post(":id/suspend")
-  @ApiOperation({
+  @ApiAction(StoreActionResponseDto, "suspend", "store", {
     summary: "Suspend store",
-    description: "Temporarily suspend a store and its operations",
+    description: "Store suspended successfully",
   })
-  @ApiOkResponse({ description: "Store suspended successfully" })
-  @ApiNotFoundResponse({ description: "Store not found" })
-  @ApiBadRequestResponse({ description: "Store is already suspended" })
-  @ApiForbiddenResponse({ description: "Insufficient permissions" })
   async suspendStore(
     @Param("id") id: string,
     @Body() dto: SuspendStoreDto,
@@ -80,14 +77,10 @@ export class AdminStoreController {
   }
 
   @Post(":id/ban")
-  @ApiOperation({
+  @ApiAction(StoreActionResponseDto, "ban", "store", {
     summary: "Ban store",
-    description: "Permanently ban a store from the platform",
+    description: "Store banned successfully",
   })
-  @ApiOkResponse({ description: "Store banned successfully" })
-  @ApiNotFoundResponse({ description: "Store not found" })
-  @ApiBadRequestResponse({ description: "Store is already banned" })
-  @ApiForbiddenResponse({ description: "Insufficient permissions" })
   async banStore(
     @Param("id") id: string,
     @Body() dto: BanStoreDto,
@@ -97,14 +90,10 @@ export class AdminStoreController {
   }
 
   @Post(":id/reactivate")
-  @ApiOperation({
+  @ApiAction(StoreActionResponseDto, "reactivate", "store", {
     summary: "Reactivate store",
-    description: "Reactivate a suspended or banned store",
+    description: "Store reactivated successfully",
   })
-  @ApiOkResponse({ description: "Store reactivated successfully" })
-  @ApiNotFoundResponse({ description: "Store not found" })
-  @ApiBadRequestResponse({ description: "Store is not suspended or banned" })
-  @ApiForbiddenResponse({ description: "Insufficient permissions" })
   async reactivateStore(
     @Param("id") id: string,
     @Body() dto: ReactivateStoreDto,
@@ -114,13 +103,10 @@ export class AdminStoreController {
   }
 
   @Post(":id/downgrade")
-  @ApiOperation({
+  @ApiAction(StoreActionResponseDto, "downgrade tier for", "store", {
     summary: "Downgrade store tier",
-    description: "Force downgrade a store to a lower tier",
+    description: "Store tier downgraded successfully",
   })
-  @ApiOkResponse({ description: "Store tier downgraded successfully" })
-  @ApiNotFoundResponse({ description: "Store or target tier not found" })
-  @ApiForbiddenResponse({ description: "Insufficient permissions" })
   async downgradeTier(
     @Param("id") id: string,
     @Body() dto: DowngradeTierDto,
@@ -135,13 +121,12 @@ export class AdminStoreController {
   }
 
   @Get(":id/analytics")
-  @ApiOperation({
-    summary: "Get store analytics",
-    description: "Get analytics and statistics for a specific store",
-  })
-  @ApiOkResponse({ description: "Store analytics retrieved successfully" })
-  @ApiNotFoundResponse({ description: "Store not found" })
-  @ApiForbiddenResponse({ description: "Insufficient permissions" })
+  @ApiAuthWithRoles()
+  @ApiSuccessResponse(
+    StoreAnalyticsResponseDto,
+    "Store analytics retrieved successfully",
+  )
+  @ApiResourceErrors()
   async getStoreAnalytics(@Param("id") id: string) {
     return await this.adminStoreService.getStoreAnalytics(id);
   }

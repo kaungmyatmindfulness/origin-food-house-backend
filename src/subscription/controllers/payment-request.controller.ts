@@ -16,12 +16,7 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import {
   ApiTags,
   ApiOperation,
-  ApiBearerAuth,
-  ApiParam,
   ApiConsumes,
-  ApiForbiddenResponse,
-  ApiNotFoundResponse,
-  ApiBadRequestResponse,
   ApiExtraModels,
   ApiBody,
 } from "@nestjs/swagger";
@@ -29,6 +24,12 @@ import {
 import { Role } from "src/generated/prisma/client";
 
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
+import {
+  ApiAuthWithRoles,
+  ApiUuidParam,
+  ApiCreateErrors,
+  ApiResourceErrors,
+} from "../../common/decorators/api-crud.decorator";
 import { ApiSuccessResponse } from "../../common/decorators/api-success-response.decorator";
 import { GetUser } from "../../common/decorators/get-user.decorator";
 import { StandardApiResponse } from "../../common/dto/standard-api-response.dto";
@@ -39,7 +40,6 @@ import { SubscriptionService } from "../services/subscription.service";
 
 @ApiTags("Subscription - Payment Requests")
 @Controller("payment-requests")
-@ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @ApiExtraModels(StandardApiResponse, PaymentRequestResponseDto)
 export class PaymentRequestController {
@@ -57,17 +57,12 @@ export class PaymentRequestController {
     description:
       "Creates a new payment request for upgrading the store subscription tier",
   })
+  @ApiAuthWithRoles()
   @ApiSuccessResponse(PaymentRequestResponseDto, {
     status: HttpStatus.CREATED,
     description: "Payment request created successfully",
   })
-  @ApiForbiddenResponse({
-    description: "Insufficient permissions (OWNER/ADMIN required)",
-  })
-  @ApiNotFoundResponse({ description: "Store not found" })
-  @ApiBadRequestResponse({
-    description: "Invalid tier or request already exists",
-  })
+  @ApiCreateErrors()
   async createPaymentRequest(
     @GetUser("sub") userId: string,
     @Body() dto: CreatePaymentRequestDto,
@@ -102,7 +97,8 @@ export class PaymentRequestController {
     summary: "Upload payment proof (Owner/Admin only)",
     description: "Upload payment proof image for a pending payment request",
   })
-  @ApiParam({ name: "id", description: "Payment request ID (UUID)" })
+  @ApiAuthWithRoles()
+  @ApiUuidParam("id", "Payment request ID (UUID)")
   @ApiBody({
     schema: {
       type: "object",
@@ -119,11 +115,7 @@ export class PaymentRequestController {
   @ApiSuccessResponse(PaymentRequestResponseDto, {
     description: "Payment proof uploaded successfully",
   })
-  @ApiForbiddenResponse({
-    description: "Insufficient permissions or not request owner",
-  })
-  @ApiNotFoundResponse({ description: "Payment request not found" })
-  @ApiBadRequestResponse({ description: "Invalid file type or size" })
+  @ApiResourceErrors()
   async uploadPaymentProof(
     @GetUser("sub") userId: string,
     @Param("id") paymentRequestId: string,
@@ -152,14 +144,12 @@ export class PaymentRequestController {
     summary: "Get payment request details (Owner/Admin only)",
     description: "Retrieve details of a specific payment request",
   })
-  @ApiParam({ name: "id", description: "Payment request ID (UUID)" })
+  @ApiAuthWithRoles()
+  @ApiUuidParam("id", "Payment request ID (UUID)")
   @ApiSuccessResponse(PaymentRequestResponseDto, {
     description: "Payment request details retrieved successfully",
   })
-  @ApiForbiddenResponse({
-    description: "Insufficient permissions or not request owner",
-  })
-  @ApiNotFoundResponse({ description: "Payment request not found" })
+  @ApiResourceErrors()
   async getPaymentRequest(
     @GetUser("sub") userId: string,
     @Param("id") paymentRequestId: string,
@@ -186,15 +176,13 @@ export class PaymentRequestController {
     summary: "Get all payment requests for store (Owner/Admin only)",
     description: "Retrieve all payment requests for a specific store",
   })
-  @ApiParam({ name: "storeId", description: "Store ID (UUID)" })
+  @ApiAuthWithRoles()
+  @ApiUuidParam("storeId", "Store ID (UUID)")
   @ApiSuccessResponse(PaymentRequestResponseDto, {
     description: "Payment requests retrieved successfully",
     isArray: true,
   })
-  @ApiForbiddenResponse({
-    description: "Insufficient permissions (OWNER/ADMIN required)",
-  })
-  @ApiNotFoundResponse({ description: "Store not found" })
+  @ApiResourceErrors()
   async getStorePaymentRequests(
     @GetUser("sub") userId: string,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,

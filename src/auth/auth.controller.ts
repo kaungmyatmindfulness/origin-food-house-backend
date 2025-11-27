@@ -12,7 +12,6 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
-  ApiBearerAuth,
   ApiOperation,
   ApiTags,
   ApiOkResponse,
@@ -23,6 +22,10 @@ import {
 import { Response as ExpressResponse, CookieOptions } from "express";
 
 import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
+import {
+  ApiAuth,
+  ApiPublicAction,
+} from "src/common/decorators/api-crud.decorator";
 import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
 
 import { AuthService } from "./auth.service";
@@ -83,15 +86,12 @@ export class AuthController {
    */
   @UseGuards(JwtAuthGuard)
   @Post("login/store")
-  @ApiBearerAuth()
+  @ApiAuth()
   @ApiOperation({ summary: "Select a store to complete login" })
   @ApiOkResponse({
     description:
       "Store selected. Full JWT set in HttpOnly cookie. Token contains { sub, storeId, role }.",
     type: StandardApiResponse,
-  })
-  @ApiUnauthorizedResponse({
-    description: "Invalid/Expired Token or User not member of store.",
   })
   @ApiNotFoundResponse({
     description: "User/Membership data not found (should be rare).",
@@ -134,21 +134,11 @@ export class AuthController {
    * Get Auth0 configuration for frontend
    */
   @Get("auth0/config")
-  @ApiOperation({ summary: "Get Auth0 configuration for frontend" })
-  @ApiOkResponse({
-    description: "Auth0 configuration retrieved successfully",
-    schema: {
-      example: {
-        status: "success",
-        data: {
-          domain: "your-tenant.auth0.com",
-          clientId: "your-client-id",
-          audience: "https://api.your-domain.com",
-          enabled: true,
-        },
-      },
-    },
-  })
+  @ApiPublicAction(
+    StandardApiResponse,
+    "Get Auth0 configuration for frontend",
+    "Auth0 configuration retrieved successfully",
+  )
   getAuth0Config(): StandardApiResponse<Auth0ConfigResponse> {
     const auth0Config = this.configService.get<{
       domain: string;
@@ -175,27 +165,15 @@ export class AuthController {
    * Validate Auth0 token and sync user
    */
   @Post("auth0/validate")
-  @ApiOperation({ summary: "Validate Auth0 access token and sync user" })
+  @ApiPublicAction(
+    StandardApiResponse,
+    "Validate Auth0 access token and sync user",
+    "Auth0 token validated and user synced successfully",
+  )
   @ApiHeader({
     name: "Authorization",
     description: "Bearer <auth0-access-token>",
     required: true,
-  })
-  @ApiOkResponse({
-    description: "Auth0 token validated and user synced successfully",
-    schema: {
-      example: {
-        status: "success",
-        data: {
-          access_token: "jwt-token-for-backend",
-          user: {
-            id: "user-id",
-            email: "user@example.com",
-            name: "User Name",
-          },
-        },
-      },
-    },
   })
   @ApiUnauthorizedResponse({
     description: "Invalid Auth0 token or Auth0 is not enabled",
@@ -249,13 +227,10 @@ export class AuthController {
    */
   @UseGuards(Auth0Guard)
   @Get("auth0/profile")
-  @ApiBearerAuth()
+  @ApiAuth()
   @ApiOperation({ summary: "Get user profile (Auth0 protected)" })
   @ApiOkResponse({
     description: "User profile retrieved successfully",
-  })
-  @ApiUnauthorizedResponse({
-    description: "Invalid or missing Auth0 token",
   })
   getAuth0Profile(
     @Request() req: { user: Auth0AuthenticatedUser },

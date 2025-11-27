@@ -9,13 +9,7 @@ import {
   HttpStatus,
   Req,
 } from "@nestjs/common";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from "@nestjs/swagger";
+import { ApiTags, ApiParam, ApiQuery } from "@nestjs/swagger";
 
 import { CalculateSplitDto } from "./dto/calculate-split.dto";
 import { CreateRefundDto } from "./dto/create-refund.dto";
@@ -28,33 +22,31 @@ import { RecordSplitPaymentDto } from "./dto/record-split-payment.dto";
 import { PaymentService } from "./payment.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RequestWithUser } from "../auth/types";
+import {
+  ApiAuth,
+  ApiAuthWithRoles,
+  ApiResourceErrors,
+  ApiStandardErrors,
+} from "../common/decorators/api-crud.decorator";
+import { ApiSuccessResponse } from "../common/decorators/api-success-response.decorator";
 import { StandardApiResponse } from "../common/dto/standard-api-response.dto";
 
 @ApiTags("Payments")
 @Controller("payments")
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
+@ApiAuth()
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
   @Post("orders/:orderId")
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({
-    summary: "Record payment for an order (POS)",
-    description: "Record a payment and update order status if fully paid",
-  })
-  @ApiParam({ name: "orderId", description: "Order ID" })
-  @ApiResponse({
-    status: 201,
+  @ApiAuthWithRoles()
+  @ApiParam({ name: "orderId", description: "Order ID", type: String })
+  @ApiSuccessResponse(PaymentResponseDto, {
+    status: HttpStatus.CREATED,
     description: "Payment recorded successfully",
-    type: PaymentResponseDto,
   })
-  @ApiResponse({ status: 400, description: "Invalid payment amount" })
-  @ApiResponse({
-    status: 403,
-    description: "Forbidden - insufficient permissions",
-  })
-  @ApiResponse({ status: 404, description: "Order not found" })
+  @ApiResourceErrors()
   async recordPayment(
     @Req() req: RequestWithUser,
     @Param("orderId") orderId: string,
@@ -70,18 +62,13 @@ export class PaymentController {
   }
 
   @Get("orders/:orderId")
-  @ApiOperation({ summary: "Get all payments for an order" })
-  @ApiParam({ name: "orderId", description: "Order ID" })
-  @ApiResponse({
-    status: 200,
+  @ApiAuthWithRoles()
+  @ApiParam({ name: "orderId", description: "Order ID", type: String })
+  @ApiSuccessResponse(PaymentResponseDto, {
+    isArray: true,
     description: "Payments retrieved successfully",
-    type: [PaymentResponseDto],
   })
-  @ApiResponse({
-    status: 403,
-    description: "Forbidden - insufficient permissions",
-  })
-  @ApiResponse({ status: 404, description: "Order not found" })
+  @ApiResourceErrors()
   async findPaymentsByOrder(
     @Req() req: RequestWithUser,
     @Param("orderId") orderId: string,
@@ -95,17 +82,14 @@ export class PaymentController {
   }
 
   @Get("orders/:orderId/summary")
-  @ApiOperation({ summary: "Get payment summary for an order" })
-  @ApiParam({ name: "orderId", description: "Order ID" })
-  @ApiResponse({
-    status: 200,
-    description: "Payment summary retrieved successfully",
+  @ApiAuthWithRoles()
+  @ApiParam({ name: "orderId", description: "Order ID", type: String })
+  @ApiQuery({
+    name: "summary",
+    description: "Payment summary for the order",
+    required: false,
   })
-  @ApiResponse({
-    status: 403,
-    description: "Forbidden - insufficient permissions",
-  })
-  @ApiResponse({ status: 404, description: "Order not found" })
+  @ApiResourceErrors()
   async getPaymentSummary(
     @Req() req: RequestWithUser,
     @Param("orderId") orderId: string,
@@ -136,22 +120,13 @@ export class PaymentController {
 
   @Post("orders/:orderId/refunds")
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({
-    summary: "Create refund for an order (POS)",
-    description: "Issue a refund for a paid order",
-  })
-  @ApiParam({ name: "orderId", description: "Order ID" })
-  @ApiResponse({
-    status: 201,
+  @ApiAuthWithRoles()
+  @ApiParam({ name: "orderId", description: "Order ID", type: String })
+  @ApiSuccessResponse(RefundResponseDto, {
+    status: HttpStatus.CREATED,
     description: "Refund created successfully",
-    type: RefundResponseDto,
   })
-  @ApiResponse({ status: 400, description: "Invalid refund amount" })
-  @ApiResponse({
-    status: 403,
-    description: "Forbidden - insufficient permissions",
-  })
-  @ApiResponse({ status: 404, description: "Order not found" })
+  @ApiResourceErrors()
   async createRefund(
     @Req() req: RequestWithUser,
     @Param("orderId") orderId: string,
@@ -163,18 +138,13 @@ export class PaymentController {
   }
 
   @Get("orders/:orderId/refunds")
-  @ApiOperation({ summary: "Get all refunds for an order" })
-  @ApiParam({ name: "orderId", description: "Order ID" })
-  @ApiResponse({
-    status: 200,
+  @ApiAuthWithRoles()
+  @ApiParam({ name: "orderId", description: "Order ID", type: String })
+  @ApiSuccessResponse(RefundResponseDto, {
+    isArray: true,
     description: "Refunds retrieved successfully",
-    type: [RefundResponseDto],
   })
-  @ApiResponse({
-    status: 403,
-    description: "Forbidden - insufficient permissions",
-  })
-  @ApiResponse({ status: 404, description: "Order not found" })
+  @ApiResourceErrors()
   async findRefundsByOrder(
     @Req() req: RequestWithUser,
     @Param("orderId") orderId: string,
@@ -189,18 +159,9 @@ export class PaymentController {
 
   @Post("orders/:orderId/calculate-split")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: "Calculate bill split amounts for an order",
-    description:
-      "Calculate how to split an order bill among guests (EVEN, BY_ITEM, or CUSTOM)",
-  })
-  @ApiParam({ name: "orderId", description: "Order ID" })
-  @ApiResponse({
-    status: 200,
-    description: "Split calculation completed successfully",
-  })
-  @ApiResponse({ status: 400, description: "Invalid split data" })
-  @ApiResponse({ status: 404, description: "Order not found" })
+  @ApiAuthWithRoles()
+  @ApiParam({ name: "orderId", description: "Order ID", type: String })
+  @ApiStandardErrors()
   async calculateSplit(
     @Param("orderId") orderId: string,
     @Body() dto: CalculateSplitDto,
@@ -231,23 +192,13 @@ export class PaymentController {
 
   @Post("orders/:orderId/split-payment")
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({
-    summary: "Record a split payment for an order",
-    description:
-      "Record a split payment as part of a bill splitting transaction",
-  })
-  @ApiParam({ name: "orderId", description: "Order ID" })
-  @ApiResponse({
-    status: 201,
+  @ApiAuthWithRoles()
+  @ApiParam({ name: "orderId", description: "Order ID", type: String })
+  @ApiSuccessResponse(PaymentResponseDto, {
+    status: HttpStatus.CREATED,
     description: "Split payment recorded successfully",
-    type: PaymentResponseDto,
   })
-  @ApiResponse({ status: 400, description: "Invalid payment or overpayment" })
-  @ApiResponse({
-    status: 403,
-    description: "Forbidden - insufficient permissions",
-  })
-  @ApiResponse({ status: 404, description: "Order not found" })
+  @ApiResourceErrors()
   async recordSplitPayment(
     @Req() req: RequestWithUser,
     @Param("orderId") orderId: string,

@@ -13,15 +13,7 @@ import {
   HttpStatus,
   Req,
 } from "@nestjs/common";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-  ApiQuery,
-  ApiHeader,
-} from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiQuery, ApiHeader } from "@nestjs/swagger";
 
 import { ApplyDiscountDto } from "./dto/apply-discount.dto";
 import { CheckoutCartDto } from "./dto/checkout-cart.dto";
@@ -30,6 +22,13 @@ import { QuickSaleCheckoutDto } from "./dto/quick-sale-checkout.dto";
 import { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
 import { OrderService } from "./order.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import {
+  ApiAuth,
+  ApiResourceErrors,
+  ApiGetOne,
+  ApiUuidParam,
+} from "../common/decorators/api-crud.decorator";
+import { ApiSuccessResponse } from "../common/decorators/api-success-response.decorator";
 import { GetUser } from "../common/decorators/get-user.decorator";
 import { PaginatedResponseDto } from "../common/dto/paginated-response.dto";
 import { PaginationQueryDto } from "../common/dto/pagination-query.dto";
@@ -54,21 +53,11 @@ export class OrderController {
     required: false,
   })
   @ApiQuery({ name: "sessionId", description: "Active table session ID" })
-  @ApiResponse({
-    status: 201,
+  @ApiSuccessResponse(OrderResponseDto, {
+    status: HttpStatus.CREATED,
     description: "Order created successfully",
-    type: OrderResponseDto,
   })
-  @ApiResponse({
-    status: 401,
-    description: "Authentication required: Provide session token or JWT",
-  })
-  @ApiResponse({
-    status: 403,
-    description: "Invalid session token or insufficient permissions",
-  })
-  @ApiResponse({ status: 400, description: "Cart is empty or invalid" })
-  @ApiResponse({ status: 404, description: "Session or cart not found" })
+  @ApiResourceErrors()
   async checkout(
     @Query("sessionId") sessionId: string,
     @Body() dto: CheckoutCartDto,
@@ -87,36 +76,20 @@ export class OrderController {
 
   @Post("quick-checkout")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: "Quick sale checkout (POS)",
     description:
       "Creates session, cart items, and order in a single atomic operation. " +
       "Optimized for quick sale (counter/phone/takeout) orders where speed is critical. " +
-      "Bypasses the normal flow of creating session → adding items → checkout.",
+      "Bypasses the normal flow of creating session -> adding items -> checkout.",
   })
-  @ApiResponse({
-    status: 201,
+  @ApiAuth()
+  @ApiSuccessResponse(OrderResponseDto, {
+    status: HttpStatus.CREATED,
     description: "Order created successfully",
-    type: OrderResponseDto,
   })
-  @ApiResponse({
-    status: 400,
-    description: "Invalid session type or empty items array",
-  })
-  @ApiResponse({
-    status: 401,
-    description: "Authentication required",
-  })
-  @ApiResponse({
-    status: 403,
-    description: "Insufficient permissions for this store",
-  })
-  @ApiResponse({
-    status: 404,
-    description: "Menu item not found",
-  })
+  @ApiResourceErrors()
   async quickCheckout(
     @GetUser("sub") userId: string,
     @Body() dto: QuickSaleCheckoutDto,
@@ -126,14 +99,8 @@ export class OrderController {
   }
 
   @Get(":orderId")
-  @ApiOperation({ summary: "Get order by ID" })
-  @ApiParam({ name: "orderId", description: "Order ID" })
-  @ApiResponse({
-    status: 200,
-    description: "Order retrieved successfully",
-    type: OrderResponseDto,
-  })
-  @ApiResponse({ status: 404, description: "Order not found" })
+  @ApiGetOne(OrderResponseDto, "Order", { idDescription: "Order ID" })
+  @ApiUuidParam("orderId", "Order ID")
   async findOne(
     @Param("orderId") orderId: string,
   ): Promise<StandardApiResponse<OrderResponseDto>> {
@@ -143,11 +110,11 @@ export class OrderController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({
     summary: "Get all orders for a store with pagination (POS)",
     description: "Returns paginated list of orders for a specific store",
   })
+  @ApiAuth()
   @ApiQuery({ name: "storeId", description: "Store ID", required: true })
   @ApiQuery({
     name: "page",
@@ -161,10 +128,8 @@ export class OrderController {
     required: false,
     type: Number,
   })
-  @ApiResponse({
-    status: 200,
+  @ApiSuccessResponse(PaginatedResponseDto<OrderResponseDto>, {
     description: "Orders retrieved successfully",
-    type: PaginatedResponseDto<OrderResponseDto>,
   })
   async findByStore(
     @Query("storeId") storeId: string,
@@ -176,19 +141,16 @@ export class OrderController {
 
   @Patch(":orderId/status")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({
     summary: "Update order status (POS)",
     description: "Update order status through kitchen workflow",
   })
-  @ApiParam({ name: "orderId", description: "Order ID" })
-  @ApiResponse({
-    status: 200,
+  @ApiAuth()
+  @ApiUuidParam("orderId", "Order ID")
+  @ApiSuccessResponse(OrderResponseDto, {
     description: "Order status updated successfully",
-    type: OrderResponseDto,
   })
-  @ApiResponse({ status: 400, description: "Invalid status transition" })
-  @ApiResponse({ status: 404, description: "Order not found" })
+  @ApiResourceErrors()
   async updateStatus(
     @Param("orderId") orderId: string,
     @Body() dto: UpdateOrderStatusDto,
@@ -199,29 +161,19 @@ export class OrderController {
 
   @Post(":orderId/apply-discount")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Apply discount to order (POS)",
     description:
       "Apply percentage or fixed amount discount to an order. Implements 3-tier authorization: Small (<10%) = CASHIER, Medium (10-50%) = ADMIN, Large (>50%) = OWNER",
   })
-  @ApiParam({ name: "orderId", description: "Order ID" })
+  @ApiAuth()
+  @ApiUuidParam("orderId", "Order ID")
   @ApiQuery({ name: "storeId", description: "Store ID", required: true })
-  @ApiResponse({
-    status: 200,
+  @ApiSuccessResponse(OrderResponseDto, {
     description: "Discount applied successfully",
-    type: OrderResponseDto,
   })
-  @ApiResponse({
-    status: 400,
-    description: "Invalid discount or order already paid",
-  })
-  @ApiResponse({
-    status: 403,
-    description: "Insufficient permissions for discount amount",
-  })
-  @ApiResponse({ status: 404, description: "Order not found" })
+  @ApiResourceErrors()
   async applyDiscount(
     @GetUser("sub") userId: string,
     @Query("storeId") storeId: string,
@@ -239,29 +191,19 @@ export class OrderController {
 
   @Delete(":orderId/discount")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: "Remove discount from order (POS)",
     description:
       "Remove previously applied discount. Requires ADMIN or OWNER role.",
   })
-  @ApiParam({ name: "orderId", description: "Order ID" })
+  @ApiAuth()
+  @ApiUuidParam("orderId", "Order ID")
   @ApiQuery({ name: "storeId", description: "Store ID", required: true })
-  @ApiResponse({
-    status: 200,
+  @ApiSuccessResponse(OrderResponseDto, {
     description: "Discount removed successfully",
-    type: OrderResponseDto,
   })
-  @ApiResponse({
-    status: 400,
-    description: "Order already paid",
-  })
-  @ApiResponse({
-    status: 403,
-    description: "Insufficient permissions",
-  })
-  @ApiResponse({ status: 404, description: "Order not found" })
+  @ApiResourceErrors()
   async removeDiscount(
     @GetUser("sub") userId: string,
     @Query("storeId") storeId: string,

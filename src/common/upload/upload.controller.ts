@@ -11,17 +11,13 @@ import {
   HttpStatus,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiResponse,
-  ApiConsumes,
-  ApiBody,
-  ApiExtraModels,
-} from "@nestjs/swagger";
+import { ApiTags, ApiConsumes, ApiBody, ApiExtraModels } from "@nestjs/swagger";
 import { Express } from "express";
 
+import {
+  ApiAuth,
+  ApiStandardErrors,
+} from "src/common/decorators/api-crud.decorator";
 import { ApiSuccessResponse } from "src/common/decorators/api-success-response.decorator";
 import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
 import { imageFileFilter } from "src/common/utils/file-filter.utils";
@@ -35,8 +31,7 @@ const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB;
 @ApiTags("Upload")
 @Controller("upload")
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
-@ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: "Unauthorized." })
+@ApiAuth()
 @ApiExtraModels(UploadImageResponseDto)
 export class UploadController {
   private readonly logger = new Logger(UploadController.name);
@@ -50,12 +45,6 @@ export class UploadController {
       fileFilter: imageFileFilter,
     }),
   )
-  @ApiOperation({
-    summary: "Upload an image file with configurable resizing",
-    description:
-      "Uploads an image file and generates optimized versions based on the selected preset. " +
-      "Supports menu items, store logos, cover photos, and payment proofs (no resize).",
-  })
   @ApiConsumes("multipart/form-data")
   @ApiBody({
     description:
@@ -80,10 +69,11 @@ export class UploadController {
       required: ["file"],
     },
   })
-  @ApiSuccessResponse(
-    UploadImageResponseDto,
-    "Image uploaded and processed successfully",
-  )
+  @ApiSuccessResponse(UploadImageResponseDto, {
+    status: HttpStatus.CREATED,
+    description: "Image uploaded and processed successfully",
+  })
+  @ApiStandardErrors()
   async uploadImage(
     @UploadedFile(
       new ParseFilePipe({

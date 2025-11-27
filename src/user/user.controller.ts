@@ -16,13 +16,8 @@ import {
 } from "@nestjs/common";
 import {
   ApiBadRequestResponse,
-  ApiBearerAuth,
   ApiCreatedResponse,
-  ApiForbiddenResponse,
-  ApiNotFoundResponse,
-  ApiOkResponse,
   ApiOperation,
-  ApiParam,
   ApiQuery,
   ApiResponse,
   ApiTags,
@@ -31,6 +26,13 @@ import {
 
 import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
 import { RequestWithUser } from "src/auth/types";
+import {
+  ApiAuth,
+  ApiAuthWithRoles,
+  ApiResourceErrors,
+  ApiStoreIdParam,
+  ApiUuidParam,
+} from "src/common/decorators/api-crud.decorator";
 import { ApiSuccessResponse } from "src/common/decorators/api-success-response.decorator";
 import { GetUser } from "src/common/decorators/get-user.decorator";
 import { UseTierLimit } from "src/common/decorators/tier-limit.decorator";
@@ -94,22 +96,12 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Post("add-to-store")
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary:
-      "Assign a user to a store with a role (Admin/Owner Protected - Example)",
-  })
-  @ApiOkResponse({
-    description: "User assigned/updated in store successfully.",
-    type: StandardApiResponse,
-  })
-  @ApiBadRequestResponse({
-    description: "Validation error (e.g., invalid role, missing fields)",
-  })
-  @ApiNotFoundResponse({ description: "User or Store not found." })
-  @ApiForbiddenResponse({
-    description: "User does not have permission to perform this action.",
-  })
+  @ApiAuthWithRoles()
+  @ApiSuccessResponse(
+    StandardApiResponse,
+    "User assigned/updated in store successfully.",
+  )
+  @ApiResourceErrors()
   async addUserToStore(
     @Body() dto: AddUserToStoreDto,
   ): Promise<StandardApiResponse<UserStore>> {
@@ -125,24 +117,16 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Get(":id/stores")
-  @ApiBearerAuth()
+  @ApiAuthWithRoles()
   @ApiOperation({
     summary: "Get all store memberships for a specific user (Protected)",
   })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the target user",
-    type: String,
-    format: "uuid",
-  })
-  @ApiOkResponse({
-    description: "List of user store memberships retrieved.",
-    type: StandardApiResponse,
-  })
-  @ApiForbiddenResponse({
-    description: "User does not have permission to view this.",
-  })
-  @ApiNotFoundResponse({ description: "Target user not found." })
+  @ApiUuidParam("id", "ID (UUID) of the target user")
+  @ApiSuccessResponse(
+    StandardApiResponse,
+    "List of user store memberships retrieved.",
+  )
+  @ApiResourceErrors()
   async getUserStores(
     @Param("id", new ParseUUIDPipe({ version: "7" })) userId: string,
     @Req() req: RequestWithUser,
@@ -169,6 +153,7 @@ export class UserController {
 
   @Get("me")
   @UseGuards(JwtAuthGuard)
+  @ApiAuth()
   @ApiOperation({
     summary: "Get current logged-in user profile, optionally scoped to a store",
   })
@@ -182,7 +167,7 @@ export class UserController {
     type: String,
     format: "uuid",
     description:
-      "Optional: ID (UUID) of the store to get user context (e.g., role) for.", //
+      "Optional: ID (UUID) of the store to get user context (e.g., role) for.",
     example: "018ebc9a-7e1c-7f5e-b48a-3f4f72c55a1e",
   })
   async getCurrentUser(
@@ -214,22 +199,14 @@ export class UserController {
   @Post("stores/:storeId/invite-staff")
   @UseGuards(JwtAuthGuard, TierLimitGuard)
   @UseTierLimit({ resource: "staff", increment: 1 })
-  @ApiBearerAuth()
+  @ApiAuthWithRoles()
   @ApiOperation({
     summary: "Invite a staff member to join a store (Owner/Admin only)",
   })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-    format: "uuid",
-  })
+  @ApiStoreIdParam()
   @ApiCreatedResponse({
     description: "Staff invitation sent successfully.",
     type: StandardApiResponse,
-  })
-  @ApiForbiddenResponse({
-    description: "Insufficient permissions or tier limit reached",
   })
   @ApiBadRequestResponse({
     description: "Invalid input or user already a member",
@@ -266,32 +243,14 @@ export class UserController {
 
   @Patch("stores/:storeId/users/:targetUserId/role")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiAuthWithRoles()
   @ApiOperation({ summary: "Change a user's role within a store (Owner only)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-    format: "uuid",
-  })
-  @ApiParam({
-    name: "targetUserId",
-    description: "ID (UUID) of the user whose role to change",
-    type: String,
-    format: "uuid",
-  })
-  @ApiOkResponse({
-    description: "User role updated successfully.",
-    type: StandardApiResponse,
-  })
-  @ApiForbiddenResponse({
-    description: "Insufficient permissions (Owner only)",
-  })
+  @ApiStoreIdParam()
+  @ApiUuidParam("targetUserId", "ID (UUID) of the user whose role to change")
+  @ApiSuccessResponse(StandardApiResponse, "User role updated successfully.")
+  @ApiResourceErrors()
   @ApiBadRequestResponse({
     description: "Cannot change own role",
-  })
-  @ApiNotFoundResponse({
-    description: "User not found in store",
   })
   async changeRole(
     @GetUser("sub") userId: string,
@@ -320,32 +279,14 @@ export class UserController {
 
   @Patch("stores/:storeId/users/:targetUserId/suspend")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiAuthWithRoles()
   @ApiOperation({ summary: "Suspend a user account (Owner/Admin only)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-    format: "uuid",
-  })
-  @ApiParam({
-    name: "targetUserId",
-    description: "ID (UUID) of the user to suspend",
-    type: String,
-    format: "uuid",
-  })
-  @ApiOkResponse({
-    description: "User suspended successfully.",
-    type: StandardApiResponse,
-  })
-  @ApiForbiddenResponse({
-    description: "Insufficient permissions (Owner/Admin only)",
-  })
+  @ApiStoreIdParam()
+  @ApiUuidParam("targetUserId", "ID (UUID) of the user to suspend")
+  @ApiSuccessResponse(StandardApiResponse, "User suspended successfully.")
+  @ApiResourceErrors()
   @ApiBadRequestResponse({
     description: "Cannot suspend yourself",
-  })
-  @ApiNotFoundResponse({
-    description: "User not found",
   })
   async suspendUser(
     @GetUser("sub") userId: string,
@@ -371,32 +312,14 @@ export class UserController {
 
   @Patch("stores/:storeId/users/:targetUserId/reactivate")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiAuthWithRoles()
   @ApiOperation({
     summary: "Reactivate a suspended user account (Owner/Admin only)",
   })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-    format: "uuid",
-  })
-  @ApiParam({
-    name: "targetUserId",
-    description: "ID (UUID) of the user to reactivate",
-    type: String,
-    format: "uuid",
-  })
-  @ApiOkResponse({
-    description: "User reactivated successfully.",
-    type: StandardApiResponse,
-  })
-  @ApiForbiddenResponse({
-    description: "Insufficient permissions (Owner/Admin only)",
-  })
-  @ApiNotFoundResponse({
-    description: "User not found",
-  })
+  @ApiStoreIdParam()
+  @ApiUuidParam("targetUserId", "ID (UUID) of the user to reactivate")
+  @ApiSuccessResponse(StandardApiResponse, "User reactivated successfully.")
+  @ApiResourceErrors()
   async reactivateUser(
     @GetUser("sub") userId: string,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,

@@ -12,21 +12,25 @@ import {
   Headers,
   Req,
 } from "@nestjs/common";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiParam,
-  ApiQuery,
-  ApiHeader,
-} from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiQuery, ApiHeader } from "@nestjs/swagger";
 
 import { CartService } from "./cart.service";
 import { AddToCartDto } from "./dto/add-to-cart.dto";
 import { CartResponseDto } from "./dto/cart-response.dto";
 import { UpdateCartItemDto } from "./dto/update-cart-item.dto";
 import { RequestWithUser } from "../auth/types";
+import {
+  ApiResourceErrors,
+  ApiUuidParam,
+} from "../common/decorators/api-crud.decorator";
+import { ApiSuccessResponse } from "../common/decorators/api-success-response.decorator";
 import { StandardApiResponse } from "../common/dto/standard-api-response.dto";
+
+const SESSION_HEADER = {
+  name: "x-session-token",
+  description: "Session token for customer access (SOS app)",
+  required: false,
+};
 
 @ApiTags("Cart")
 @Controller("cart")
@@ -36,19 +40,9 @@ export class CartController {
   @Get()
   @ApiOperation({ summary: "Get current cart for session" })
   @ApiQuery({ name: "sessionId", description: "Active table session ID" })
-  @ApiHeader({
-    name: "x-session-token",
-    description: "Session token for customer access (SOS app)",
-    required: false,
-  })
-  @ApiResponse({
-    status: 200,
-    description: "Cart retrieved successfully",
-    type: CartResponseDto,
-  })
-  @ApiResponse({ status: 401, description: "Authentication required" })
-  @ApiResponse({ status: 403, description: "Access denied" })
-  @ApiResponse({ status: 404, description: "Session not found" })
+  @ApiHeader(SESSION_HEADER)
+  @ApiSuccessResponse(CartResponseDto, "Cart retrieved successfully")
+  @ApiResourceErrors()
   async getCart(
     @Query("sessionId") sessionId: string,
     @Headers("x-session-token") sessionToken?: string,
@@ -67,20 +61,12 @@ export class CartController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Add item to cart" })
   @ApiQuery({ name: "sessionId", description: "Active table session ID" })
-  @ApiHeader({
-    name: "x-session-token",
-    description: "Session token for customer access (SOS app)",
-    required: false,
-  })
-  @ApiResponse({
-    status: 201,
+  @ApiHeader(SESSION_HEADER)
+  @ApiSuccessResponse(CartResponseDto, {
+    status: HttpStatus.CREATED,
     description: "Item added to cart successfully",
-    type: CartResponseDto,
   })
-  @ApiResponse({ status: 400, description: "Invalid input" })
-  @ApiResponse({ status: 401, description: "Authentication required" })
-  @ApiResponse({ status: 403, description: "Access denied" })
-  @ApiResponse({ status: 404, description: "Menu item or session not found" })
+  @ApiResourceErrors()
   async addItem(
     @Query("sessionId") sessionId: string,
     @Body() dto: AddToCartDto,
@@ -100,21 +86,10 @@ export class CartController {
   @Patch("items/:cartItemId")
   @ApiOperation({ summary: "Update cart item" })
   @ApiQuery({ name: "sessionId", description: "Active table session ID" })
-  @ApiParam({ name: "cartItemId", description: "Cart item ID" })
-  @ApiHeader({
-    name: "x-session-token",
-    description: "Session token for customer access (SOS app)",
-    required: false,
-  })
-  @ApiResponse({
-    status: 200,
-    description: "Cart item updated successfully",
-    type: CartResponseDto,
-  })
-  @ApiResponse({ status: 400, description: "Invalid input" })
-  @ApiResponse({ status: 401, description: "Authentication required" })
-  @ApiResponse({ status: 403, description: "Access denied" })
-  @ApiResponse({ status: 404, description: "Cart item not found" })
+  @ApiUuidParam("cartItemId", "Cart item ID")
+  @ApiHeader(SESSION_HEADER)
+  @ApiSuccessResponse(CartResponseDto, "Cart item updated successfully")
+  @ApiResourceErrors()
   async updateItem(
     @Query("sessionId") sessionId: string,
     @Param("cartItemId") cartItemId: string,
@@ -134,23 +109,12 @@ export class CartController {
   }
 
   @Delete("items/:cartItemId")
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Remove item from cart" })
   @ApiQuery({ name: "sessionId", description: "Active table session ID" })
-  @ApiParam({ name: "cartItemId", description: "Cart item ID" })
-  @ApiHeader({
-    name: "x-session-token",
-    description: "Session token for customer access (SOS app)",
-    required: false,
-  })
-  @ApiResponse({
-    status: 200,
-    description: "Item removed from cart successfully",
-    type: CartResponseDto,
-  })
-  @ApiResponse({ status: 401, description: "Authentication required" })
-  @ApiResponse({ status: 403, description: "Access denied" })
-  @ApiResponse({ status: 404, description: "Cart item not found" })
+  @ApiUuidParam("cartItemId", "Cart item ID")
+  @ApiHeader(SESSION_HEADER)
+  @ApiSuccessResponse(CartResponseDto, "Item removed from cart successfully")
+  @ApiResourceErrors()
   async removeItem(
     @Query("sessionId") sessionId: string,
     @Param("cartItemId") cartItemId: string,
@@ -168,22 +132,11 @@ export class CartController {
   }
 
   @Delete()
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Clear all items from cart" })
   @ApiQuery({ name: "sessionId", description: "Active table session ID" })
-  @ApiHeader({
-    name: "x-session-token",
-    description: "Session token for customer access (SOS app)",
-    required: false,
-  })
-  @ApiResponse({
-    status: 200,
-    description: "Cart cleared successfully",
-    type: CartResponseDto,
-  })
-  @ApiResponse({ status: 401, description: "Authentication required" })
-  @ApiResponse({ status: 403, description: "Access denied" })
-  @ApiResponse({ status: 404, description: "Cart not found" })
+  @ApiHeader(SESSION_HEADER)
+  @ApiSuccessResponse(CartResponseDto, "Cart cleared successfully")
+  @ApiResourceErrors()
   async clearCart(
     @Query("sessionId") sessionId: string,
     @Headers("x-session-token") sessionToken?: string,

@@ -12,17 +12,16 @@ import {
   ParseIntPipe,
   DefaultValuePipe,
 } from "@nestjs/common";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiParam,
-  ApiQuery,
-} from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
 
 import { PaymentStatus } from "src/generated/prisma/client";
 
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
+import {
+  ApiAuthWithRoles,
+  ApiUuidParam,
+  ApiResourceErrors,
+} from "../../common/decorators/api-crud.decorator";
 import { ApiSuccessResponse } from "../../common/decorators/api-success-response.decorator";
 import { GetUser } from "../../common/decorators/get-user.decorator";
 import { StandardApiResponse } from "../../common/dto/standard-api-response.dto";
@@ -33,7 +32,6 @@ import { SubscriptionService } from "../services/subscription.service";
 
 @ApiTags("Admin - Payment Verification")
 @Controller("admin/payment-requests")
-@ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 export class AdminVerificationController {
   private readonly logger = new Logger(AdminVerificationController.name);
@@ -46,6 +44,7 @@ export class AdminVerificationController {
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Get payment requests queue (PLATFORM_ADMIN only)" })
+  @ApiAuthWithRoles()
   @ApiQuery({
     name: "status",
     required: false,
@@ -95,10 +94,12 @@ export class AdminVerificationController {
   @Get(":id")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Get payment request detail (PLATFORM_ADMIN only)" })
-  @ApiParam({ name: "id", description: "Payment request ID" })
+  @ApiAuthWithRoles()
+  @ApiUuidParam("id", "Payment request ID (UUID)")
   @ApiSuccessResponse(Object, {
     description: "Payment request detail retrieved successfully",
   })
+  @ApiResourceErrors()
   async getPaymentRequestDetail(
     @GetUser("sub") adminId: string,
     @Param("id") paymentRequestId: string,
@@ -124,10 +125,12 @@ export class AdminVerificationController {
   @ApiOperation({
     summary: "Get payment proof presigned URL (PLATFORM_ADMIN only)",
   })
-  @ApiParam({ name: "id", description: "Payment request ID" })
+  @ApiAuthWithRoles()
+  @ApiUuidParam("id", "Payment request ID (UUID)")
   @ApiSuccessResponse(Object, {
     description: "Payment proof URL retrieved successfully",
   })
+  @ApiResourceErrors()
   async getPaymentProof(
     @GetUser("sub") adminId: string,
     @Param("id") paymentRequestId: string,
@@ -151,10 +154,12 @@ export class AdminVerificationController {
   @Post(":id/verify")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Approve payment request (PLATFORM_ADMIN only)" })
-  @ApiParam({ name: "id", description: "Payment request ID" })
+  @ApiAuthWithRoles()
+  @ApiUuidParam("id", "Payment request ID (UUID)")
   @ApiSuccessResponse(Object, {
     description: "Payment verified successfully",
   })
+  @ApiResourceErrors()
   async verifyPayment(
     @GetUser("sub") adminId: string,
     @Param("id") paymentRequestId: string,
@@ -182,10 +187,12 @@ export class AdminVerificationController {
   @Post(":id/reject")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Reject payment request (PLATFORM_ADMIN only)" })
-  @ApiParam({ name: "id", description: "Payment request ID" })
+  @ApiAuthWithRoles()
+  @ApiUuidParam("id", "Payment request ID (UUID)")
   @ApiSuccessResponse(Object, {
     description: "Payment rejected successfully",
   })
+  @ApiResourceErrors()
   async rejectPayment(
     @GetUser("sub") adminId: string,
     @Param("id") paymentRequestId: string,
@@ -212,6 +219,7 @@ export class AdminVerificationController {
   @ApiOperation({
     summary: "Get admin dashboard metrics (PLATFORM_ADMIN only)",
   })
+  @ApiAuthWithRoles()
   @ApiSuccessResponse(Object, {
     description: "Dashboard metrics retrieved successfully",
   })

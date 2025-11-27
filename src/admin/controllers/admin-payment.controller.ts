@@ -8,16 +8,15 @@ import {
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiNotFoundResponse,
-  ApiForbiddenResponse,
-} from "@nestjs/swagger";
+import { ApiTags } from "@nestjs/swagger";
 
 import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
+import {
+  ApiAuthWithRoles,
+  ApiGetAll,
+  ApiGetOneAuth,
+  ApiAction,
+} from "src/common/decorators/api-crud.decorator";
 import { GetUser } from "src/common/decorators/get-user.decorator";
 import { SubscriptionService } from "src/subscription/services/subscription.service";
 
@@ -38,22 +37,24 @@ interface RejectPaymentDto {
   reason: string;
 }
 
+// Placeholder response class for untyped responses
+class PaymentResponseDto {}
+class PaymentDetailResponseDto {}
+class PaymentActionResponseDto {}
+
 @ApiTags("Admin - Payment Management")
 @Controller("admin/payments")
 @UseGuards(JwtAuthGuard, PlatformAdminGuard)
 @UseInterceptors(AdminAuditInterceptor)
-@ApiBearerAuth()
 export class AdminPaymentController {
   constructor(private readonly subscriptionService: SubscriptionService) {}
 
   @Get()
-  @ApiOperation({
+  @ApiAuthWithRoles()
+  @ApiGetAll(PaymentResponseDto, "payment requests", {
     summary: "Get payment queue",
-    description:
-      "Get list of pending payment requests awaiting admin verification",
+    description: "Payment queue retrieved successfully",
   })
-  @ApiOkResponse({ description: "Payment queue retrieved successfully" })
-  @ApiForbiddenResponse({ description: "Insufficient permissions" })
   async getPaymentQueue(@Query() query: GetPaymentQueueDto): Promise<unknown> {
     return await this.subscriptionService.getPaymentQueue({
       page: query.page ?? 1,
@@ -63,25 +64,19 @@ export class AdminPaymentController {
   }
 
   @Get(":id")
-  @ApiOperation({
+  @ApiGetOneAuth(PaymentDetailResponseDto, "payment request", {
     summary: "Get payment detail",
-    description: "Get detailed information for a specific payment request",
+    description: "Payment detail retrieved successfully",
   })
-  @ApiOkResponse({ description: "Payment detail retrieved successfully" })
-  @ApiNotFoundResponse({ description: "Payment request not found" })
-  @ApiForbiddenResponse({ description: "Insufficient permissions" })
   async getPaymentDetail(@Param("id") id: string): Promise<unknown> {
     return await this.subscriptionService.getPaymentRequestDetail(id);
   }
 
   @Post(":id/verify")
-  @ApiOperation({
+  @ApiAction(PaymentActionResponseDto, "verify", "payment", {
     summary: "Verify payment",
-    description: "Approve a pending payment request",
+    description: "Payment verified successfully",
   })
-  @ApiOkResponse({ description: "Payment verified successfully" })
-  @ApiNotFoundResponse({ description: "Payment request not found" })
-  @ApiForbiddenResponse({ description: "Insufficient permissions" })
   async verifyPayment(
     @Param("id") id: string,
     @Body() dto: VerifyPaymentDto,
@@ -95,13 +90,10 @@ export class AdminPaymentController {
   }
 
   @Post(":id/reject")
-  @ApiOperation({
+  @ApiAction(PaymentActionResponseDto, "reject", "payment", {
     summary: "Reject payment",
-    description: "Reject a pending payment request",
+    description: "Payment rejected successfully",
   })
-  @ApiOkResponse({ description: "Payment rejected successfully" })
-  @ApiNotFoundResponse({ description: "Payment request not found" })
-  @ApiForbiddenResponse({ description: "Insufficient permissions" })
   async rejectPayment(
     @Param("id") id: string,
     @Body() dto: RejectPaymentDto,

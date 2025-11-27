@@ -1,5 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiOkResponse } from "@nestjs/swagger";
+import { ApiTags, ApiOkResponse, ApiOperation } from "@nestjs/swagger";
 
 @ApiTags("Health")
 @Controller("health")

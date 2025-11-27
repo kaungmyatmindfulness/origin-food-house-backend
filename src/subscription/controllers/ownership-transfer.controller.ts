@@ -9,20 +9,17 @@ import {
   HttpCode,
   HttpStatus,
 } from "@nestjs/common";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiParam,
-  ApiForbiddenResponse,
-  ApiNotFoundResponse,
-  ApiBadRequestResponse,
-  ApiExtraModels,
-} from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiExtraModels } from "@nestjs/swagger";
 
 import { Role } from "src/generated/prisma/client";
 
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
+import {
+  ApiAuthWithRoles,
+  ApiUuidParam,
+  ApiCreateErrors,
+  ApiResourceErrors,
+} from "../../common/decorators/api-crud.decorator";
 import { ApiSuccessResponse } from "../../common/decorators/api-success-response.decorator";
 import { GetUser } from "../../common/decorators/get-user.decorator";
 import { StandardApiResponse } from "../../common/dto/standard-api-response.dto";
@@ -34,7 +31,6 @@ import { SubscriptionService } from "../services/subscription.service";
 
 @ApiTags("Subscription - Ownership Transfer")
 @Controller("ownership-transfers")
-@ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @ApiExtraModels(StandardApiResponse, OwnershipTransferResponseDto)
 export class OwnershipTransferController {
@@ -52,17 +48,12 @@ export class OwnershipTransferController {
     description:
       "Start the ownership transfer process. An OTP will be sent to the current owner's email for verification.",
   })
+  @ApiAuthWithRoles()
   @ApiSuccessResponse(OwnershipTransferResponseDto, {
     status: HttpStatus.CREATED,
     description: "Ownership transfer initiated successfully",
   })
-  @ApiForbiddenResponse({
-    description: "Only store owners can transfer ownership",
-  })
-  @ApiNotFoundResponse({ description: "Store not found" })
-  @ApiBadRequestResponse({
-    description: "New owner email is invalid or same as current owner",
-  })
+  @ApiCreateErrors()
   async initiateTransfer(
     @GetUser("sub") userId: string,
     @Body() dto: InitiateOwnershipTransferDto,
@@ -95,17 +86,12 @@ export class OwnershipTransferController {
     description:
       "Complete the ownership transfer by verifying the OTP sent to the current owner's email",
   })
-  @ApiParam({ name: "id", description: "Transfer ID (UUID)" })
+  @ApiAuthWithRoles()
+  @ApiUuidParam("id", "Transfer ID (UUID)")
   @ApiSuccessResponse(OwnershipTransferResponseDto, {
     description: "Ownership transfer completed successfully",
   })
-  @ApiForbiddenResponse({
-    description: "Only the initiating owner can verify the transfer",
-  })
-  @ApiNotFoundResponse({ description: "Transfer not found or expired" })
-  @ApiBadRequestResponse({
-    description: "Invalid OTP or transfer already completed/cancelled",
-  })
+  @ApiResourceErrors()
   async verifyOtp(
     @GetUser("sub") userId: string,
     @Param("id") transferId: string,
@@ -130,17 +116,12 @@ export class OwnershipTransferController {
     summary: "Cancel ownership transfer (Owner only)",
     description: "Cancel a pending ownership transfer before it's completed",
   })
-  @ApiParam({ name: "id", description: "Transfer ID (UUID)" })
+  @ApiAuthWithRoles()
+  @ApiUuidParam("id", "Transfer ID (UUID)")
   @ApiSuccessResponse(OwnershipTransferResponseDto, {
     description: "Ownership transfer cancelled successfully",
   })
-  @ApiForbiddenResponse({
-    description: "Only the initiating owner can cancel the transfer",
-  })
-  @ApiNotFoundResponse({ description: "Transfer not found" })
-  @ApiBadRequestResponse({
-    description: "Transfer already completed or cancelled",
-  })
+  @ApiResourceErrors()
   async cancelTransfer(
     @GetUser("sub") userId: string,
     @Param("id") transferId: string,

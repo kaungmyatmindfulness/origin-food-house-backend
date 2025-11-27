@@ -1,11 +1,11 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString } from "class-validator";
+import { IsUUID } from "class-validator";
 
 export class UploadPaymentProofDto {
   @ApiProperty({
     description: "Payment request ID",
-    example: "pr_abc1",
+    example: "0194ca3b-1234-5678-9abc-def012345678",
   })
-  @IsString()
+  @IsUUID()
   paymentRequestId: string;
 }

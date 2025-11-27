@@ -7,6 +7,7 @@ import {
   PaymentStatus,
   RefundStatus,
   TransferStatus,
+  Currency,
 } from "src/generated/prisma/client";
 
 /**
@@ -178,6 +179,13 @@ export class RefundRequestResponseDto {
   requestedAmount: unknown; // Prisma Decimal - serializes to string in JSON
 
   @ApiProperty({
+    enum: ["THB", "MMK", "USD", "EUR", "JPY", "CNY", "SGD", "HKD"],
+    description: "Currency for the refund",
+    example: "USD",
+  })
+  currency: Currency;
+
+  @ApiProperty({
     description: "Reason for refund request",
     example: "Not satisfied with the service",
   })
@@ -195,6 +203,64 @@ export class RefundRequestResponseDto {
     example: "0194ca3b-...",
   })
   requestedBy: string;
+
+  @ApiProperty({ description: "Requested at timestamp" })
+  requestedAt: Date;
+
+  @ApiPropertyOptional({
+    description: "Admin who reviewed the refund request",
+    example: "0194ca3b-...",
+    nullable: true,
+  })
+  reviewedBy: string | null;
+
+  @ApiPropertyOptional({
+    description: "When the refund was reviewed",
+    nullable: true,
+  })
+  reviewedAt: Date | null;
+
+  @ApiPropertyOptional({
+    description: "Notes from admin approval",
+    example: "Approved due to valid reason",
+    nullable: true,
+  })
+  approvalNotes: string | null;
+
+  @ApiPropertyOptional({
+    description: "Reason for rejection",
+    example: "Request does not meet refund policy criteria",
+    nullable: true,
+  })
+  rejectionReason: string | null;
+
+  @ApiPropertyOptional({
+    description: "Admin who processed the refund",
+    example: "0194ca3b-...",
+    nullable: true,
+  })
+  processedBy: string | null;
+
+  @ApiPropertyOptional({
+    description: "When the refund was processed",
+    nullable: true,
+  })
+  processedAt: Date | null;
+
+  @ApiPropertyOptional({
+    description:
+      "Method used for refund (e.g., bank transfer, original payment method)",
+    example: "bank_transfer",
+    nullable: true,
+  })
+  refundMethod: string | null;
+
+  @ApiPropertyOptional({
+    description: "Path to refund proof document/image",
+    example: "refunds/store-id/uuid-proof.jpg",
+    nullable: true,
+  })
+  refundProofPath: string | null;
 
   @ApiProperty({ description: "Created at timestamp" })
   createdAt: Date;

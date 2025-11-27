@@ -8,19 +8,17 @@ import {
   HttpStatus,
   ParseUUIDPipe,
 } from "@nestjs/common";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiParam,
-  ApiForbiddenResponse,
-  ApiNotFoundResponse,
-  ApiExtraModels,
-} from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiExtraModels } from "@nestjs/swagger";
 
 import { Role } from "src/generated/prisma/client";
 
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
+import {
+  ApiAuth,
+  ApiAuthWithRoles,
+  ApiUuidParam,
+  ApiResourceErrors,
+} from "../../common/decorators/api-crud.decorator";
 import { ApiSuccessResponse } from "../../common/decorators/api-success-response.decorator";
 import { GetUser } from "../../common/decorators/get-user.decorator";
 import { StandardApiResponse } from "../../common/dto/standard-api-response.dto";
@@ -33,7 +31,6 @@ import { TrialService } from "../services/trial.service";
 
 @ApiTags("Subscription - Trials")
 @Controller("trials")
-@ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @ApiExtraModels(
   StandardApiResponse,
@@ -55,6 +52,7 @@ export class TrialController {
     description:
       "Returns whether the authenticated user can start a trial for a new store",
   })
+  @ApiAuth()
   @ApiSuccessResponse(TrialEligibilityResponseDto, {
     description: "Trial eligibility status retrieved successfully",
   })
@@ -78,14 +76,12 @@ export class TrialController {
     summary: "Get trial info for store (Owner/Admin only)",
     description: "Returns trial status and remaining days for a store",
   })
-  @ApiParam({ name: "storeId", description: "Store ID (UUID)" })
+  @ApiAuthWithRoles()
+  @ApiUuidParam("storeId", "Store ID (UUID)")
   @ApiSuccessResponse(TrialInfoResponseDto, {
     description: "Trial information retrieved successfully",
   })
-  @ApiForbiddenResponse({
-    description: "Insufficient permissions (OWNER/ADMIN required)",
-  })
-  @ApiNotFoundResponse({ description: "Store not found" })
+  @ApiResourceErrors()
   async getTrialInfo(
     @GetUser("sub") userId: string,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,

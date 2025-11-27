@@ -358,9 +358,175 @@ export class CreateMenuItemDto {
 - ALWAYS mark optional fields with `@IsOptional()` and `?` type
 - NEVER use inline DTO definitions (e.g., `@Body() dto: { field?: string }`). ALWAYS create a separate DTO class file in the `dto/` directory with proper validation decorators
 
-### 7. API Documentation
+### 7. API Documentation with CRUD Decorators
 
-**ALWAYS document endpoints with Swagger decorators:**
+**ALWAYS use the API CRUD decorators from `src/common/decorators/api-crud.decorator.ts`:**
+
+This project uses **reusable API documentation decorators** that bundle common Swagger patterns into single, expressive decorators. This reduces boilerplate and ensures consistency.
+
+#### Available Decorators
+
+**Error Response Decorators:**
+
+| Decorator | Includes | Use Case |
+|-----------|----------|----------|
+| `ApiStandardErrors()` | 400, 401, 403 | All authenticated endpoints |
+| `ApiResourceErrors()` | 400, 401, 403, 404 | Endpoints accessing specific resources |
+| `ApiCreateErrors()` | 400, 401, 403, 409 | POST create endpoints |
+| `ApiDeleteErrors()` | 400, 401, 403, 404 | DELETE endpoints |
+
+**Authentication Decorators:**
+
+| Decorator | Includes | Use Case |
+|-----------|----------|----------|
+| `ApiAuth()` | `@ApiBearerAuth` + 401 response | Simple auth (no role check) |
+| `ApiAuthWithRoles()` | `@ApiBearerAuth` + 401, 403 responses | Role-based access |
+
+**Parameter Decorators:**
+
+| Decorator | Description |
+|-----------|-------------|
+| `ApiUuidParam(name, description)` | UUID path parameter |
+| `ApiStoreIdParam(description?)` | Store ID parameter |
+| `ApiIdParam(description?)` | Generic resource ID parameter |
+
+**CRUD Decorators (Top-level resources):**
+
+| Decorator | HTTP | Includes |
+|-----------|------|----------|
+| `ApiGetAll<T>(model, resourceName, options?)` | GET list | Operation, success response (array) |
+| `ApiGetOne<T>(model, resourceName, options?)` | GET single | Operation, id param, success, 404 |
+| `ApiGetOneAuth<T>(model, resourceName, options?)` | GET single (auth) | + auth, all errors |
+| `ApiCreate<T>(model, resourceName, options?)` | POST | Operation, auth, 201 response, create errors |
+| `ApiUpdate<T>(model, resourceName, options?)` | PUT | Operation, auth, id param, resource errors |
+| `ApiPatch<T>(model, resourceName, options?)` | PATCH | Operation, auth, id param, resource errors |
+| `ApiDelete<T>(model, resourceName, options?)` | DELETE | Operation, auth, id param, delete errors |
+| `ApiDeleteNoContent(resourceName, options?)` | DELETE 204 | Same as above with 204 response |
+
+**Store-Nested Resource Decorators (for `/stores/:storeId/...`):**
+
+| Decorator | HTTP | Includes |
+|-----------|------|----------|
+| `ApiStoreGetAll<T>(model, resourceName, options?)` | GET list | + storeId param |
+| `ApiStoreGetOne<T>(model, resourceName, options?)` | GET single | + storeId param |
+| `ApiStoreCreate<T>(model, resourceName, options?)` | POST | + storeId param |
+| `ApiStoreUpdate<T>(model, resourceName, options?)` | PUT | + storeId param |
+| `ApiStorePatch<T>(model, resourceName, options?)` | PATCH | + storeId param |
+| `ApiStoreDelete<T>(model, resourceName, options?)` | DELETE | + storeId param |
+| `ApiStoreDeleteNoContent(resourceName, options?)` | DELETE 204 | + storeId param |
+
+**Special Decorators:**
+
+| Decorator | Use Case |
+|-----------|----------|
+| `ApiAction<T>(model, action, resourceName, options?)` | Action endpoints (approve, cancel, etc.) |
+| `ApiPublicAction<T>(model, summary, description)` | Public action endpoints |
+
+#### Usage Examples
+
+```typescript
+// ❌ OLD VERBOSE PATTERN - Don't use
+@Post()
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@HttpCode(HttpStatus.CREATED)
+@ApiOperation({ summary: "Create menu item (OWNER or ADMIN)" })
+@ApiParam({ name: "storeId", description: "Store UUID", type: String })
+@ApiUnauthorizedResponse({ description: "Authentication required" })
+@ApiForbiddenResponse({ description: "Insufficient permissions" })
+@ApiSuccessResponse(MenuItemDto, { status: HttpStatus.CREATED })
+@ApiConflictResponse({ description: "Resource already exists" })
+async create(@Body() dto: CreateMenuItemDto) {}
+
+// ✅ NEW COMPACT PATTERN - Use this
+@Post()
+@UseGuards(JwtAuthGuard)
+@HttpCode(HttpStatus.CREATED)
+@ApiStoreCreate(MenuItemDto, "menu item", { roles: "OWNER or ADMIN" })
+async create(@Body() dto: CreateMenuItemDto) {}
+```
+
+```typescript
+// ✅ GET list (public)
+@Get()
+@ApiStoreGetAll(MenuItemResponseDto, "menu items")
+async findAll(@Param("storeId") storeId: string) {}
+
+// ✅ GET single (public)
+@Get(":id")
+@ApiStoreGetOne(MenuItemResponseDto, "menu item")
+async findOne(@Param("id") id: string) {}
+
+// ✅ PATCH (authenticated)
+@Patch(":id")
+@UseGuards(JwtAuthGuard)
+@ApiStorePatch(MenuItemResponseDto, "menu item", { roles: "OWNER, ADMIN, or CHEF" })
+async update(@Param("id") id: string, @Body() dto: UpdateMenuItemDto) {}
+
+// ✅ DELETE with 204
+@Delete(":id")
+@UseGuards(JwtAuthGuard)
+@HttpCode(HttpStatus.NO_CONTENT)
+@ApiStoreDeleteNoContent("menu item", { roles: "OWNER or ADMIN" })
+async remove(@Param("id") id: string) {}
+
+// ✅ Action endpoint (e.g., approve, cancel)
+@Post(":id/approve")
+@UseGuards(JwtAuthGuard)
+@ApiAction(PaymentResponseDto, "approve", "payment request", { roles: "PLATFORM_ADMIN" })
+async approve(@Param("id") id: string) {}
+```
+
+#### Options Object
+
+All CRUD decorators accept an optional `options` object:
+
+```typescript
+interface ApiCrudOptions {
+  summary?: string;        // Override auto-generated summary
+  description?: string;    // Override success description
+  roles?: string;          // Add roles to summary (e.g., "OWNER or ADMIN")
+  idDescription?: string;  // Custom ID parameter description
+  storeIdDescription?: string;  // Custom store ID description (store decorators)
+}
+
+// Example with options
+@ApiStoreCreate(MenuItemDto, "menu item", {
+  summary: "Create a new menu item with customizations",
+  description: "Menu item created with all customization groups",
+  roles: "OWNER or ADMIN",
+})
+```
+
+#### When to Use Raw Decorators
+
+Use raw Swagger decorators when:
+- Custom `@ApiBody` with examples is needed
+- Complex query parameters (`@ApiQuery`)
+- Custom headers (`@ApiHeader`)
+- File upload endpoints (`@ApiConsumes`)
+- Endpoints that don't fit CRUD patterns
+
+```typescript
+// Use raw decorators for complex cases
+@Put(":id/translations")
+@UseGuards(JwtAuthGuard)
+@ApiAuthWithRoles()  // Still use this for auth
+@ApiOperation({ summary: "Update menu item translations" })
+@ApiBody({
+  type: UpdateTranslationsDto,
+  examples: {
+    withDescriptions: { value: { translations: [...] } },
+    namesOnly: { value: { translations: [...] } },
+  },
+})
+@ApiSuccessResponse(String, "Translations updated successfully")
+async updateTranslations(@Body() dto: UpdateTranslationsDto) {}
+```
+
+#### Legacy Pattern (Deprecated)
+
+The old verbose pattern is still supported but discouraged:
 
 ```typescript
 // L BAD - no documentation, unclear response

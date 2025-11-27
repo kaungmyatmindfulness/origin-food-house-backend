@@ -10,16 +10,17 @@ import {
   Req,
   ParseUUIDPipe,
 } from "@nestjs/common";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-  ApiQuery,
-} from "@nestjs/swagger";
+import { ApiTags, ApiQuery, ApiResponse } from "@nestjs/swagger";
 
 import { RequestWithUser } from "src/auth/types";
+import {
+  ApiAuth,
+  ApiAuthWithRoles,
+  ApiGetOne,
+  ApiUuidParam,
+  ApiResourceErrors,
+} from "src/common/decorators/api-crud.decorator";
+import { ApiSuccessResponse } from "src/common/decorators/api-success-response.decorator";
 import { GetUser } from "src/common/decorators/get-user.decorator";
 import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
 import { ActiveTableSession } from "src/generated/prisma/client";
@@ -55,18 +56,12 @@ export class ActiveTableSessionController {
 
   @Post("manual")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: "Create manual session (counter, phone, takeout)",
-    description:
-      "Staff-initiated orders without table association. Requires OWNER, ADMIN, SERVER, or CASHIER role.",
-  })
-  @ApiQuery({ name: "storeId", description: "Store ID" })
-  @ApiResponse({
+  @ApiAuth()
+  @ApiSuccessResponse(SessionCreatedResponseDto, {
     status: 201,
     description: "Manual session created successfully",
-    type: SessionCreatedResponseDto,
   })
+  @ApiQuery({ name: "storeId", description: "Store ID" })
   @ApiResponse({ status: 403, description: "Insufficient permissions" })
   async createManualSession(
     @Req() req: RequestWithUser,
@@ -83,16 +78,10 @@ export class ActiveTableSessionController {
   }
 
   @Post("join-by-table/:tableId")
-  @ApiOperation({
-    summary: "Join or create a session for a table",
-    description:
-      "Customers scan QR code on table. Returns existing active session or creates new one. SECURITY: Session token is only returned here.",
-  })
-  @ApiParam({ name: "tableId", description: "Table ID from QR code" })
-  @ApiResponse({
+  @ApiUuidParam("tableId", "Table ID from QR code")
+  @ApiSuccessResponse(SessionCreatedResponseDto, {
     status: 201,
     description: "Session joined/created successfully (includes session token)",
-    type: SessionCreatedResponseDto,
   })
   @ApiResponse({ status: 404, description: "Table not found" })
   async joinByTable(
@@ -104,17 +93,12 @@ export class ActiveTableSessionController {
   }
 
   @Get(":sessionId")
-  @ApiOperation({
+  @ApiGetOne(SessionResponseDto, "session", {
     summary: "Get session by ID",
     description: "SECURITY: Session token is excluded from response",
+    idDescription: "Session ID",
   })
-  @ApiParam({ name: "sessionId", description: "Session ID" })
-  @ApiResponse({
-    status: 200,
-    description: "Session found (session token excluded for security)",
-    type: SessionResponseDto,
-  })
-  @ApiResponse({ status: 404, description: "Session not found" })
+  @ApiUuidParam("sessionId", "Session ID")
   async findOne(
     @Param("sessionId") sessionId: string,
   ): Promise<StandardApiResponse<SessionResponseDto>> {
@@ -123,15 +107,9 @@ export class ActiveTableSessionController {
   }
 
   @Get("token/:token")
-  @ApiOperation({
-    summary: "Get session by token",
-    description: "SECURITY: Session token is excluded from response",
-  })
-  @ApiParam({ name: "token", description: "Session token" })
-  @ApiResponse({
-    status: 200,
+  @ApiUuidParam("token", "Session token")
+  @ApiSuccessResponse(SessionResponseDto, {
     description: "Session found (session token excluded for security)",
-    type: SessionResponseDto,
   })
   @ApiResponse({ status: 404, description: "Invalid session token" })
   async findByToken(
@@ -143,16 +121,11 @@ export class ActiveTableSessionController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: "Get all active sessions for a store (POS)",
-    description: "SECURITY: Session tokens are excluded from response",
-  })
+  @ApiAuth()
   @ApiQuery({ name: "storeId", description: "Store ID" })
-  @ApiResponse({
-    status: 200,
+  @ApiSuccessResponse(SessionResponseDto, {
+    isArray: true,
     description: "Active sessions retrieved (session tokens excluded)",
-    type: [SessionResponseDto],
   })
   async findActiveByStore(
     @Query("storeId") storeId: string,
@@ -165,23 +138,12 @@ export class ActiveTableSessionController {
 
   @Put(":sessionId")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: "Update session (Restaurant Management System only)",
-    description:
-      "SECURITY: Session token is excluded from response. Store isolation enforced.",
-  })
-  @ApiParam({ name: "sessionId", description: "Session ID" })
-  @ApiResponse({
-    status: 200,
+  @ApiAuthWithRoles()
+  @ApiUuidParam("sessionId", "Session ID")
+  @ApiSuccessResponse(SessionResponseDto, {
     description: "Session updated (session token excluded for security)",
-    type: SessionResponseDto,
   })
-  @ApiResponse({
-    status: 403,
-    description: "Insufficient permissions or cross-store access",
-  })
-  @ApiResponse({ status: 404, description: "Session not found" })
+  @ApiResourceErrors()
   async update(
     @Param("sessionId") sessionId: string,
     @Body() dto: UpdateSessionDto,
@@ -193,24 +155,13 @@ export class ActiveTableSessionController {
 
   @Post(":sessionId/close")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: "Close session (Restaurant Management System only)",
-    description:
-      "SECURITY: Session token is excluded from response. Store isolation enforced.",
-  })
-  @ApiParam({ name: "sessionId", description: "Session ID" })
-  @ApiResponse({
-    status: 200,
+  @ApiAuthWithRoles()
+  @ApiUuidParam("sessionId", "Session ID")
+  @ApiSuccessResponse(SessionResponseDto, {
     description: "Session closed (session token excluded for security)",
-    type: SessionResponseDto,
   })
-  @ApiResponse({
-    status: 403,
-    description: "Insufficient permissions or cross-store access",
-  })
-  @ApiResponse({ status: 404, description: "Session not found" })
   @ApiResponse({ status: 400, description: "Session already closed" })
+  @ApiResourceErrors()
   async close(
     @Param("sessionId") sessionId: string,
     @GetUser("sub") userId: string,
@@ -220,20 +171,10 @@ export class ActiveTableSessionController {
   }
 
   @Get(":sessionId/orders")
-  @ApiOperation({
-    summary: "Get all orders for a session (SOS - Self-Order System)",
-    description:
-      "Retrieves all orders associated with an active table session. Public endpoint for customers.",
-  })
-  @ApiParam({
-    name: "sessionId",
-    description: "Active table session ID",
-    type: String,
-  })
-  @ApiResponse({
-    status: 200,
+  @ApiUuidParam("sessionId", "Active table session ID")
+  @ApiSuccessResponse(OrderResponseDto, {
+    isArray: true,
     description: "Orders retrieved successfully",
-    type: [OrderResponseDto],
   })
   @ApiResponse({ status: 404, description: "Session not found" })
   async getSessionOrders(

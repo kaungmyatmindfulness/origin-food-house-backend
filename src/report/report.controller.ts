@@ -8,14 +8,7 @@ import {
   Param,
   ParseUUIDPipe,
 } from "@nestjs/common";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiQuery,
-  ApiParam,
-  ApiBearerAuth,
-} from "@nestjs/swagger";
+import { ApiTags, ApiQuery } from "@nestjs/swagger";
 
 import { Role } from "src/generated/prisma/client";
 
@@ -27,6 +20,13 @@ import { PaymentBreakdownDto } from "./dto/payment-breakdown.dto";
 import { PopularItemsDto } from "./dto/popular-items.dto";
 import { SalesSummaryDto } from "./dto/sales-summary.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import {
+  ApiAuth,
+  ApiAuthWithRoles,
+  ApiStoreIdParam,
+  ApiResourceErrors,
+} from "../common/decorators/api-crud.decorator";
+import { ApiSuccessResponse } from "../common/decorators/api-success-response.decorator";
 import { StandardApiResponse } from "../common/dto/standard-api-response.dto";
 
 /**
@@ -36,7 +36,7 @@ import { StandardApiResponse } from "../common/dto/standard-api-response.dto";
 @ApiTags("Stores / Reports")
 @Controller("stores/:storeId/reports")
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
+@ApiAuth()
 export class ReportController {
   constructor(
     private readonly reportService: ReportService,
@@ -47,12 +47,8 @@ export class ReportController {
    * Get sales summary report
    */
   @Get("sales-summary")
-  @ApiOperation({ summary: "Get sales summary report (OWNER, ADMIN)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
+  @ApiAuthWithRoles()
+  @ApiStoreIdParam()
   @ApiQuery({
     name: "startDate",
     required: true,
@@ -67,11 +63,8 @@ export class ReportController {
     type: String,
     example: "2025-01-31T23:59:59.999Z",
   })
-  @ApiResponse({
-    status: 200,
-    description: "Sales summary retrieved successfully",
-    type: SalesSummaryDto,
-  })
+  @ApiSuccessResponse(SalesSummaryDto, "Sales summary retrieved successfully")
+  @ApiResourceErrors()
   async getSalesSummary(
     @Req() req: RequestWithUser,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -104,14 +97,8 @@ export class ReportController {
    * Get payment method breakdown report
    */
   @Get("payment-breakdown")
-  @ApiOperation({
-    summary: "Get payment method breakdown report (OWNER, ADMIN)",
-  })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
+  @ApiAuthWithRoles()
+  @ApiStoreIdParam()
   @ApiQuery({
     name: "startDate",
     required: true,
@@ -126,11 +113,11 @@ export class ReportController {
     type: String,
     example: "2025-01-31T23:59:59.999Z",
   })
-  @ApiResponse({
-    status: 200,
-    description: "Payment breakdown retrieved successfully",
-    type: PaymentBreakdownDto,
-  })
+  @ApiSuccessResponse(
+    PaymentBreakdownDto,
+    "Payment breakdown retrieved successfully",
+  )
+  @ApiResourceErrors()
   async getPaymentBreakdown(
     @Req() req: RequestWithUser,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -163,12 +150,8 @@ export class ReportController {
    * Get popular menu items report
    */
   @Get("popular-items")
-  @ApiOperation({ summary: "Get popular menu items report (OWNER, ADMIN)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
+  @ApiAuthWithRoles()
+  @ApiStoreIdParam()
   @ApiQuery({
     name: "limit",
     required: false,
@@ -190,11 +173,8 @@ export class ReportController {
     type: String,
     example: "2025-01-31T23:59:59.999Z",
   })
-  @ApiResponse({
-    status: 200,
-    description: "Popular items retrieved successfully",
-    type: PopularItemsDto,
-  })
+  @ApiSuccessResponse(PopularItemsDto, "Popular items retrieved successfully")
+  @ApiResourceErrors()
   async getPopularItems(
     @Req() req: RequestWithUser,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -235,14 +215,8 @@ export class ReportController {
    * Get order status distribution report
    */
   @Get("order-status")
-  @ApiOperation({
-    summary: "Get order status distribution report (OWNER, ADMIN)",
-  })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
+  @ApiAuthWithRoles()
+  @ApiStoreIdParam()
   @ApiQuery({
     name: "startDate",
     required: true,
@@ -257,11 +231,11 @@ export class ReportController {
     type: String,
     example: "2025-01-31T23:59:59.999Z",
   })
-  @ApiResponse({
-    status: 200,
-    description: "Order status report retrieved successfully",
-    type: OrderStatusReportDto,
-  })
+  @ApiSuccessResponse(
+    OrderStatusReportDto,
+    "Order status report retrieved successfully",
+  )
+  @ApiResourceErrors()
   async getOrderStatusReport(
     @Req() req: RequestWithUser,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,

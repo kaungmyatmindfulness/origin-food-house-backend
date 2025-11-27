@@ -8,19 +8,16 @@ import {
   HttpStatus,
   ParseUUIDPipe,
 } from "@nestjs/common";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiParam,
-  ApiForbiddenResponse,
-  ApiNotFoundResponse,
-  ApiExtraModels,
-} from "@nestjs/swagger";
+import { ApiTags, ApiExtraModels, ApiOperation } from "@nestjs/swagger";
 
 import { Role } from "src/generated/prisma/client";
 
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
+import {
+  ApiAuthWithRoles,
+  ApiUuidParam,
+  ApiResourceErrors,
+} from "../../common/decorators/api-crud.decorator";
 import { ApiSuccessResponse } from "../../common/decorators/api-success-response.decorator";
 import { GetUser } from "../../common/decorators/get-user.decorator";
 import { StandardApiResponse } from "../../common/dto/standard-api-response.dto";
@@ -29,7 +26,6 @@ import { SubscriptionService } from "../services/subscription.service";
 
 @ApiTags("Subscription")
 @Controller("subscriptions")
-@ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @ApiExtraModels(StandardApiResponse, SubscriptionResponseDto)
 export class SubscriptionController {
@@ -40,14 +36,12 @@ export class SubscriptionController {
   @Get("store/:storeId")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Get subscription for store (Owner/Admin only)" })
-  @ApiParam({ name: "storeId", description: "Store ID (UUID)" })
+  @ApiAuthWithRoles()
+  @ApiUuidParam("storeId", "Store ID (UUID)")
   @ApiSuccessResponse(SubscriptionResponseDto, {
     description: "Subscription retrieved successfully",
   })
-  @ApiForbiddenResponse({
-    description: "Insufficient permissions (OWNER/ADMIN required)",
-  })
-  @ApiNotFoundResponse({ description: "Store or subscription not found" })
+  @ApiResourceErrors()
   async getStoreSubscription(
     @GetUser("sub") userId: string,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,

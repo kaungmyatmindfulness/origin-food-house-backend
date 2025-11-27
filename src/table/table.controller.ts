@@ -16,14 +16,21 @@ import {
 } from "@nestjs/common";
 import {
   ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiParam,
   ApiExtraModels,
   ApiBody,
+  ApiOperation,
 } from "@nestjs/swagger";
 
 import { RequestWithUser } from "src/auth/types";
+import {
+  ApiStoreGetAll,
+  ApiStoreGetOne,
+  ApiStoreCreate,
+  ApiStorePatch,
+  ApiStoreDelete,
+  ApiAuthWithRoles,
+  ApiUuidParam,
+} from "src/common/decorators/api-crud.decorator";
 import { ApiSuccessResponse } from "src/common/decorators/api-success-response.decorator";
 import { StandardApiErrorDetails } from "src/common/dto/standard-api-error-details.dto";
 import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
@@ -59,18 +66,8 @@ export class TableController {
   @Post()
   @UseGuards(JwtAuthGuard, TierLimitGuard)
   @UseTierLimit({ resource: "tables", increment: 1 })
-  @ApiBearerAuth("access-token")
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: "Create a new table (OWNER/ADMIN Required)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiSuccessResponse(TableResponseDto, {
-    status: HttpStatus.CREATED,
-    description: "Table created successfully.",
-  })
+  @ApiStoreCreate(TableResponseDto, "table", { roles: "OWNER/ADMIN" })
   async createTable(
     @Req() req: RequestWithUser,
     @Param("storeId", ParseUUIDPipe) storeId: string,
@@ -85,18 +82,14 @@ export class TableController {
 
   @Put("batch-sync")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("access-token")
   @HttpCode(HttpStatus.OK)
+  @ApiAuthWithRoles()
   @ApiOperation({
-    summary: "Synchronize tables for a store (OWNER/ADMIN Required)",
+    summary: "Synchronize tables for a store (OWNER/ADMIN)",
     description:
       "Creates/Updates tables based on the input list. Deletes any existing tables for the store that are NOT included in the input list (by ID). Checks for active sessions before deleting.",
   })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
+  @ApiUuidParam("storeId", "ID (UUID) of the store")
   @ApiBody({ type: BatchUpsertTableDto })
   @ApiSuccessResponse(TableResponseDto, {
     isArray: true,
@@ -124,14 +117,8 @@ export class TableController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Get all tables for a specific store (Public)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiSuccessResponse(TableResponseDto, {
-    isArray: true,
+  @ApiStoreGetAll(TableResponseDto, "tables", {
+    summary: "Get all tables for a specific store (Public)",
     description: "List of tables for the store, naturally sorted by name.",
   })
   async findAllByStore(
@@ -148,18 +135,11 @@ export class TableController {
 
   @Get(":tableId")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Get a specific table by ID (Public)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
+  @ApiStoreGetOne(TableResponseDto, "table", {
+    summary: "Get a specific table by ID (Public)",
+    idDescription: "ID (UUID) of the table",
   })
-  @ApiParam({
-    name: "tableId",
-    description: "ID (UUID) of the table",
-    type: String,
-  })
-  @ApiSuccessResponse(TableResponseDto, "Table details retrieved successfully.")
+  @ApiUuidParam("tableId", "ID (UUID) of the table")
   async findOne(
     @Param("storeId", ParseUUIDPipe) storeId: string,
     @Param("tableId", ParseUUIDPipe) tableId: string,
@@ -175,20 +155,13 @@ export class TableController {
 
   @Patch(":tableId")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("access-token")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Update a table name (OWNER/ADMIN Required)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
+  @ApiStorePatch(TableResponseDto, "table", {
+    summary: "Update a table name (OWNER/ADMIN)",
+    roles: "OWNER/ADMIN",
+    idDescription: "ID (UUID) of the table to update",
   })
-  @ApiParam({
-    name: "tableId",
-    description: "ID (UUID) of the table to update",
-    type: String,
-  })
-  @ApiSuccessResponse(TableResponseDto, "Table updated successfully.")
+  @ApiUuidParam("tableId", "ID (UUID) of the table to update")
   async updateTable(
     @Req() req: RequestWithUser,
     @Param("storeId", ParseUUIDPipe) storeId: string,
@@ -214,23 +187,15 @@ export class TableController {
 
   @Patch(":tableId/status")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("access-token")
   @HttpCode(HttpStatus.OK)
+  @ApiAuthWithRoles()
   @ApiOperation({
-    summary: "Update table status (OWNER/ADMIN/SERVER Required)",
+    summary: "Update table status (OWNER/ADMIN/SERVER)",
     description:
-      "Updates table status with validation of state transitions. Valid transitions follow the table lifecycle: VACANT → SEATED → ORDERING → SERVED → READY_TO_PAY → CLEANING → VACANT",
+      "Updates table status with validation of state transitions. Valid transitions follow the table lifecycle: VACANT -> SEATED -> ORDERING -> SERVED -> READY_TO_PAY -> CLEANING -> VACANT",
   })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiParam({
-    name: "tableId",
-    description: "ID (UUID) of the table to update status",
-    type: String,
-  })
+  @ApiUuidParam("storeId", "ID (UUID) of the store")
+  @ApiUuidParam("tableId", "ID (UUID) of the table to update status")
   @ApiSuccessResponse(TableResponseDto, "Table status updated successfully.")
   async updateTableStatus(
     @Req() req: RequestWithUser,
@@ -257,20 +222,12 @@ export class TableController {
 
   @Delete(":tableId")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("access-token")
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: "Delete a table (OWNER/ADMIN Required)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
+  @ApiStoreDelete(TableDeletedResponseDto, "table", {
+    roles: "OWNER/ADMIN",
+    idDescription: "ID (UUID) of the table to delete",
   })
-  @ApiParam({
-    name: "tableId",
-    description: "ID (UUID) of the table to delete",
-    type: String,
-  })
-  @ApiSuccessResponse(TableDeletedResponseDto, "Table deleted successfully.")
+  @ApiUuidParam("tableId", "ID (UUID) of the table to delete")
   async deleteTable(
     @Req() req: RequestWithUser,
     @Param("storeId", ParseUUIDPipe) storeId: string,

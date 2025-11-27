@@ -14,15 +14,26 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import {
-  ApiBearerAuth,
   ApiBody,
   ApiExtraModels,
+  ApiNoContentResponse,
   ApiOperation,
   ApiParam,
   ApiTags,
 } from "@nestjs/swagger";
 
 import { RequestWithUser } from "src/auth/types";
+import {
+  ApiAuthWithRoles,
+  ApiStoreCreate,
+  ApiStoreDeleteNoContent,
+  ApiStoreGetAll,
+  ApiStoreGetOne,
+  ApiStorePatch,
+  ApiStoreIdParam,
+  ApiIdParam,
+  ApiResourceErrors,
+} from "src/common/decorators/api-crud.decorator";
 import { ApiSuccessResponse } from "src/common/decorators/api-success-response.decorator";
 import { StandardApiErrorDetails } from "src/common/dto/standard-api-error-details.dto";
 import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
@@ -64,17 +75,9 @@ export class CategoryController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: "Create a new category (OWNER/ADMIN Required)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiSuccessResponse(CategoryBasicResponseDto, {
-    status: HttpStatus.CREATED,
-    description: "Category created successfully.",
+  @ApiStoreCreate(CategoryBasicResponseDto, "category", {
+    roles: "OWNER/ADMIN",
   })
   async create(
     @Req() req: RequestWithUser,
@@ -99,20 +102,11 @@ export class CategoryController {
    */
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
+  @ApiStoreGetAll(CategoryResponseDto, "categories", {
     summary:
       "Get all active categories (with items) for a specific store (Public)",
-    description:
-      "Retrieves categories for a store. The storeId parameter can be either a UUID or a store slug for public access.",
-  })
-  @ApiParam({
-    name: "storeId",
-    description: "Store UUID or slug",
-    type: String,
-  })
-  @ApiSuccessResponse(CategoryResponseDto, {
-    isArray: true,
     description: "List of active categories with included active menu items.",
+    storeIdDescription: "Store UUID or slug",
   })
   async findAll(
     @Param("storeId") storeIdentifier: string,
@@ -149,17 +143,10 @@ export class CategoryController {
   }
 
   @Get(":id")
-  @ApiOperation({ summary: "Get a specific category by ID (Public)" })
-  @ApiParam({
-    name: "storeId",
-    description: "Store UUID or slug",
-    type: String,
-  })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the category to fetch",
-    type: String,
-    format: "uuid",
+  @ApiStoreGetOne(CategoryBasicResponseDto, "category", {
+    summary: "Get a specific category by ID (Public)",
+    storeIdDescription: "Store UUID or slug",
+    idDescription: "ID (UUID) of the category to fetch",
   })
   async findOne(
     @Param("storeId") storeIdentifier: string,
@@ -183,15 +170,11 @@ export class CategoryController {
 
   @Patch("sort")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({
     summary: "Reorder categories and their menu items (OWNER/ADMIN Required)",
   })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
+  @ApiAuthWithRoles()
+  @ApiStoreIdParam()
   @ApiSuccessResponse(String, {
     description: "Categories and items reordered successfully.",
   })
@@ -216,23 +199,11 @@ export class CategoryController {
 
   @Patch(":id")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: "Update a category name (OWNER/ADMIN Required)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
+  @ApiStorePatch(CategoryBasicResponseDto, "category", {
+    summary: "Update a category name (OWNER/ADMIN Required)",
+    roles: "OWNER/ADMIN",
+    idDescription: "ID (UUID) of the category to update",
   })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the category to update",
-    type: String,
-    format: "uuid",
-  })
-  @ApiSuccessResponse(
-    CategoryBasicResponseDto,
-    "Category updated successfully.",
-  )
   async update(
     @Req() req: RequestWithUser,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -258,24 +229,11 @@ export class CategoryController {
 
   @Delete(":id")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: "Delete a category (OWNER/ADMIN Required)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
+  @ApiStoreDeleteNoContent("category", {
+    roles: "OWNER/ADMIN",
+    idDescription: "ID (UUID) of the category to delete",
   })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the category to delete",
-    type: String,
-    format: "uuid",
-  })
-  @ApiSuccessResponse(
-    CategoryDeletedResponseDto,
-    "Category deleted successfully.",
-  )
   async remove(
     @Req() req: RequestWithUser,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -305,24 +263,15 @@ export class CategoryController {
 
   @Patch(":id/translations")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Update category translations (OWNER or ADMIN)",
     description:
       "Add or update translations for a category. Supports multiple locales: en, zh, my, th",
   })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the category",
-    type: String,
-    format: "uuid",
-  })
+  @ApiAuthWithRoles()
+  @ApiStoreIdParam()
+  @ApiIdParam("ID (UUID) of the category")
   @ApiBody({
     type: UpdateCategoryTranslationsDto,
     examples: {
@@ -345,6 +294,7 @@ export class CategoryController {
     },
   })
   @ApiSuccessResponse(String, "Category translations updated successfully.")
+  @ApiResourceErrors()
   async updateCategoryTranslations(
     @Req() req: RequestWithUser,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -372,31 +322,24 @@ export class CategoryController {
 
   @Delete(":id/translations/:locale")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: "Delete a specific translation for a category (OWNER or ADMIN)",
     description:
       "Remove a translation in a specific locale (en, zh, my, th) from a category",
   })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the category",
-    type: String,
-    format: "uuid",
-  })
+  @ApiAuthWithRoles()
+  @ApiStoreIdParam()
+  @ApiIdParam("ID (UUID) of the category")
   @ApiParam({
     name: "locale",
     description: "Locale to delete (en, zh, my, th)",
     type: String,
     enum: SUPPORTED_LOCALES,
   })
-  @ApiSuccessResponse(String, "Category translation deleted successfully.")
+  @ApiNoContentResponse({
+    description: "Category translation deleted successfully.",
+  })
   async deleteCategoryTranslation(
     @Req() req: RequestWithUser,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,

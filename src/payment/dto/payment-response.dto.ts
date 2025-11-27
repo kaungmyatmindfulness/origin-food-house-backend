@@ -28,6 +28,30 @@ export class PaymentResponseDto {
   @ApiProperty({ nullable: true })
   notes: string | null;
 
+  @ApiProperty({
+    nullable: true,
+    description: "Type of bill split (EQUAL, CUSTOM, BY_ITEM)",
+    example: "EQUAL",
+  })
+  splitType: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    description: "JSON metadata containing split details",
+    example: { numberOfGuests: 4, amountPerGuest: "25.00" },
+  })
+  splitMetadata: Record<string, unknown> | null;
+
+  @ApiProperty({
+    nullable: true,
+    description: "Guest number for split payment",
+    example: 1,
+  })
+  guestNumber: number | null;
+
+  @ApiProperty({ nullable: true, description: "Soft delete timestamp" })
+  deletedAt: Date | null;
+
   @ApiProperty()
   createdAt: Date;
 

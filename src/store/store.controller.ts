@@ -17,18 +17,18 @@ import {
   UploadedFiles,
 } from "@nestjs/common";
 import { FileFieldsInterceptor } from "@nestjs/platform-express";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiUnauthorizedResponse,
-  ApiNotFoundResponse,
-  ApiParam,
-  ApiExtraModels,
-} from "@nestjs/swagger";
+import { ApiTags, ApiExtraModels } from "@nestjs/swagger";
 
 import { RequestWithUser } from "src/auth/types";
+import {
+  ApiGetOne,
+  ApiCreate,
+  ApiUpdate,
+  ApiPatch,
+  ApiAction,
+  ApiIdParam,
+  ApiAuthWithRoles,
+} from "src/common/decorators/api-crud.decorator";
 import { ApiSuccessResponse } from "src/common/decorators/api-success-response.decorator";
 import { GetUser } from "src/common/decorators/get-user.decorator";
 import { StandardApiErrorDetails } from "src/common/dto/standard-api-error-details.dto";
@@ -63,17 +63,11 @@ export class StoreController {
 
   @Get(":id")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Get public details for a specific store by ID" })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the store to retrieve",
-    type: String,
+  @ApiGetOne(GetStoreDetailsResponseDto, "store", {
+    summary: "Get public details for a specific store by ID",
+    description: "Store details retrieved successfully.",
+    idDescription: "ID (UUID) of the store to retrieve",
   })
-  @ApiSuccessResponse(
-    GetStoreDetailsResponseDto,
-    "Store details retrieved successfully.",
-  )
-  @ApiNotFoundResponse({ description: "Store not found." })
   async getStoreDetails(
     @Param("id", ParseUUIDPipe) storeId: string,
   ): Promise<StandardApiResponse<GetStoreDetailsResponseDto>> {
@@ -89,15 +83,10 @@ export class StoreController {
   }
 
   @Post()
-  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @ApiUnauthorizedResponse({
-    description: "Unauthorized - Invalid or missing JWT.",
-  })
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: "Create a store (creator becomes OWNER)" })
-  @ApiSuccessResponse(String, {
-    status: HttpStatus.CREATED,
+  @ApiCreate(StandardApiResponse, "store", {
+    summary: "Create a store (creator becomes OWNER)",
     description: "Store created successfully.",
   })
   async createStore(
@@ -120,15 +109,12 @@ export class StoreController {
   }
 
   @Put(":id/information")
-  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @ApiUnauthorizedResponse({
-    description: "Unauthorized - Invalid or missing JWT.",
-  })
-  @ApiOperation({ summary: "Update a store details (OWNER or ADMIN only)" })
-  @ApiOkResponse({
+  @ApiUpdate(StandardApiResponse, "store information", {
+    summary: "Update a store details (OWNER or ADMIN only)",
     description: "Store updated successfully.",
-    type: StandardApiResponse,
+    roles: "OWNER, ADMIN",
+    idDescription: "ID (UUID) of the store",
   })
   async updateStoreInformation(
     @Req() req: RequestWithUser,
@@ -153,22 +139,14 @@ export class StoreController {
   }
 
   @Put(":id/settings")
-  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @ApiUnauthorizedResponse({
-    description: "Unauthorized - Invalid or missing JWT.",
-  })
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Update store settings (OWNER or ADMIN only)" })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the store whose settings to update",
-    type: String,
+  @ApiUpdate(StoreSettingResponseDto, "store settings", {
+    summary: "Update store settings (OWNER or ADMIN only)",
+    description: "Store settings updated successfully.",
+    roles: "OWNER, ADMIN",
+    idDescription: "ID (UUID) of the store whose settings to update",
   })
-  @ApiSuccessResponse(
-    StoreSettingResponseDto,
-    "Store settings updated successfully.",
-  )
   async updateStoreSettings(
     @Req() req: RequestWithUser,
     @Param("id", ParseUUIDPipe) storeId: string,
@@ -192,6 +170,24 @@ export class StoreController {
       currency: updatedSettings.currency,
       vatRate: updatedSettings.vatRate?.toString() ?? null,
       serviceChargeRate: updatedSettings.serviceChargeRate?.toString() ?? null,
+      businessHours: updatedSettings.businessHours as Record<
+        string,
+        unknown
+      > | null,
+      specialHours: updatedSettings.specialHours as Record<
+        string,
+        unknown
+      > | null,
+      acceptOrdersWhenClosed: updatedSettings.acceptOrdersWhenClosed,
+      loyaltyEnabled: updatedSettings.loyaltyEnabled,
+      loyaltyPointRate: updatedSettings.loyaltyPointRate?.toString() ?? null,
+      loyaltyRedemptionRate:
+        updatedSettings.loyaltyRedemptionRate?.toString() ?? null,
+      loyaltyPointExpiryDays: updatedSettings.loyaltyPointExpiryDays ?? null,
+      primaryLocale: updatedSettings.primaryLocale,
+      enabledLocales: updatedSettings.enabledLocales,
+      multiLanguageEnabled: updatedSettings.multiLanguageEnabled,
+      multiLanguageMigratedAt: updatedSettings.multiLanguageMigratedAt ?? null,
       createdAt: updatedSettings.createdAt,
       updatedAt: updatedSettings.updatedAt,
     };
@@ -203,27 +199,14 @@ export class StoreController {
   }
 
   @Post(":id/members")
-  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({
+  @ApiAction(StandardApiResponse, "add or update", "store member", {
     summary: "Add store member or update existing member role (OWNER, ADMIN)",
-    description:
-      "Invite a new user or update role for an existing user by email. Owner can assign any role. Admin can assign SERVER/CHEF/CASHIER roles.",
-  })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiSuccessResponse(String, {
-    status: HttpStatus.CREATED,
     description: "Member added or role updated successfully.",
+    roles: "OWNER, ADMIN",
+    idDescription: "ID (UUID) of the store",
   })
-  @ApiUnauthorizedResponse({
-    description: "Unauthorized - Invalid or missing JWT.",
-  })
-  @ApiNotFoundResponse({ description: "Store not found." })
   async inviteOrAssignRoleByEmail(
     @Req() req: RequestWithUser,
     @Param("id", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -249,24 +232,14 @@ export class StoreController {
   }
 
   @Patch(":id/settings/tax-and-service")
-  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @ApiUnauthorizedResponse({
-    description: "Unauthorized - Invalid or missing JWT.",
-  })
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
+  @ApiPatch(StoreSettingResponseDto, "tax and service charge rates", {
     summary: "Update tax and service charge rates (OWNER or ADMIN only)",
+    description: "Tax and service charge rates updated successfully.",
+    roles: "OWNER, ADMIN",
+    idDescription: "ID (UUID) of the store",
   })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiSuccessResponse(
-    StoreSettingResponseDto,
-    "Tax and service charge rates updated successfully.",
-  )
   async updateTaxAndServiceCharge(
     @GetUser("sub") userId: string,
     @Param("id", ParseUUIDPipe) storeId: string,
@@ -290,6 +263,17 @@ export class StoreController {
       currency: settings.currency,
       vatRate: settings.vatRate?.toString() ?? null,
       serviceChargeRate: settings.serviceChargeRate?.toString() ?? null,
+      businessHours: settings.businessHours as Record<string, unknown> | null,
+      specialHours: settings.specialHours as Record<string, unknown> | null,
+      acceptOrdersWhenClosed: settings.acceptOrdersWhenClosed,
+      loyaltyEnabled: settings.loyaltyEnabled,
+      loyaltyPointRate: settings.loyaltyPointRate?.toString() ?? null,
+      loyaltyRedemptionRate: settings.loyaltyRedemptionRate?.toString() ?? null,
+      loyaltyPointExpiryDays: settings.loyaltyPointExpiryDays ?? null,
+      primaryLocale: settings.primaryLocale,
+      enabledLocales: settings.enabledLocales,
+      multiLanguageEnabled: settings.multiLanguageEnabled,
+      multiLanguageMigratedAt: settings.multiLanguageMigratedAt ?? null,
       createdAt: settings.createdAt,
       updatedAt: settings.updatedAt,
     };
@@ -301,24 +285,14 @@ export class StoreController {
   }
 
   @Patch(":id/settings/business-hours")
-  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @ApiUnauthorizedResponse({
-    description: "Unauthorized - Invalid or missing JWT.",
-  })
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
+  @ApiPatch(StoreSettingResponseDto, "business hours", {
     summary: "Update business hours (OWNER or ADMIN only)",
+    description: "Business hours updated successfully.",
+    roles: "OWNER, ADMIN",
+    idDescription: "ID (UUID) of the store",
   })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiSuccessResponse(
-    StoreSettingResponseDto,
-    "Business hours updated successfully.",
-  )
   async updateBusinessHours(
     @GetUser("sub") userId: string,
     @Param("id", ParseUUIDPipe) storeId: string,
@@ -341,6 +315,17 @@ export class StoreController {
       currency: settings.currency,
       vatRate: settings.vatRate?.toString() ?? null,
       serviceChargeRate: settings.serviceChargeRate?.toString() ?? null,
+      businessHours: settings.businessHours as Record<string, unknown> | null,
+      specialHours: settings.specialHours as Record<string, unknown> | null,
+      acceptOrdersWhenClosed: settings.acceptOrdersWhenClosed,
+      loyaltyEnabled: settings.loyaltyEnabled,
+      loyaltyPointRate: settings.loyaltyPointRate?.toString() ?? null,
+      loyaltyRedemptionRate: settings.loyaltyRedemptionRate?.toString() ?? null,
+      loyaltyPointExpiryDays: settings.loyaltyPointExpiryDays ?? null,
+      primaryLocale: settings.primaryLocale,
+      enabledLocales: settings.enabledLocales,
+      multiLanguageEnabled: settings.multiLanguageEnabled,
+      multiLanguageMigratedAt: settings.multiLanguageMigratedAt ?? null,
       createdAt: settings.createdAt,
       updatedAt: settings.updatedAt,
     };
@@ -352,11 +337,7 @@ export class StoreController {
   }
 
   @Post(":id/settings/branding")
-  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @ApiUnauthorizedResponse({
-    description: "Unauthorized - Invalid or missing JWT.",
-  })
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: "logo", maxCount: 1 },
@@ -364,14 +345,8 @@ export class StoreController {
     ]),
   )
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: "Upload branding images (logo and/or cover) (OWNER or ADMIN only)",
-  })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
+  @ApiAuthWithRoles()
+  @ApiIdParam("ID (UUID) of the store")
   @ApiSuccessResponse(
     StoreInformationResponseDto,
     "Branding uploaded successfully.",
@@ -401,24 +376,14 @@ export class StoreController {
   }
 
   @Patch(":id/settings/loyalty-rules")
-  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @ApiUnauthorizedResponse({
-    description: "Unauthorized - Invalid or missing JWT.",
-  })
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
+  @ApiPatch(StoreSettingResponseDto, "loyalty program rules", {
     summary: "Update loyalty program rules (OWNER only)",
+    description: "Loyalty rules updated successfully.",
+    roles: "OWNER",
+    idDescription: "ID (UUID) of the store",
   })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiSuccessResponse(
-    StoreSettingResponseDto,
-    "Loyalty rules updated successfully.",
-  )
   async updateLoyaltyRules(
     @GetUser("sub") userId: string,
     @Param("id", ParseUUIDPipe) storeId: string,
@@ -443,6 +408,17 @@ export class StoreController {
       currency: settings.currency,
       vatRate: settings.vatRate?.toString() ?? null,
       serviceChargeRate: settings.serviceChargeRate?.toString() ?? null,
+      businessHours: settings.businessHours as Record<string, unknown> | null,
+      specialHours: settings.specialHours as Record<string, unknown> | null,
+      acceptOrdersWhenClosed: settings.acceptOrdersWhenClosed,
+      loyaltyEnabled: settings.loyaltyEnabled,
+      loyaltyPointRate: settings.loyaltyPointRate?.toString() ?? null,
+      loyaltyRedemptionRate: settings.loyaltyRedemptionRate?.toString() ?? null,
+      loyaltyPointExpiryDays: settings.loyaltyPointExpiryDays ?? null,
+      primaryLocale: settings.primaryLocale,
+      enabledLocales: settings.enabledLocales,
+      multiLanguageEnabled: settings.multiLanguageEnabled,
+      multiLanguageMigratedAt: settings.multiLanguageMigratedAt ?? null,
       createdAt: settings.createdAt,
       updatedAt: settings.updatedAt,
     };

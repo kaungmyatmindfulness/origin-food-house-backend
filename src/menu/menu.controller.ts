@@ -15,16 +15,25 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import {
-  ApiBearerAuth,
   ApiBody,
   ApiExtraModels,
+  ApiNoContentResponse,
   ApiOperation,
   ApiParam,
   ApiTags,
 } from "@nestjs/swagger";
 
 import { RequestWithUser } from "src/auth/types";
-import { ApiSuccessResponse } from "src/common/decorators/api-success-response.decorator";
+import {
+  ApiAuthWithRoles,
+  ApiStoreCreate,
+  ApiStoreDelete,
+  ApiStoreGetAll,
+  ApiStoreGetOne,
+  ApiStorePatch,
+  ApiStoreUpdate,
+  ApiUuidParam,
+} from "src/common/decorators/api-crud.decorator";
 import { StandardApiErrorDetails } from "src/common/dto/standard-api-error-details.dto";
 import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
 import {
@@ -69,15 +78,8 @@ export class MenuController {
   constructor(private readonly menuService: MenuService) {}
 
   @Get()
-  @ApiOperation({ summary: "Get all menu items for a specific store (Public)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiSuccessResponse(MenuItemResponseDto, {
-    isArray: true,
-    description: "List of menu items retrieved successfully.",
+  @ApiStoreGetAll(MenuItemResponseDto, "menu items", {
+    summary: "Get all menu items for a specific store (Public)",
   })
   async getStoreMenuItems(
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -93,21 +95,9 @@ export class MenuController {
   }
 
   @Get(":id")
-  @ApiOperation({ summary: "Get a single menu item by ID (Public)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
+  @ApiStoreGetOne(MenuItemResponseDto, "menu item", {
+    summary: "Get a single menu item by ID (Public)",
   })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the menu item",
-    type: String,
-  })
-  @ApiSuccessResponse(
-    MenuItemResponseDto,
-    "Menu item details retrieved successfully.",
-  )
   async getMenuItemById(
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
     @Param("id", new ParseUUIDPipe({ version: "7" })) itemId: string,
@@ -126,18 +116,8 @@ export class MenuController {
   @Post()
   @UseGuards(JwtAuthGuard, TierLimitGuard)
   @UseTierLimit({ resource: "menuItems", increment: 1 })
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: "Create a menu item (OWNER or ADMIN)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiSuccessResponse(String, {
-    status: HttpStatus.CREATED,
-    description: "Menu item created successfully.",
-  })
+  @ApiStoreCreate(MenuItemResponseDto, "menu item", { roles: "OWNER or ADMIN" })
   async createMenuItem(
     @Req() req: RequestWithUser,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -158,21 +138,7 @@ export class MenuController {
 
   @Put(":id")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: "Update a menu item (OWNER or ADMIN)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the menu item",
-    type: String,
-  })
-  @ApiSuccessResponse(MenuItemResponseDto, {
-    description: "Menu item updated successfully.",
-  })
+  @ApiStoreUpdate(MenuItemResponseDto, "menu item", { roles: "OWNER or ADMIN" })
   async updateMenuItem(
     @Req() req: RequestWithUser,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -198,22 +164,8 @@ export class MenuController {
 
   @Patch(":id")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: "Partially update a menu item (OWNER, ADMIN, or CHEF)",
-  })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the menu item",
-    type: String,
-  })
-  @ApiSuccessResponse(MenuItemResponseDto, {
-    description: "Menu item updated successfully.",
+  @ApiStorePatch(MenuItemResponseDto, "menu item", {
+    roles: "OWNER, ADMIN, or CHEF",
   })
   async patchMenuItem(
     @Req() req: RequestWithUser,
@@ -240,23 +192,10 @@ export class MenuController {
 
   @Delete(":id")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: "Delete a menu item (OWNER or ADMIN)" })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
+  @ApiStoreDelete(MenuItemDeletedResponseDto, "menu item", {
+    roles: "OWNER or ADMIN",
   })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the menu item",
-    type: String,
-  })
-  @ApiSuccessResponse(
-    MenuItemDeletedResponseDto,
-    "Menu item deleted successfully.",
-  )
   async deleteMenuItem(
     @Req() req: RequestWithUser,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -286,23 +225,15 @@ export class MenuController {
 
   @Put(":id/translations")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
+  @ApiAuthWithRoles()
   @ApiOperation({
     summary: "Update menu item translations (OWNER or ADMIN)",
     description:
       "Add or update translations for a menu item. Supports multiple locales: en, zh, my, th",
   })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the menu item",
-    type: String,
-  })
+  @ApiUuidParam("storeId", "ID (UUID) of the store")
+  @ApiUuidParam("id", "ID (UUID) of the menu item")
   @ApiBody({
     type: UpdateMenuItemTranslationsDto,
     examples: {
@@ -334,7 +265,9 @@ export class MenuController {
       },
     },
   })
-  @ApiSuccessResponse(String, "Menu item translations updated successfully.")
+  @ApiNoContentResponse({
+    description: "Menu item translations updated successfully.",
+  })
   async updateMenuItemTranslations(
     @Req() req: RequestWithUser,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -362,30 +295,24 @@ export class MenuController {
 
   @Delete(":id/translations/:locale")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiAuthWithRoles()
   @ApiOperation({
     summary: "Delete a specific translation for a menu item (OWNER or ADMIN)",
     description:
       "Remove a translation in a specific locale (en, zh, my, th) from a menu item",
   })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
-  })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the menu item",
-    type: String,
-  })
+  @ApiUuidParam("storeId", "ID (UUID) of the store")
+  @ApiUuidParam("id", "ID (UUID) of the menu item")
   @ApiParam({
     name: "locale",
     description: "Locale to delete (en, zh, my, th)",
     type: String,
     enum: SUPPORTED_LOCALES,
   })
-  @ApiSuccessResponse(String, "Menu item translation deleted successfully.")
+  @ApiNoContentResponse({
+    description: "Menu item translation deleted successfully.",
+  })
   async deleteMenuItemTranslation(
     @Req() req: RequestWithUser,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -424,27 +351,18 @@ export class CustomizationController {
 
   @Put("groups/:id/translations")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
+  @ApiAuthWithRoles()
   @ApiOperation({
     summary: "Update customization group translations (OWNER or ADMIN)",
     description:
       "Add or update translations for a customization group (e.g., 'Size', 'Spice Level')",
   })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
+  @ApiUuidParam("storeId", "ID (UUID) of the store")
+  @ApiUuidParam("id", "ID (UUID) of the customization group")
+  @ApiNoContentResponse({
+    description: "Customization group translations updated successfully.",
   })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the customization group",
-    type: String,
-  })
-  @ApiSuccessResponse(
-    String,
-    "Customization group translations updated successfully.",
-  )
   async updateGroupTranslations(
     @Req() req: RequestWithUser,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -472,27 +390,18 @@ export class CustomizationController {
 
   @Put("options/:id/translations")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
+  @ApiAuthWithRoles()
   @ApiOperation({
     summary: "Update customization option translations (OWNER or ADMIN)",
     description:
       "Add or update translations for a customization option (e.g., 'Large', 'Spicy')",
   })
-  @ApiParam({
-    name: "storeId",
-    description: "ID (UUID) of the store",
-    type: String,
+  @ApiUuidParam("storeId", "ID (UUID) of the store")
+  @ApiUuidParam("id", "ID (UUID) of the customization option")
+  @ApiNoContentResponse({
+    description: "Customization option translations updated successfully.",
   })
-  @ApiParam({
-    name: "id",
-    description: "ID (UUID) of the customization option",
-    type: String,
-  })
-  @ApiSuccessResponse(
-    String,
-    "Customization option translations updated successfully.",
-  )
   async updateOptionTranslations(
     @Req() req: RequestWithUser,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,

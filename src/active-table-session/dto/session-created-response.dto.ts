@@ -1,6 +1,6 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
-import { SessionStatus } from "src/generated/prisma/client";
+import { SessionStatus, SessionType } from "src/generated/prisma/client";
 
 /**
  * Response DTO for session creation
@@ -16,8 +16,21 @@ export class SessionCreatedResponseDto {
   @ApiProperty({ description: "Table ID", nullable: true })
   tableId: string | null;
 
+  @ApiProperty({
+    description: "Session type",
+    enum: SessionType,
+    default: SessionType.TABLE,
+  })
+  sessionType: SessionType;
+
   @ApiProperty({ description: "Session status", enum: SessionStatus })
   status: SessionStatus;
+
+  @ApiPropertyOptional({ description: "Customer name", nullable: true })
+  customerName: string | null;
+
+  @ApiPropertyOptional({ description: "Customer phone number", nullable: true })
+  customerPhone: string | null;
 
   @ApiProperty({ description: "Number of guests" })
   guestCount: number;
