@@ -1,5 +1,3 @@
-import * as crypto from "crypto";
-
 import {
   Injectable,
   Logger,
@@ -17,7 +15,6 @@ import {
   DiscountType,
   Role,
   SessionType,
-  SessionStatus,
 } from "src/generated/prisma/client";
 
 import { ApplyDiscountDto } from "./dto/apply-discount.dto";
@@ -29,6 +26,7 @@ import {
   QuickSaleItemDto,
 } from "./dto/quick-sale-checkout.dto";
 import { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
+import { ActiveTableSessionService } from "../active-table-session/active-table-session.service";
 import { AuthService } from "../auth/auth.service";
 import { PaginatedResponseDto } from "../common/dto/paginated-response.dto";
 import { PaginationQueryDto } from "../common/dto/pagination-query.dto";
@@ -43,6 +41,7 @@ export class OrderService {
     private readonly prisma: PrismaService,
     private readonly kitchenGateway: KitchenGateway,
     private readonly authService: AuthService,
+    private readonly activeTableSessionService: ActiveTableSessionService,
   ) {}
 
   /**
@@ -325,22 +324,18 @@ export class OrderService {
 
       // Create order in a single transaction
       const order = await this.prisma.$transaction(async (tx) => {
-        // Generate session token
-        const sessionToken = crypto.randomBytes(32).toString("hex");
-
-        // Create manual session (no table)
-        const session = await tx.activeTableSession.create({
-          data: {
-            storeId: dto.storeId,
-            tableId: null,
-            sessionType: dto.sessionType,
-            sessionToken,
-            guestCount: 1,
-            customerName: dto.customerName,
-            customerPhone: dto.customerPhone,
-            status: SessionStatus.ACTIVE,
-          },
-        });
+        // Delegate session creation to ActiveTableSessionService
+        const session =
+          await this.activeTableSessionService.createSessionForQuickSale(
+            tx,
+            dto.storeId,
+            {
+              sessionType: dto.sessionType,
+              customerName: dto.customerName,
+              customerPhone: dto.customerPhone,
+              guestCount: 1,
+            },
+          );
 
         // Generate order number
         const orderNumber = await this.generateOrderNumber(tx, dto.storeId);

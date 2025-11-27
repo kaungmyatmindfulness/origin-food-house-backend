@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 
 import {
+  AuditAction,
   Prisma,
   Subscription,
   SubscriptionTier,
@@ -104,18 +105,17 @@ export class TrialService {
           },
         });
 
-        await tx.auditLog.create({
-          data: {
-            storeId,
-            userId,
-            action: "TRIAL_STARTED",
-            entityType: "Subscription",
-            entityId: subscription.id,
-            details: {
-              tier: SubscriptionTier.STANDARD,
-              durationDays: this.TRIAL_DURATION_DAYS,
-              trialEndsAt: trialEnd.toISOString(),
-            },
+        // Delegate audit log creation to AuditLogService
+        await this.auditLogService.createLogInTransaction(tx, {
+          storeId,
+          userId,
+          action: AuditAction.TRIAL_STARTED,
+          entityType: "Subscription",
+          entityId: subscription.id,
+          details: {
+            tier: SubscriptionTier.STANDARD,
+            durationDays: this.TRIAL_DURATION_DAYS,
+            trialEndsAt: trialEnd.toISOString(),
           },
         });
 
@@ -194,17 +194,16 @@ export class TrialService {
           data: { isActive: false },
         });
 
-        await tx.auditLog.create({
-          data: {
-            storeId,
-            action: "TRIAL_EXPIRED",
-            entityType: "Subscription",
-            entityId: subscription.id,
-            details: {
-              previousTier: SubscriptionTier.STANDARD,
-              newTier: SubscriptionTier.FREE,
-              reason: "Trial period expired",
-            },
+        // Delegate audit log creation to AuditLogService
+        await this.auditLogService.createLogInTransaction(tx, {
+          storeId,
+          action: AuditAction.TRIAL_EXPIRED,
+          entityType: "Subscription",
+          entityId: subscription.id,
+          details: {
+            previousTier: SubscriptionTier.STANDARD,
+            newTier: SubscriptionTier.FREE,
+            reason: "Trial period expired",
           },
         });
 

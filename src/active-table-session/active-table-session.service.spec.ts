@@ -1,10 +1,16 @@
 import { ForbiddenException, BadRequestException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
-import { Role, SessionStatus, SessionType } from "src/generated/prisma/client";
+import {
+  Cart,
+  Role,
+  SessionStatus,
+  SessionType,
+} from "src/generated/prisma/client";
 
 import { ActiveTableSessionService } from "./active-table-session.service";
 import { AuthService } from "../auth/auth.service";
+import { CartService } from "../cart/cart.service";
 import {
   createPrismaMock,
   PrismaMock,
@@ -16,6 +22,7 @@ describe("ActiveTableSessionService", () => {
   let service: ActiveTableSessionService;
   let prismaService: PrismaMock;
   let authService: jest.Mocked<AuthService>;
+  let cartService: jest.Mocked<CartService>;
 
   const mockUserId = "user-123";
   const mockStoreId = "store-123";
@@ -38,12 +45,19 @@ describe("ActiveTableSessionService", () => {
             checkStorePermission: jest.fn(),
           },
         },
+        {
+          provide: CartService,
+          useValue: {
+            createCartForSession: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<ActiveTableSessionService>(ActiveTableSessionService);
     prismaService = module.get(PrismaService);
     authService = module.get(AuthService);
+    cartService = module.get(CartService);
   });
 
   afterEach(() => {
@@ -88,14 +102,14 @@ describe("ActiveTableSessionService", () => {
         };
 
         authService.checkStorePermission.mockResolvedValue(undefined);
+        cartService.createCartForSession.mockResolvedValue(
+          mockCart as unknown as Cart,
+        );
 
         // Mock transaction
         const mockTx = {
           activeTableSession: {
             create: jest.fn().mockResolvedValue(mockCreatedSession),
-          },
-          cart: {
-            create: jest.fn().mockResolvedValue(mockCart),
           },
         };
         prismaService.$transaction.mockImplementation(async (callback: any) =>
@@ -128,13 +142,11 @@ describe("ActiveTableSessionService", () => {
           }),
         });
 
-        expect(mockTx.cart.create).toHaveBeenCalledWith({
-          data: {
-            sessionId: mockCreatedSession.id,
-            storeId: mockStoreId,
-            subTotal: expect.any(Object),
-          },
-        });
+        expect(cartService.createCartForSession).toHaveBeenCalledWith(
+          mockTx,
+          mockCreatedSession.id,
+          mockStoreId,
+        );
 
         expect(result).toHaveProperty("id", mockSessionId);
         expect(result.sessionType).toBe(SessionType.COUNTER);
@@ -150,6 +162,9 @@ describe("ActiveTableSessionService", () => {
         };
 
         authService.checkStorePermission.mockResolvedValue(undefined);
+        cartService.createCartForSession.mockResolvedValue(
+          mockCart as unknown as Cart,
+        );
 
         const sessionWithDetails = {
           ...mockCreatedSession,
@@ -160,9 +175,6 @@ describe("ActiveTableSessionService", () => {
         const mockTx = {
           activeTableSession: {
             create: jest.fn().mockResolvedValue(sessionWithDetails),
-          },
-          cart: {
-            create: jest.fn().mockResolvedValue(mockCart),
           },
         };
         prismaService.$transaction.mockImplementation(async (callback: any) =>
@@ -202,6 +214,9 @@ describe("ActiveTableSessionService", () => {
         };
 
         authService.checkStorePermission.mockResolvedValue(undefined);
+        cartService.createCartForSession.mockResolvedValue(
+          mockCart as unknown as Cart,
+        );
 
         const phoneSession = {
           ...mockCreatedSession,
@@ -214,9 +229,6 @@ describe("ActiveTableSessionService", () => {
         const mockTx = {
           activeTableSession: {
             create: jest.fn().mockResolvedValue(phoneSession),
-          },
-          cart: {
-            create: jest.fn().mockResolvedValue(mockCart),
           },
         };
         prismaService.$transaction.mockImplementation(async (callback: any) =>
@@ -250,6 +262,9 @@ describe("ActiveTableSessionService", () => {
         };
 
         authService.checkStorePermission.mockResolvedValue(undefined);
+        cartService.createCartForSession.mockResolvedValue(
+          mockCart as unknown as Cart,
+        );
 
         const takeoutSession = {
           ...mockCreatedSession,
@@ -260,9 +275,6 @@ describe("ActiveTableSessionService", () => {
         const mockTx = {
           activeTableSession: {
             create: jest.fn().mockResolvedValue(takeoutSession),
-          },
-          cart: {
-            create: jest.fn().mockResolvedValue(mockCart),
           },
         };
         prismaService.$transaction.mockImplementation(async (callback: any) =>
@@ -311,13 +323,13 @@ describe("ActiveTableSessionService", () => {
         };
 
         authService.checkStorePermission.mockResolvedValue(undefined);
+        cartService.createCartForSession.mockResolvedValue(
+          mockCart as unknown as Cart,
+        );
 
         const mockTx = {
           activeTableSession: {
             create: jest.fn().mockResolvedValue(mockCreatedSession),
-          },
-          cart: {
-            create: jest.fn().mockResolvedValue(mockCart),
           },
         };
         prismaService.$transaction.mockImplementation(async (callback: any) =>
@@ -345,13 +357,13 @@ describe("ActiveTableSessionService", () => {
         };
 
         authService.checkStorePermission.mockResolvedValue(undefined);
+        cartService.createCartForSession.mockResolvedValue(
+          mockCart as unknown as Cart,
+        );
 
         const mockTx = {
           activeTableSession: {
             create: jest.fn().mockResolvedValue(mockCreatedSession),
-          },
-          cart: {
-            create: jest.fn().mockResolvedValue(mockCart),
           },
         };
         prismaService.$transaction.mockImplementation(async (callback: any) =>
@@ -377,13 +389,13 @@ describe("ActiveTableSessionService", () => {
         };
 
         authService.checkStorePermission.mockResolvedValue(undefined);
+        cartService.createCartForSession.mockResolvedValue(
+          mockCart as unknown as Cart,
+        );
 
         const mockTx = {
           activeTableSession: {
             create: jest.fn().mockResolvedValue(mockCreatedSession),
-          },
-          cart: {
-            create: jest.fn().mockResolvedValue(mockCart),
           },
         };
         prismaService.$transaction.mockImplementation(async (callback: any) =>
@@ -409,13 +421,13 @@ describe("ActiveTableSessionService", () => {
         };
 
         authService.checkStorePermission.mockResolvedValue(undefined);
+        cartService.createCartForSession.mockResolvedValue(
+          mockCart as unknown as Cart,
+        );
 
         const mockTx = {
           activeTableSession: {
             create: jest.fn().mockResolvedValue(mockCreatedSession),
-          },
-          cart: {
-            create: jest.fn().mockResolvedValue(mockCart),
           },
         };
         prismaService.$transaction.mockImplementation(async (callback: any) =>
@@ -441,13 +453,13 @@ describe("ActiveTableSessionService", () => {
         };
 
         authService.checkStorePermission.mockResolvedValue(undefined);
+        cartService.createCartForSession.mockResolvedValue(
+          mockCart as unknown as Cart,
+        );
 
         const mockTx = {
           activeTableSession: {
             create: jest.fn().mockResolvedValue(mockCreatedSession),
-          },
-          cart: {
-            create: jest.fn().mockResolvedValue(mockCart),
           },
         };
         prismaService.$transaction.mockImplementation(async (callback: any) =>
@@ -497,19 +509,19 @@ describe("ActiveTableSessionService", () => {
     });
 
     describe("Cart Initialization", () => {
-      it("should initialize cart with zero subtotal", async () => {
+      it("should delegate cart creation to CartService", async () => {
         const dto: CreateManualSessionDto = {
           sessionType: SessionType.COUNTER,
         };
 
         authService.checkStorePermission.mockResolvedValue(undefined);
+        cartService.createCartForSession.mockResolvedValue(
+          mockCart as unknown as Cart,
+        );
 
         const mockTx = {
           activeTableSession: {
             create: jest.fn().mockResolvedValue(mockCreatedSession),
-          },
-          cart: {
-            create: jest.fn().mockResolvedValue(mockCart),
           },
         };
         prismaService.$transaction.mockImplementation(async (callback: any) =>
@@ -522,13 +534,11 @@ describe("ActiveTableSessionService", () => {
 
         await service.createManualSession(mockUserId, mockStoreId, dto);
 
-        expect(mockTx.cart.create).toHaveBeenCalledWith({
-          data: {
-            sessionId: mockCreatedSession.id,
-            storeId: mockStoreId,
-            subTotal: expect.any(Object),
-          },
-        });
+        expect(cartService.createCartForSession).toHaveBeenCalledWith(
+          mockTx,
+          mockCreatedSession.id,
+          mockStoreId,
+        );
       });
 
       it("should return session with cart included", async () => {
@@ -537,13 +547,13 @@ describe("ActiveTableSessionService", () => {
         };
 
         authService.checkStorePermission.mockResolvedValue(undefined);
+        cartService.createCartForSession.mockResolvedValue(
+          mockCart as unknown as Cart,
+        );
 
         const mockTx = {
           activeTableSession: {
             create: jest.fn().mockResolvedValue(mockCreatedSession),
-          },
-          cart: {
-            create: jest.fn().mockResolvedValue(mockCart),
           },
         };
         prismaService.$transaction.mockImplementation(async (callback: any) =>

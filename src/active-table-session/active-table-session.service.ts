@@ -19,10 +19,28 @@ import {
 } from "src/generated/prisma/client";
 
 import { AuthService } from "../auth/auth.service";
+import { CartService } from "../cart/cart.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateManualSessionDto } from "./dto/create-manual-session.dto";
 import { JoinSessionDto } from "./dto/join-session.dto";
 import { UpdateSessionDto } from "./dto/update-session.dto";
+
+/**
+ * Type for Prisma transaction client
+ * Used in transaction callbacks to ensure type safety
+ */
+type TransactionClient = Prisma.TransactionClient;
+
+/**
+ * Input type for creating a quick sale session
+ * Used by OrderService.quickCheckout for atomic session creation
+ */
+export interface QuickSaleSessionInput {
+  sessionType: SessionType;
+  customerName?: string;
+  customerPhone?: string;
+  guestCount?: number;
+}
 
 @Injectable()
 export class ActiveTableSessionService {
@@ -31,6 +49,7 @@ export class ActiveTableSessionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
+    private readonly cartService: CartService,
   ) {}
 
   /**
@@ -167,14 +186,8 @@ export class ActiveTableSessionService {
           },
         });
 
-        // Create empty cart for the session
-        await tx.cart.create({
-          data: {
-            sessionId: newSession.id,
-            storeId,
-            subTotal: new Prisma.Decimal("0"),
-          },
-        });
+        // Delegate cart creation to CartService
+        await this.cartService.createCartForSession(tx, newSession.id, storeId);
 
         this.logger.log(
           `[${method}] Created manual session ${newSession.id} with cart`,
@@ -465,5 +478,57 @@ export class ActiveTableSessionService {
       );
       throw new InternalServerErrorException("Failed to close session");
     }
+  }
+
+  /**
+   * ============================================================================
+   * SEEDING METHODS (For Quick Sale)
+   * ============================================================================
+   */
+
+  /**
+   * Creates a session for quick sale within an existing transaction.
+   * This method is designed to be called during quick checkout to ensure
+   * atomicity of session + order creation without the cart flow.
+   *
+   * NOTE: This method bypasses RBAC as it's used for system-level operations
+   * within transactions. The calling method (OrderService.quickCheckout)
+   * is responsible for RBAC validation.
+   *
+   * @param tx - Prisma transaction client
+   * @param storeId - Store UUID to create session for
+   * @param input - Quick sale session input data
+   * @returns Created ActiveTableSession
+   */
+  async createSessionForQuickSale(
+    tx: TransactionClient,
+    storeId: string,
+    input: QuickSaleSessionInput,
+  ): Promise<ActiveTableSession> {
+    const method = this.createSessionForQuickSale.name;
+    this.logger.log(
+      `[${method}] Creating ${input.sessionType} session for quick sale in store ${storeId}`,
+    );
+
+    // Generate session token
+    const sessionToken = this.generateSessionToken();
+
+    const session = await tx.activeTableSession.create({
+      data: {
+        storeId,
+        tableId: null, // Quick sale sessions have no table
+        sessionType: input.sessionType,
+        sessionToken,
+        guestCount: input.guestCount ?? 1,
+        customerName: input.customerName,
+        customerPhone: input.customerPhone,
+        status: SessionStatus.ACTIVE,
+      },
+    });
+
+    this.logger.log(
+      `[${method}] Created quick sale session ${session.id} for store ${storeId}`,
+    );
+    return session;
   }
 }

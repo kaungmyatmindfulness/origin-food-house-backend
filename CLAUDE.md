@@ -536,23 +536,23 @@ export class MenuItemResponseDto {
   name: string;
 
   @ApiProperty()
-  menuCategoryId: string;  // camelCase
+  menuCategoryId: string; // camelCase
 
   @ApiProperty()
-  isActive: boolean;       // camelCase
+  isActive: boolean; // camelCase
 
   @ApiProperty()
-  createdAt: Date;         // camelCase
+  createdAt: Date; // camelCase
 
   @ApiProperty()
-  updatedAt: Date;         // camelCase
+  updatedAt: Date; // camelCase
 }
 
 // ❌ INCORRECT - snake_case or PascalCase
 export class MenuItemResponseDto {
-  menu_category_id: string;  // snake_case - don't use
-  IsActive: boolean;         // PascalCase - don't use
-  created_at: Date;          // snake_case - don't use
+  menu_category_id: string; // snake_case - don't use
+  IsActive: boolean; // PascalCase - don't use
+  created_at: Date; // snake_case - don't use
 }
 ```
 
@@ -668,15 +668,15 @@ async getStore(@Param('id') id: string): Promise<StoreResponseDto> {
 
 ```typescript
 // ✅ CURRENT - No version prefix (v1 assumed)
-@Controller('stores')
+@Controller("stores")
 export class StoreController {}
 
 // ✅ FUTURE - Version prefix when breaking changes needed
-@Controller('v2/stores')
+@Controller("v2/stores")
 export class StoreV2Controller {}
 
 // Application-level versioning setup (when needed)
-app.setGlobalPrefix('api/v1');
+app.setGlobalPrefix("api/v1");
 
 // URLs:
 // v1: http://localhost:3000/api/v1/stores
@@ -1267,7 +1267,7 @@ export class StoreService {
       const store = await tx.store.create({ data: dto });
       // ❌ Direct Prisma call for category creation
       await tx.category.createMany({
-        data: [{ name: 'Appetizers', storeId: store.id }],
+        data: [{ name: "Appetizers", storeId: store.id }],
       });
       return store;
     });
@@ -1287,8 +1287,16 @@ export class StoreService {
     return this.prisma.$transaction(async (tx) => {
       const store = await tx.store.create({ data: dto });
       // ✅ Delegate to CategoryService with transaction client
-      await this.categoryService.createBulkForSeeding(tx, store.id, DEFAULT_CATEGORIES);
-      await this.tableService.createBulkForSeeding(tx, store.id, DEFAULT_TABLES);
+      await this.categoryService.createBulkForSeeding(
+        tx,
+        store.id,
+        DEFAULT_CATEGORIES,
+      );
+      await this.tableService.createBulkForSeeding(
+        tx,
+        store.id,
+        DEFAULT_TABLES,
+      );
       return store;
     });
   }
@@ -1322,12 +1330,12 @@ async create(
 
 **When to delegate vs direct Prisma:**
 
-| Scenario | Approach |
-|----------|----------|
-| Creating entities for another domain | Delegate to owning service |
-| Querying own domain entities | Use Prisma directly |
-| Seeding default data | Use seeding methods with tx client |
-| User-initiated CRUD | Use standard service methods |
+| Scenario                             | Approach                           |
+| ------------------------------------ | ---------------------------------- |
+| Creating entities for another domain | Delegate to owning service         |
+| Querying own domain entities         | Use Prisma directly                |
+| Seeding default data                 | Use seeding methods with tx client |
+| User-initiated CRUD                  | Use standard service methods       |
 
 ## Architecture Patterns
 
@@ -1888,7 +1896,7 @@ This section covers database patterns that work with **Prisma 7.0.0** and Postgr
 **ALWAYS use proper field types:**
 
 ```prisma
-// ✅ CORRECT - This project's pattern (uuid(7) for shorter UUIDs)
+// ✅ CORRECT - This project's pattern (uuid(7) for id)
 model User {
   id        String   @id @default(uuid(7))
   email     String   @unique

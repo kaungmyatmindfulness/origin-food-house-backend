@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 
 import {
+  AuditAction,
   Prisma,
   OwnershipTransfer,
   TransferStatus,
@@ -224,17 +225,16 @@ export class OwnershipTransferService {
           },
         });
 
-        await tx.auditLog.create({
-          data: {
-            storeId: transfer.storeId,
-            userId: newOwnerUserId,
-            action: "OWNERSHIP_TRANSFER_COMPLETED",
-            entityType: "OwnershipTransfer",
-            entityId: transferId,
-            details: {
-              previousOwnerId: transfer.currentOwnerId,
-              newOwnerId: newOwnerUserId,
-            },
+        // Delegate audit log creation to AuditLogService
+        await this.auditLogService.createLogInTransaction(tx, {
+          storeId: transfer.storeId,
+          userId: newOwnerUserId,
+          action: AuditAction.OWNERSHIP_TRANSFER_COMPLETED,
+          entityType: "OwnershipTransfer",
+          entityId: transferId,
+          details: {
+            previousOwnerId: transfer.currentOwnerId,
+            newOwnerId: newOwnerUserId,
           },
         });
       });

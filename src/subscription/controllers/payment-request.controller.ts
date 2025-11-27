@@ -19,6 +19,11 @@ import {
   ApiBearerAuth,
   ApiParam,
   ApiConsumes,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiBadRequestResponse,
+  ApiExtraModels,
+  ApiBody,
 } from "@nestjs/swagger";
 
 import { Role } from "src/generated/prisma/client";
@@ -28,6 +33,7 @@ import { ApiSuccessResponse } from "../../common/decorators/api-success-response
 import { GetUser } from "../../common/decorators/get-user.decorator";
 import { StandardApiResponse } from "../../common/dto/standard-api-response.dto";
 import { CreatePaymentRequestDto } from "../dto/create-payment-request.dto";
+import { PaymentRequestResponseDto } from "../dto/subscription-response.dto";
 import { PaymentProofService } from "../services/payment-proof.service";
 import { SubscriptionService } from "../services/subscription.service";
 
@@ -35,6 +41,7 @@ import { SubscriptionService } from "../services/subscription.service";
 @Controller("payment-requests")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
+@ApiExtraModels(StandardApiResponse, PaymentRequestResponseDto)
 export class PaymentRequestController {
   private readonly logger = new Logger(PaymentRequestController.name);
 
@@ -47,15 +54,24 @@ export class PaymentRequestController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: "Create payment request for tier upgrade (Owner/Admin only)",
+    description:
+      "Creates a new payment request for upgrading the store subscription tier",
   })
-  @ApiSuccessResponse(Object, {
+  @ApiSuccessResponse(PaymentRequestResponseDto, {
     status: HttpStatus.CREATED,
     description: "Payment request created successfully",
+  })
+  @ApiForbiddenResponse({
+    description: "Insufficient permissions (OWNER/ADMIN required)",
+  })
+  @ApiNotFoundResponse({ description: "Store not found" })
+  @ApiBadRequestResponse({
+    description: "Invalid tier or request already exists",
   })
   async createPaymentRequest(
     @GetUser("sub") userId: string,
     @Body() dto: CreatePaymentRequestDto,
-  ): Promise<StandardApiResponse<unknown>> {
+  ): Promise<StandardApiResponse<PaymentRequestResponseDto>> {
     const method = this.createPaymentRequest.name;
     this.logger.log(
       `[${method}] User ${userId} creating payment request for store ${dto.storeId} with tier ${dto.tier}`,
@@ -73,7 +89,7 @@ export class PaymentRequestController {
     );
 
     return StandardApiResponse.success(
-      paymentRequest,
+      paymentRequest as PaymentRequestResponseDto,
       "Payment request created successfully",
     );
   }
@@ -82,16 +98,37 @@ export class PaymentRequestController {
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor("file"))
   @ApiConsumes("multipart/form-data")
-  @ApiOperation({ summary: "Upload payment proof (Owner/Admin only)" })
-  @ApiParam({ name: "id", description: "Payment request ID" })
-  @ApiSuccessResponse(Object, {
+  @ApiOperation({
+    summary: "Upload payment proof (Owner/Admin only)",
+    description: "Upload payment proof image for a pending payment request",
+  })
+  @ApiParam({ name: "id", description: "Payment request ID (UUID)" })
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        file: {
+          type: "string",
+          format: "binary",
+          description: "Payment proof image (JPEG, PNG, WebP)",
+        },
+      },
+      required: ["file"],
+    },
+  })
+  @ApiSuccessResponse(PaymentRequestResponseDto, {
     description: "Payment proof uploaded successfully",
   })
+  @ApiForbiddenResponse({
+    description: "Insufficient permissions or not request owner",
+  })
+  @ApiNotFoundResponse({ description: "Payment request not found" })
+  @ApiBadRequestResponse({ description: "Invalid file type or size" })
   async uploadPaymentProof(
     @GetUser("sub") userId: string,
     @Param("id") paymentRequestId: string,
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<StandardApiResponse<unknown>> {
+  ): Promise<StandardApiResponse<PaymentRequestResponseDto>> {
     const method = this.uploadPaymentProof.name;
     this.logger.log(
       `[${method}] User ${userId} uploading payment proof for request ${paymentRequestId}`,
@@ -104,22 +141,29 @@ export class PaymentRequestController {
     );
 
     return StandardApiResponse.success(
-      result,
+      result as PaymentRequestResponseDto,
       "Payment proof uploaded successfully",
     );
   }
 
   @Get(":id")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Get payment request details (Owner/Admin only)" })
-  @ApiParam({ name: "id", description: "Payment request ID" })
-  @ApiSuccessResponse(Object, {
+  @ApiOperation({
+    summary: "Get payment request details (Owner/Admin only)",
+    description: "Retrieve details of a specific payment request",
+  })
+  @ApiParam({ name: "id", description: "Payment request ID (UUID)" })
+  @ApiSuccessResponse(PaymentRequestResponseDto, {
     description: "Payment request details retrieved successfully",
   })
+  @ApiForbiddenResponse({
+    description: "Insufficient permissions or not request owner",
+  })
+  @ApiNotFoundResponse({ description: "Payment request not found" })
   async getPaymentRequest(
     @GetUser("sub") userId: string,
     @Param("id") paymentRequestId: string,
-  ): Promise<StandardApiResponse<unknown>> {
+  ): Promise<StandardApiResponse<PaymentRequestResponseDto>> {
     const method = this.getPaymentRequest.name;
     this.logger.log(
       `[${method}] User ${userId} fetching payment request ${paymentRequestId}`,
@@ -131,7 +175,7 @@ export class PaymentRequestController {
     );
 
     return StandardApiResponse.success(
-      paymentRequest,
+      paymentRequest as PaymentRequestResponseDto,
       "Payment request retrieved successfully",
     );
   }
@@ -140,15 +184,21 @@ export class PaymentRequestController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Get all payment requests for store (Owner/Admin only)",
+    description: "Retrieve all payment requests for a specific store",
   })
-  @ApiParam({ name: "storeId", description: "Store ID" })
-  @ApiSuccessResponse(Object, {
+  @ApiParam({ name: "storeId", description: "Store ID (UUID)" })
+  @ApiSuccessResponse(PaymentRequestResponseDto, {
     description: "Payment requests retrieved successfully",
+    isArray: true,
   })
+  @ApiForbiddenResponse({
+    description: "Insufficient permissions (OWNER/ADMIN required)",
+  })
+  @ApiNotFoundResponse({ description: "Store not found" })
   async getStorePaymentRequests(
     @GetUser("sub") userId: string,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
-  ): Promise<StandardApiResponse<unknown>> {
+  ): Promise<StandardApiResponse<PaymentRequestResponseDto[]>> {
     const method = this.getStorePaymentRequests.name;
     this.logger.log(
       `[${method}] User ${userId} fetching payment requests for store ${storeId}`,
@@ -163,7 +213,7 @@ export class PaymentRequestController {
       await this.subscriptionService.getStorePaymentRequests(storeId);
 
     return StandardApiResponse.success(
-      paymentRequests,
+      paymentRequests as PaymentRequestResponseDto[],
       "Payment requests retrieved successfully",
     );
   }

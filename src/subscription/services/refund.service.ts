@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 
 import {
+  AuditAction,
   Prisma,
   RefundRequest,
   RefundStatus,
@@ -420,18 +421,17 @@ export class RefundService {
           },
         });
 
-        await tx.auditLog.create({
-          data: {
-            storeId: refund.subscription.storeId,
-            userId: financeId,
-            action: "REFUND_PROCESSED",
-            entityType: "RefundRequest",
-            entityId: refundRequestId,
-            details: {
-              amount: refund.requestedAmount.toString(),
-              refundMethod,
-              downgradedToFree: true,
-            },
+        // Delegate audit log creation to AuditLogService
+        await this.auditLogService.createLogInTransaction(tx, {
+          storeId: refund.subscription.storeId,
+          userId: financeId,
+          action: AuditAction.REFUND_PROCESSED,
+          entityType: "RefundRequest",
+          entityId: refundRequestId,
+          details: {
+            amount: refund.requestedAmount.toString(),
+            refundMethod,
+            downgradedToFree: true,
           },
         });
       });

@@ -11,15 +11,23 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiExtraModels,
 } from "@nestjs/swagger";
 
+import { StoreUsageDto } from "./dto/store-usage.dto";
+import { TierResponseDto } from "./dto/tier-response.dto";
 import { TierService } from "./tier.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { ApiSuccessResponse } from "../common/decorators/api-success-response.decorator";
+import { StandardApiResponse } from "../common/dto/standard-api-response.dto";
 
 @ApiTags("Stores / Tiers")
 @Controller("stores/:storeId/tiers")
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
+@ApiExtraModels(StandardApiResponse, TierResponseDto, StoreUsageDto)
 export class TierController {
   private readonly logger = new Logger(TierController.name);
 
@@ -37,16 +45,19 @@ export class TierController {
     description: "ID (UUID) of the store",
     type: String,
   })
+  @ApiSuccessResponse(TierResponseDto, {
+    description: "Tier information retrieved successfully",
+  })
+  @ApiForbiddenResponse({ description: "Insufficient permissions" })
+  @ApiNotFoundResponse({ description: "Store not found" })
   async getStoreTier(
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
-  ) {
+  ): Promise<StandardApiResponse<TierResponseDto>> {
     const tier = await this.tierService.getStoreTier(storeId);
-    return {
-      status: "success" as const,
-      data: tier,
-      message: "Tier information retrieved successfully",
-      errors: null,
-    };
+    return StandardApiResponse.success(
+      tier as TierResponseDto,
+      "Tier information retrieved successfully",
+    );
   }
 
   /**
@@ -61,15 +72,18 @@ export class TierController {
     description: "ID (UUID) of the store",
     type: String,
   })
+  @ApiSuccessResponse(StoreUsageDto, {
+    description: "Usage statistics retrieved successfully",
+  })
+  @ApiForbiddenResponse({ description: "Insufficient permissions" })
+  @ApiNotFoundResponse({ description: "Store not found" })
   async getStoreUsage(
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
-  ) {
+  ): Promise<StandardApiResponse<StoreUsageDto>> {
     const usage = await this.tierService.getStoreUsage(storeId);
-    return {
-      status: "success" as const,
-      data: usage,
-      message: "Usage statistics retrieved successfully",
-      errors: null,
-    };
+    return StandardApiResponse.success(
+      usage,
+      "Usage statistics retrieved successfully",
+    );
   }
 }

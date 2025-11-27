@@ -9,13 +9,19 @@ import {
 } from "@nestjs/common";
 
 import { Decimal } from "src/common/types/decimal.type";
-import { Prisma, Role, SessionStatus } from "src/generated/prisma/client";
+import { Cart, Prisma, Role, SessionStatus } from "src/generated/prisma/client";
 
 import { AuthService } from "../auth/auth.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AddToCartDto } from "./dto/add-to-cart.dto";
 import { CartResponseDto } from "./dto/cart-response.dto";
 import { UpdateCartItemDto } from "./dto/update-cart-item.dto";
+
+/**
+ * Type for Prisma transaction client
+ * Used in transaction callbacks to ensure type safety
+ */
+type TransactionClient = Prisma.TransactionClient;
 
 @Injectable()
 export class CartService {
@@ -568,5 +574,48 @@ export class CartService {
         },
       },
     });
+  }
+
+  /**
+   * ============================================================================
+   * SEEDING METHODS (For Session Creation)
+   * ============================================================================
+   */
+
+  /**
+   * Creates an empty cart for a session within an existing transaction.
+   * This method is designed to be called during session creation to ensure
+   * atomicity of session + cart creation.
+   *
+   * NOTE: This method bypasses RBAC as it's used for system-level seeding
+   * during session creation, not user-initiated operations.
+   *
+   * @param tx - Prisma transaction client
+   * @param sessionId - Session UUID to create cart for
+   * @param storeId - Store UUID the session belongs to
+   * @returns Created Cart
+   */
+  async createCartForSession(
+    tx: TransactionClient,
+    sessionId: string,
+    storeId: string,
+  ): Promise<Cart> {
+    const method = this.createCartForSession.name;
+    this.logger.log(
+      `[${method}] Creating empty cart for session ${sessionId} in store ${storeId}`,
+    );
+
+    const cart = await tx.cart.create({
+      data: {
+        sessionId,
+        storeId,
+        subTotal: new Decimal("0"),
+      },
+    });
+
+    this.logger.log(
+      `[${method}] Created cart ${cart.id} for session ${sessionId}`,
+    );
+    return cart;
   }
 }

@@ -19,6 +19,7 @@ import { ApplyDiscountDto } from "./dto/apply-discount.dto";
 import { CheckoutCartDto } from "./dto/checkout-cart.dto";
 import { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
 import { OrderService } from "./order.service";
+import { ActiveTableSessionService } from "../active-table-session/active-table-session.service";
 import { AuthService } from "../auth/auth.service";
 import {
   createPrismaMock,
@@ -32,6 +33,7 @@ describe("OrderService", () => {
   let prismaService: PrismaMock;
   let kitchenGateway: jest.Mocked<KitchenGateway>;
   let authService: jest.Mocked<AuthService>;
+  let _activeTableSessionService: jest.Mocked<ActiveTableSessionService>;
 
   // Common IDs
   const mockSessionId = "session-123";
@@ -260,6 +262,21 @@ describe("OrderService", () => {
       checkStorePermission: jest.fn().mockResolvedValue(undefined),
     };
 
+    // Mock ActiveTableSessionService
+    const mockActiveTableSessionService = {
+      createSessionForQuickSale: jest.fn().mockResolvedValue({
+        id: mockSessionId,
+        storeId: mockStoreId,
+        tableId: null,
+        sessionType: "COUNTER",
+        sessionToken: "mock-token",
+        guestCount: 1,
+        status: SessionStatus.ACTIVE,
+        createdAt: new Date(),
+        closedAt: null,
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrderService,
@@ -275,6 +292,10 @@ describe("OrderService", () => {
           provide: AuthService,
           useValue: mockAuthService,
         },
+        {
+          provide: ActiveTableSessionService,
+          useValue: mockActiveTableSessionService,
+        },
       ],
     }).compile();
 
@@ -282,6 +303,7 @@ describe("OrderService", () => {
     prismaService = module.get(PrismaService);
     kitchenGateway = module.get(KitchenGateway);
     authService = module.get(AuthService);
+    _activeTableSessionService = module.get(ActiveTableSessionService);
 
     // Reset all mocks before each test
     jest.clearAllMocks();

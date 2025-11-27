@@ -15,20 +15,35 @@ import {
   ApiQuery,
   ApiParam,
   ApiOperation,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiExtraModels,
+  ApiProduces,
 } from "@nestjs/swagger";
 import { Response } from "express";
 
 import { AuditAction, Role } from "src/generated/prisma/client";
 
 import { AuditLogService } from "./audit-log.service";
+import {
+  AuditLogEntryDto,
+  AuditLogPaginatedResponseDto,
+} from "./dto/audit-log-response.dto";
 import { AuthService } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { ApiSuccessResponse } from "../common/decorators/api-success-response.decorator";
 import { GetUser } from "../common/decorators/get-user.decorator";
+import { StandardApiResponse } from "../common/dto/standard-api-response.dto";
 
 @ApiTags("Stores / Audit Logs")
 @Controller("stores/:storeId/audit-logs")
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
+@ApiExtraModels(
+  StandardApiResponse,
+  AuditLogEntryDto,
+  AuditLogPaginatedResponseDto,
+)
 export class AuditLogController {
   private readonly logger = new Logger(AuditLogController.name);
 
@@ -54,10 +69,37 @@ export class AuditLogController {
     description: "ID (UUID) of the store",
     type: String,
   })
-  @ApiQuery({ name: "page", required: false, type: Number })
-  @ApiQuery({ name: "limit", required: false, type: Number })
-  @ApiQuery({ name: "action", required: false, enum: AuditAction })
-  @ApiQuery({ name: "userId", required: false, type: String })
+  @ApiQuery({
+    name: "page",
+    required: false,
+    type: Number,
+    description: "Page number (1-indexed)",
+  })
+  @ApiQuery({
+    name: "limit",
+    required: false,
+    type: Number,
+    description: "Items per page (max 100)",
+  })
+  @ApiQuery({
+    name: "action",
+    required: false,
+    enum: AuditAction,
+    description: "Filter by action type",
+  })
+  @ApiQuery({
+    name: "userId",
+    required: false,
+    type: String,
+    description: "Filter by user ID",
+  })
+  @ApiSuccessResponse(AuditLogPaginatedResponseDto, {
+    description: "Audit logs retrieved successfully",
+  })
+  @ApiForbiddenResponse({
+    description: "Only store owners can view audit logs",
+  })
+  @ApiNotFoundResponse({ description: "Store not found" })
   async getStoreAuditLogs(
     @GetUser("sub") currentUserId: string,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,
@@ -65,7 +107,7 @@ export class AuditLogController {
     @Query("limit") limit?: string,
     @Query("action") action?: AuditAction,
     @Query("userId") userId?: string,
-  ) {
+  ): Promise<StandardApiResponse<AuditLogPaginatedResponseDto>> {
     const method = this.getStoreAuditLogs.name;
 
     // RBAC: Only store owners can view audit logs
@@ -82,12 +124,10 @@ export class AuditLogController {
       userId,
     });
 
-    return {
-      status: "success" as const,
-      data: logs,
-      message: "Audit logs retrieved successfully",
-      errors: null,
-    };
+    return StandardApiResponse.success(
+      logs as AuditLogPaginatedResponseDto,
+      "Audit logs retrieved successfully",
+    );
   }
 
   /**
@@ -102,17 +142,47 @@ export class AuditLogController {
    * @returns CSV file download
    */
   @Get("export")
-  @ApiOperation({ summary: "Export audit logs to CSV (OWNER only)" })
+  @ApiOperation({
+    summary: "Export audit logs to CSV (OWNER only)",
+    description: "Downloads audit logs as a CSV file with optional filters",
+  })
   @ApiParam({
     name: "storeId",
     description: "ID (UUID) of the store",
     type: String,
   })
   @Header("Content-Type", "text/csv")
-  @ApiQuery({ name: "action", required: false, enum: AuditAction })
-  @ApiQuery({ name: "userId", required: false, type: String })
-  @ApiQuery({ name: "startDate", required: false, type: String })
-  @ApiQuery({ name: "endDate", required: false, type: String })
+  @ApiProduces("text/csv")
+  @ApiQuery({
+    name: "action",
+    required: false,
+    enum: AuditAction,
+    description: "Filter by action type",
+  })
+  @ApiQuery({
+    name: "userId",
+    required: false,
+    type: String,
+    description: "Filter by user ID",
+  })
+  @ApiQuery({
+    name: "startDate",
+    required: false,
+    type: String,
+    description: "Start date filter (ISO 8601 format)",
+    example: "2025-01-01T00:00:00.000Z",
+  })
+  @ApiQuery({
+    name: "endDate",
+    required: false,
+    type: String,
+    description: "End date filter (ISO 8601 format)",
+    example: "2025-12-31T23:59:59.999Z",
+  })
+  @ApiForbiddenResponse({
+    description: "Only store owners can export audit logs",
+  })
+  @ApiNotFoundResponse({ description: "Store not found" })
   async exportAuditLogs(
     @GetUser("sub") currentUserId: string,
     @Param("storeId", new ParseUUIDPipe({ version: "7" })) storeId: string,

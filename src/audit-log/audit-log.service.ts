@@ -6,6 +6,12 @@ import { PrismaService } from "../prisma/prisma.service";
 import { CreateAuditLogDto } from "./dto/create-audit-log.dto";
 
 /**
+ * Type for Prisma transaction client
+ * Used in transaction callbacks to ensure type safety
+ */
+type TransactionClient = Prisma.TransactionClient;
+
+/**
  * AuditLogService provides immutable audit trail functionality
  * Logs are write-only and cannot be edited or deleted
  */
@@ -45,6 +51,52 @@ export class AuditLogService {
     } catch (error) {
       this.logger.error(
         `[${method}] Failed to create audit log`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Create an audit log entry within an existing transaction.
+   * This method is designed to be called within a $transaction block
+   * to ensure atomicity with other database operations.
+   *
+   * NOTE: This method bypasses RBAC as it's used for system-level logging
+   * within transactions, not user-initiated operations.
+   *
+   * @param tx - Prisma transaction client
+   * @param dto - Audit log data
+   * @returns Created AuditLog
+   */
+  async createLogInTransaction(
+    tx: TransactionClient,
+    dto: CreateAuditLogDto,
+  ): Promise<AuditLog> {
+    const method = this.createLogInTransaction.name;
+
+    try {
+      this.logger.log(
+        `[${method}] Creating audit log in transaction: ${dto.action} for store ${dto.storeId}`,
+      );
+
+      const log = await tx.auditLog.create({
+        data: {
+          userId: dto.userId,
+          storeId: dto.storeId,
+          action: dto.action,
+          entityType: dto.entityType,
+          entityId: dto.entityId,
+          details: dto.details as Prisma.InputJsonValue,
+          ipAddress: dto.ipAddress,
+          userAgent: dto.userAgent,
+        },
+      });
+
+      return log;
+    } catch (error) {
+      this.logger.error(
+        `[${method}] Failed to create audit log in transaction`,
         error instanceof Error ? error.stack : String(error),
       );
       throw error;
