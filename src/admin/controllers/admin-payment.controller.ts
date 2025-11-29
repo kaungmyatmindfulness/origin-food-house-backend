@@ -20,27 +20,16 @@ import {
 import { GetUser } from "src/common/decorators/get-user.decorator";
 import { SubscriptionService } from "src/subscription/services/subscription.service";
 
+import {
+  PaymentActionResponseDto,
+  PaymentDetailResponseDto,
+  PaymentResponseDto,
+} from "../dto/admin-payment-response.dto";
+import { GetPaymentQueueDto } from "../dto/get-payment-queue.dto";
+import { RejectPaymentDto } from "../dto/reject-payment.dto";
+import { VerifyPaymentDto } from "../dto/verify-payment.dto";
 import { PlatformAdminGuard } from "../guards/platform-admin.guard";
 import { AdminAuditInterceptor } from "../interceptors/admin-audit.interceptor";
-
-interface GetPaymentQueueDto {
-  page?: number;
-  limit?: number;
-  status?: string;
-}
-
-interface VerifyPaymentDto {
-  note?: string;
-}
-
-interface RejectPaymentDto {
-  reason: string;
-}
-
-// Placeholder response class for untyped responses
-class PaymentResponseDto {}
-class PaymentDetailResponseDto {}
-class PaymentActionResponseDto {}
 
 @ApiTags("Admin - Payment Management")
 @Controller("admin/payments")

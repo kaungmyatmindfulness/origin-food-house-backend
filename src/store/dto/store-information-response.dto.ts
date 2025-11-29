@@ -11,6 +11,7 @@ export class StoreInformationResponseDto {
   name: string;
 
   @ApiPropertyOptional({
+    type: String,
     nullable: true,
     description: "Base S3 path for logo",
     example: "uploads/abc-123-def",
@@ -18,22 +19,23 @@ export class StoreInformationResponseDto {
   logoPath?: string | null;
 
   @ApiPropertyOptional({
+    type: String,
     nullable: true,
     description: "Base S3 path for cover photo",
     example: "uploads/def-456-ghi",
   })
   coverPhotoPath?: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   address?: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   phone?: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   email?: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   website?: string | null;
 
   @ApiProperty()

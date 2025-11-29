@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
 import { IsOptional, IsString, MinLength } from "class-validator";
 
 export class VerifyPaymentDto {
@@ -10,5 +11,6 @@ export class VerifyPaymentDto {
   @IsOptional()
   @IsString()
   @MinLength(1)
+  @Transform(({ value }: { value: string }) => value?.trim())
   notes?: string;
 }

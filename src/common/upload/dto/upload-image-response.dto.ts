@@ -69,6 +69,8 @@ export class ImageMetadataDto implements ImageMetadata {
   space?: string;
 
   @ApiProperty({
+    type: "object",
+    additionalProperties: true,
     description:
       "Generated versions with their metadata (dimensions and sizes, no URLs)",
     example: {

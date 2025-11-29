@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
 import {
   IsEmail,
   IsNotEmpty,
@@ -21,6 +22,7 @@ export class UpdateStoreInformationDto {
   @IsNotEmpty()
   @IsString()
   @MaxLength(100)
+  @Transform(({ value }: { value: string }) => value?.trim())
   name: string;
 
   @ApiPropertyOptional({
@@ -68,6 +70,7 @@ export class UpdateStoreInformationDto {
   )
   @IsString()
   @MaxLength(255)
+  @Transform(({ value }: { value: string }) => value?.trim())
   address?: string | null;
 
   @ApiPropertyOptional({

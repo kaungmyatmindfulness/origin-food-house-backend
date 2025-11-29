@@ -6,7 +6,7 @@ import {
   BaseTranslationResponseDto,
 } from "src/common/dto/translation.dto";
 
-export class CustomizationOptionResponseDto {
+export class MenuCustomizationOptionDto {
   @ApiProperty({ format: "uuid" })
   @Expose()
   id: string;
@@ -24,6 +24,10 @@ export class CustomizationOptionResponseDto {
   additionalPrice?: string | null;
 
   @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: {
+      $ref: "#/components/schemas/BaseTranslationResponseDto",
+    },
     description:
       "Translations map by locale (e.g., { 'en': {...}, 'th': {...} }).",
     example: {

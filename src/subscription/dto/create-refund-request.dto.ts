@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
 import { IsString, MinLength } from "class-validator";
 
 export class CreateRefundRequestDto {
@@ -16,5 +17,6 @@ export class CreateRefundRequestDto {
   })
   @IsString()
   @MinLength(10)
+  @Transform(({ value }: { value: string }) => value?.trim())
   reason: string;
 }

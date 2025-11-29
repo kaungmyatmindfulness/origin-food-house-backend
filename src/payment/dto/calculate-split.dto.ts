@@ -11,6 +11,8 @@ export class CalculateSplitDto {
   splitType: "EVEN" | "BY_ITEM" | "CUSTOM";
 
   @ApiProperty({
+    type: "object",
+    additionalProperties: true,
     description: "Split data based on split type",
     examples: {
       even: {

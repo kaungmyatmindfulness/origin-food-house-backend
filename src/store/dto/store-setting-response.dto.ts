@@ -33,7 +33,8 @@ export class StoreSettingResponseDto {
   serviceChargeRate?: string | null;
 
   @ApiPropertyOptional({
-    type: Object,
+    type: "object",
+    additionalProperties: true,
     nullable: true,
     description:
       "Business hours configuration as JSON (keys: days of week, values: open/close times)",
@@ -45,7 +46,8 @@ export class StoreSettingResponseDto {
   businessHours?: Record<string, unknown> | null;
 
   @ApiPropertyOptional({
-    type: Object,
+    type: "object",
+    additionalProperties: true,
     nullable: true,
     description:
       "Special hours configuration as JSON (holidays, special events)",

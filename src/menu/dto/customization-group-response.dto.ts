@@ -6,9 +6,9 @@ import {
   BaseTranslationResponseDto,
 } from "src/common/dto/translation.dto";
 
-import { CustomizationOptionResponseDto } from "./customization-option-response.dto";
+import { MenuCustomizationOptionDto } from "./customization-option-response.dto";
 
-export class CustomizationGroupResponseDto {
+export class MenuCustomizationGroupDto {
   @ApiProperty({ example: 219 })
   id: string;
 
@@ -31,9 +31,9 @@ export class CustomizationGroupResponseDto {
   @ApiProperty({ example: 147 })
   menuItemId: string;
 
-  @ApiProperty({ type: () => [CustomizationOptionResponseDto] })
-  @Type(() => CustomizationOptionResponseDto)
-  customizationOptions: CustomizationOptionResponseDto[];
+  @ApiProperty({ type: () => [MenuCustomizationOptionDto] })
+  @Type(() => MenuCustomizationOptionDto)
+  customizationOptions: MenuCustomizationOptionDto[];
 
   @ApiProperty()
   createdAt: Date;
@@ -42,6 +42,10 @@ export class CustomizationGroupResponseDto {
   updatedAt: Date;
 
   @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: {
+      $ref: "#/components/schemas/BaseTranslationResponseDto",
+    },
     description:
       "Translations map by locale (e.g., { 'en': {...}, 'th': {...} }).",
     example: {

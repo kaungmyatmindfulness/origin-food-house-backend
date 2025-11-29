@@ -42,18 +42,21 @@ export class SubscriptionResponseDto {
   billingCycle: BillingCycle;
 
   @ApiPropertyOptional({
+    type: Date,
     description: "Current period start date",
     example: "2025-01-01T00:00:00.000Z",
   })
   currentPeriodStart?: Date;
 
   @ApiPropertyOptional({
+    type: Date,
     description: "Current period end date",
     example: "2025-02-01T00:00:00.000Z",
   })
   currentPeriodEnd?: Date;
 
   @ApiPropertyOptional({
+    type: Date,
     description: "Trial end date (if on trial)",
     example: "2025-01-15T00:00:00.000Z",
   })
@@ -89,14 +92,18 @@ export class TrialInfoResponseDto {
   isTrialActive: boolean;
 
   @ApiPropertyOptional({
+    type: Date,
     description: "Trial start date",
     example: "2025-01-01T00:00:00.000Z",
+    nullable: true,
   })
   trialStartedAt?: Date | null;
 
   @ApiPropertyOptional({
+    type: Date,
     description: "Trial end date",
     example: "2025-01-15T00:00:00.000Z",
+    nullable: true,
   })
   trialEndsAt?: Date | null;
 
@@ -139,14 +146,18 @@ export class PaymentRequestResponseDto {
   requestedTier: SubscriptionTier;
 
   @ApiPropertyOptional({
+    type: String,
     description: "Payment proof image path",
     example: "payment-proofs/store-id/uuid-original.jpg",
+    nullable: true,
   })
   paymentProofPath?: string | null;
 
   @ApiPropertyOptional({
+    type: String,
     description: "Admin notes",
     example: "Payment verified",
+    nullable: true,
   })
   notes?: string | null;
 
@@ -208,6 +219,7 @@ export class RefundRequestResponseDto {
   requestedAt: Date;
 
   @ApiPropertyOptional({
+    type: String,
     description: "Admin who reviewed the refund request",
     example: "0194ca3b-...",
     nullable: true,
@@ -215,12 +227,14 @@ export class RefundRequestResponseDto {
   reviewedBy: string | null;
 
   @ApiPropertyOptional({
+    type: Date,
     description: "When the refund was reviewed",
     nullable: true,
   })
   reviewedAt: Date | null;
 
   @ApiPropertyOptional({
+    type: String,
     description: "Notes from admin approval",
     example: "Approved due to valid reason",
     nullable: true,
@@ -228,6 +242,7 @@ export class RefundRequestResponseDto {
   approvalNotes: string | null;
 
   @ApiPropertyOptional({
+    type: String,
     description: "Reason for rejection",
     example: "Request does not meet refund policy criteria",
     nullable: true,
@@ -235,6 +250,7 @@ export class RefundRequestResponseDto {
   rejectionReason: string | null;
 
   @ApiPropertyOptional({
+    type: String,
     description: "Admin who processed the refund",
     example: "0194ca3b-...",
     nullable: true,
@@ -242,12 +258,14 @@ export class RefundRequestResponseDto {
   processedBy: string | null;
 
   @ApiPropertyOptional({
+    type: Date,
     description: "When the refund was processed",
     nullable: true,
   })
   processedAt: Date | null;
 
   @ApiPropertyOptional({
+    type: String,
     description:
       "Method used for refund (e.g., bank transfer, original payment method)",
     example: "bank_transfer",
@@ -256,6 +274,7 @@ export class RefundRequestResponseDto {
   refundMethod: string | null;
 
   @ApiPropertyOptional({
+    type: String,
     description: "Path to refund proof document/image",
     example: "refunds/store-id/uuid-proof.jpg",
     nullable: true,
@@ -288,8 +307,10 @@ export class OwnershipTransferResponseDto {
   status: TransferStatus;
 
   @ApiPropertyOptional({
+    type: String,
     description: "Notes about the transfer",
     example: "Ownership transfer for business sale",
+    nullable: true,
   })
   notes?: string | null;
 

@@ -42,9 +42,9 @@ import {
 } from "src/common/dto/translation.dto";
 import { ParseLocalePipe } from "src/common/pipes/parse-locale.pipe";
 import { MenuItem as MenuItemModel } from "src/generated/prisma/client";
-import { CategoryResponseDto } from "src/menu/dto/category-response.dto";
-import { CustomizationGroupResponseDto } from "src/menu/dto/customization-group-response.dto";
-import { CustomizationOptionResponseDto } from "src/menu/dto/customization-option-response.dto";
+import { MenuCategoryDto } from "src/menu/dto/category-response.dto";
+import { MenuCustomizationGroupDto } from "src/menu/dto/customization-group-response.dto";
+import { MenuCustomizationOptionDto } from "src/menu/dto/customization-option-response.dto";
 import { MenuItemDeletedResponseDto } from "src/menu/dto/menu-item-deleted-response.dto";
 import { MenuItemResponseDto } from "src/menu/dto/menu-item-response.dto";
 
@@ -66,9 +66,9 @@ import { TierLimitGuard } from "../common/guards/tier-limit.guard";
 @ApiExtraModels(
   MenuItemDeletedResponseDto,
   MenuItemResponseDto,
-  CategoryResponseDto,
-  CustomizationGroupResponseDto,
-  CustomizationOptionResponseDto,
+  MenuCategoryDto,
+  MenuCustomizationGroupDto,
+  MenuCustomizationOptionDto,
   StandardApiErrorDetails,
   StandardApiResponse,
 )

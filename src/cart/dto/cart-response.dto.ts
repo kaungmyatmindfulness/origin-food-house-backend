@@ -20,7 +20,7 @@ export class CartItemResponseDto {
   @ApiProperty()
   id: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String, nullable: true })
   menuItemId: string | null;
 
   @ApiProperty()
@@ -32,7 +32,7 @@ export class CartItemResponseDto {
   @ApiProperty()
   quantity: number;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   notes: string | null;
 
   @ApiProperty({ type: [CartItemCustomizationResponseDto] })

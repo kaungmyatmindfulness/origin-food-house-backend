@@ -5,7 +5,7 @@ import {
   BaseTranslationResponseDto,
 } from "src/common/dto/translation.dto";
 
-export class CategoryResponseDto {
+export class MenuCategoryDto {
   @ApiProperty({ example: 6 })
   id: string;
 
@@ -29,6 +29,10 @@ export class CategoryResponseDto {
   updatedAt: Date;
 
   @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: {
+      $ref: "#/components/schemas/BaseTranslationResponseDto",
+    },
     description:
       "Translations map by locale (e.g., { 'en': {...}, 'th': {...} }).",
     example: {

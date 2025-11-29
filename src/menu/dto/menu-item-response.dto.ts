@@ -7,8 +7,8 @@ import {
 } from "src/common/dto/translation.dto";
 import { RoutingArea } from "src/generated/prisma/client";
 
-import { CategoryResponseDto } from "./category-response.dto";
-import { CustomizationGroupResponseDto } from "./customization-group-response.dto";
+import { MenuCategoryDto } from "./category-response.dto";
+import { MenuCustomizationGroupDto } from "./customization-group-response.dto";
 
 export class MenuItemResponseDto {
   @ApiProperty({ example: 147 })
@@ -22,6 +22,7 @@ export class MenuItemResponseDto {
   name: string;
 
   @ApiPropertyOptional({
+    type: String,
     example: "The lavender Bike combines Bolivia aesthetics...",
     description:
       "Item description (default/fallback). Use translations map for localized descriptions.",
@@ -38,6 +39,7 @@ export class MenuItemResponseDto {
   basePrice: string;
 
   @ApiPropertyOptional({
+    type: String,
     example: "uploads/abc-123-def",
     description:
       "Base S3 path for image. Frontend constructs URL: baseUrl + imagePath + '-' + size + '.webp'",
@@ -88,15 +90,19 @@ export class MenuItemResponseDto {
   @ApiProperty({ description: "Last update timestamp" })
   updatedAt: Date;
 
-  @ApiProperty({ type: () => CategoryResponseDto })
-  @Type(() => CategoryResponseDto)
-  category: CategoryResponseDto;
+  @ApiProperty({ type: () => MenuCategoryDto })
+  @Type(() => MenuCategoryDto)
+  category: MenuCategoryDto;
 
-  @ApiProperty({ type: () => [CustomizationGroupResponseDto] })
-  @Type(() => CustomizationGroupResponseDto)
-  customizationGroups: CustomizationGroupResponseDto[];
+  @ApiProperty({ type: () => [MenuCustomizationGroupDto] })
+  @Type(() => MenuCustomizationGroupDto)
+  customizationGroups: MenuCustomizationGroupDto[];
 
   @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: {
+      $ref: "#/components/schemas/TranslationWithDescriptionResponseDto",
+    },
     description:
       "Translations map by locale (e.g., { 'en': {...}, 'th': {...} }). Use for multi-language support.",
     example: {

@@ -17,6 +17,7 @@ export class StandardApiErrorDetails {
   message: string;
 
   @ApiProperty({
+    type: String,
     description:
       "Identifies the specific input field related to the error, if applicable (often used for validation errors).",
     example: "relevantFieldName",

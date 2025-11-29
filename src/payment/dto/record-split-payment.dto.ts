@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsEnum,
   IsInt,
@@ -63,10 +63,11 @@ export class RecordSplitPaymentDto {
   @Min(1)
   guestNumber: number;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: true,
     description: "Split metadata (JSON object with calculation details)",
     example: { guestCount: 2, assignedItems: [] },
-    required: false,
   })
   @IsOptional()
   @IsObject()

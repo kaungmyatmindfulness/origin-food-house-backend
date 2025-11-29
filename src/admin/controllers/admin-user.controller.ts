@@ -21,19 +21,19 @@ import {
 import { ApiSuccessResponse } from "src/common/decorators/api-success-response.decorator";
 import { GetUser } from "src/common/decorators/get-user.decorator";
 
+import {
+  UserActionResponseDto,
+  UserActivityResponseDto,
+  UserDetailResponseDto,
+  UserResponseDto,
+} from "../dto/admin-user-response.dto";
 import { BanUserDto } from "../dto/ban-user.dto";
 import { ListUsersDto } from "../dto/list-users.dto";
 import { ReactivateUserDto } from "../dto/reactivate-user.dto";
-import { SuspendUserDto } from "../dto/suspend-user.dto";
+import { AdminSuspendUserDto } from "../dto/suspend-user.dto";
 import { PlatformAdminGuard } from "../guards/platform-admin.guard";
 import { AdminAuditInterceptor } from "../interceptors/admin-audit.interceptor";
 import { AdminUserService } from "../services/admin-user.service";
-
-// Placeholder response class for untyped responses
-class UserResponseDto {}
-class UserDetailResponseDto {}
-class UserActionResponseDto {}
-class UserActivityResponseDto {}
 
 @ApiTags("Admin - User Management")
 @Controller("admin/users")
@@ -68,7 +68,7 @@ export class AdminUserController {
   })
   async suspendUser(
     @Param("id") id: string,
-    @Body() dto: SuspendUserDto,
+    @Body() dto: AdminSuspendUserDto,
     @GetUser("adminId") adminId: string,
   ) {
     return await this.adminUserService.suspendUser(adminId, id, dto.reason);

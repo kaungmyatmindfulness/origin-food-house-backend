@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
 import { IsString, IsNotEmpty, MaxLength, IsOptional } from "class-validator";
 
 export class UpdateTableDto {
@@ -12,5 +13,6 @@ export class UpdateTableDto {
   @IsNotEmpty({ message: "Table name cannot be empty if provided." })
   @IsString()
   @MaxLength(50)
+  @Transform(({ value }: { value: string }) => value?.trim())
   name?: string;
 }

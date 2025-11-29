@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
 import { IsEnum, IsOptional, IsString } from "class-validator";
 
 import { PaymentMethod } from "src/generated/prisma/client";
@@ -46,5 +47,6 @@ export class RecordPaymentDto {
   })
   @IsOptional()
   @IsString()
+  @Transform(({ value }: { value: string }) => value?.trim())
   notes?: string;
 }

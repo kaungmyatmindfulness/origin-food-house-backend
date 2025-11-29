@@ -13,7 +13,7 @@ export class SessionCreatedResponseDto {
   @ApiProperty({ description: "Store ID" })
   storeId: string;
 
-  @ApiProperty({ description: "Table ID", nullable: true })
+  @ApiProperty({ type: String, description: "Table ID", nullable: true })
   tableId: string | null;
 
   @ApiProperty({
@@ -26,10 +26,18 @@ export class SessionCreatedResponseDto {
   @ApiProperty({ description: "Session status", enum: SessionStatus })
   status: SessionStatus;
 
-  @ApiPropertyOptional({ description: "Customer name", nullable: true })
+  @ApiPropertyOptional({
+    type: String,
+    description: "Customer name",
+    nullable: true,
+  })
   customerName: string | null;
 
-  @ApiPropertyOptional({ description: "Customer phone number", nullable: true })
+  @ApiPropertyOptional({
+    type: String,
+    description: "Customer phone number",
+    nullable: true,
+  })
   customerPhone: string | null;
 
   @ApiProperty({ description: "Number of guests" })
@@ -41,7 +49,7 @@ export class SessionCreatedResponseDto {
   })
   sessionToken: string;
 
-  @ApiProperty({ description: "Closed timestamp", nullable: true })
+  @ApiProperty({ type: Date, description: "Closed timestamp", nullable: true })
   closedAt: Date | null;
 
   @ApiProperty({ description: "Created timestamp" })

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   IsString,
   IsNumber,
@@ -9,6 +9,7 @@ import {
   IsBoolean,
   Min,
   IsUUID,
+  IsNotEmpty,
 } from "class-validator";
 
 import { UpsertCustomizationOptionDto } from "./upsert-customization-option.dto";
@@ -25,6 +26,8 @@ export class UpsertCustomizationGroupDto {
 
   @ApiProperty({ example: "Size" })
   @IsString()
+  @IsNotEmpty()
+  @Transform(({ value }: { value: string }) => value?.trim())
   name: string;
 
   @ApiPropertyOptional({

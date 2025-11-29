@@ -13,6 +13,7 @@ export class UserProfileResponseDto {
   email: string;
 
   @ApiPropertyOptional({
+    type: String,
     description: "User's display name",
     example: "Jane Doe",
     nullable: true,

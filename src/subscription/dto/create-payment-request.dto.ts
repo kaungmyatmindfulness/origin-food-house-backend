@@ -58,6 +58,8 @@ export class CreatePaymentRequestDto {
   currency?: Currency = Currency.USD;
 
   @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: true,
     description:
       "Bank transfer details (JSON object with bank name, account number, etc.)",
     example: {
@@ -66,6 +68,7 @@ export class CreatePaymentRequestDto {
       transferDate: "2025-01-15",
       referenceNumber: "TXN123456",
     },
+    nullable: true,
   })
   @IsObject()
   @IsOptional()

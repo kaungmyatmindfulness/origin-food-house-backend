@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   IsArray,
   IsBoolean,
@@ -22,6 +22,7 @@ export class UpdateMenuItemDto {
   @ApiPropertyOptional({ example: "Pad Krapow Moo Kai Dao" })
   @IsOptional()
   @IsString()
+  @Transform(({ value }: { value: string }) => value?.trim())
   name?: string;
 
   @ApiPropertyOptional({
@@ -30,6 +31,7 @@ export class UpdateMenuItemDto {
   })
   @IsOptional()
   @IsString()
+  @Transform(({ value }: { value: string }) => value?.trim())
   description?: string;
 
   @ApiProperty({

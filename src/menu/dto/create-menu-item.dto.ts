@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   IsString,
   IsOptional,
@@ -9,6 +9,7 @@ import {
   IsEnum,
   IsInt,
   Min,
+  IsNotEmpty,
 } from "class-validator";
 
 import { IsPositiveNumericString } from "src/common/decorators/is-positive-numeric-string.decorator";
@@ -21,6 +22,8 @@ import { UpsertCustomizationGroupDto } from "./upsert-customization-group.dto";
 export class CreateMenuItemDto {
   @ApiProperty({ example: "Pad Krapow Moo" })
   @IsString()
+  @IsNotEmpty()
+  @Transform(({ value }: { value: string }) => value?.trim())
   name: string;
 
   @ApiPropertyOptional({
@@ -28,6 +31,7 @@ export class CreateMenuItemDto {
   })
   @IsOptional()
   @IsString()
+  @Transform(({ value }: { value: string }) => value?.trim())
   description?: string;
 
   @ApiProperty({

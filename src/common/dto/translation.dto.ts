@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsIn } from "class-validator";
+import { Transform } from "class-transformer";
+import { IsString, IsOptional, IsIn, IsNotEmpty } from "class-validator";
 
 /**
  * Supported locales in the application
@@ -27,6 +28,8 @@ export class BaseTranslationDto {
     example: "Appetizers",
   })
   @IsString()
+  @IsNotEmpty()
+  @Transform(({ value }: { value: string }) => value?.trim())
   name: string;
 }
 
@@ -35,12 +38,14 @@ export class BaseTranslationDto {
  */
 export class TranslationWithDescriptionDto extends BaseTranslationDto {
   @ApiPropertyOptional({
+    type: String,
     description: "Translated description",
     example: "Delicious appetizers to start your meal",
     nullable: true,
   })
   @IsOptional()
   @IsString()
+  @Transform(({ value }: { value: string }) => value?.trim())
   description?: string | null;
 }
 
@@ -67,6 +72,7 @@ export class BaseTranslationResponseDto {
  */
 export class TranslationWithDescriptionResponseDto extends BaseTranslationResponseDto {
   @ApiPropertyOptional({
+    type: String,
     description: "Translated description",
     example: "Delicious appetizers to start your meal",
     nullable: true,

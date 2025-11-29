@@ -18,7 +18,7 @@ export class AdminUserResponseDto {
   @ApiProperty()
   isActive: boolean;
 
-  @ApiProperty()
+  @ApiProperty({ type: Date, nullable: true })
   lastLoginAt: Date | null;
 }
 

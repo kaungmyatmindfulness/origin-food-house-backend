@@ -1,3 +1,4 @@
+import { Transform } from "class-transformer";
 import { IsString, IsEnum, IsOptional, IsObject } from "class-validator";
 
 import { AuditAction } from "src/generated/prisma/client";
@@ -14,6 +15,7 @@ export class CreateAuditLogDto {
   action: AuditAction;
 
   @IsString()
+  @Transform(({ value }: { value: string }) => value?.trim())
   entityType: string; // "Store", "MenuItem", "Payment", etc.
 
   @IsOptional()
@@ -26,9 +28,11 @@ export class CreateAuditLogDto {
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }: { value: string }) => value?.trim())
   ipAddress?: string;
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }: { value: string }) => value?.trim())
   userAgent?: string;
 }

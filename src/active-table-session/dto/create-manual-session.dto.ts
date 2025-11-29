@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
 import { IsEnum, IsInt, IsOptional, IsString, Min } from "class-validator";
 
 import { SessionType } from "src/generated/prisma/client";
@@ -19,6 +20,7 @@ export class CreateManualSessionDto {
   })
   @IsOptional()
   @IsString()
+  @Transform(({ value }: { value: string }) => value?.trim())
   customerName?: string;
 
   @ApiProperty({
@@ -28,6 +30,7 @@ export class CreateManualSessionDto {
   })
   @IsOptional()
   @IsString()
+  @Transform(({ value }: { value: string }) => value?.trim())
   customerPhone?: string;
 
   @ApiProperty({

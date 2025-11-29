@@ -22,7 +22,7 @@ export class OrderItemResponseDto {
   @ApiProperty()
   id: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   menuItemId: string | null;
 
   @ApiProperty({ type: String })
@@ -34,7 +34,7 @@ export class OrderItemResponseDto {
   @ApiProperty({ type: String, nullable: true })
   finalPrice: Decimal | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   notes: string | null;
 
   @ApiProperty({ type: [OrderItemCustomizationResponseDto] })
@@ -51,7 +51,7 @@ export class OrderResponseDto {
   @ApiProperty()
   storeId: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   sessionId: string | null;
 
   @ApiProperty()
@@ -63,7 +63,7 @@ export class OrderResponseDto {
   @ApiProperty({ enum: OrderType })
   orderType: OrderType;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: Date, nullable: true })
   paidAt: Date | null;
 
   @ApiProperty({ type: String })
@@ -94,13 +94,13 @@ export class OrderResponseDto {
   @ApiProperty({ type: String, nullable: true })
   discountAmount: Decimal | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   discountReason: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   discountAppliedBy: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: Date, nullable: true })
   discountAppliedAt: Date | null;
 
   @ApiProperty({

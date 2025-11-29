@@ -22,13 +22,14 @@ export class PaymentResponseDto {
   @ApiProperty({ type: String, nullable: true })
   change: Decimal | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   transactionId: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   notes: string | null;
 
   @ApiProperty({
+    type: String,
     nullable: true,
     description: "Type of bill split (EQUAL, CUSTOM, BY_ITEM)",
     example: "EQUAL",
@@ -36,6 +37,8 @@ export class PaymentResponseDto {
   splitType: string | null;
 
   @ApiProperty({
+    type: "object",
+    additionalProperties: true,
     nullable: true,
     description: "JSON metadata containing split details",
     example: { numberOfGuests: 4, amountPerGuest: "25.00" },
@@ -43,13 +46,18 @@ export class PaymentResponseDto {
   splitMetadata: Record<string, unknown> | null;
 
   @ApiProperty({
+    type: Number,
     nullable: true,
     description: "Guest number for split payment",
     example: 1,
   })
   guestNumber: number | null;
 
-  @ApiProperty({ nullable: true, description: "Soft delete timestamp" })
+  @ApiProperty({
+    type: Date,
+    nullable: true,
+    description: "Soft delete timestamp",
+  })
   deletedAt: Date | null;
 
   @ApiProperty()
@@ -69,10 +77,10 @@ export class RefundResponseDto {
   @ApiProperty({ type: String })
   amount: Decimal;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   reason: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   refundedBy: string | null;
 
   @ApiProperty()

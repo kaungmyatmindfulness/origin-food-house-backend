@@ -71,8 +71,11 @@ export class AuditLogEntryDto {
   entityId?: string;
 
   @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: true,
     description: "Additional action-specific details",
     example: { previousValue: "10.00", newValue: "12.00" },
+    nullable: true,
   })
   details?: Record<string, unknown>;
 

@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { ValidateNested } from "class-validator";
 
@@ -8,15 +8,16 @@ export class StandardApiResponse<T> {
   @ApiProperty({ example: "success", enum: ["success", "error"] })
   status: "success" | "error";
 
-  @ApiProperty({
-    required: false,
+  @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: true,
     nullable: true,
     description: 'Response data payload when status is "success".',
   })
   data: T | null;
 
-  @ApiProperty({
-    required: false,
+  @ApiPropertyOptional({
+    type: String,
     nullable: true,
     example: "Operation successful",
     description:
@@ -24,8 +25,7 @@ export class StandardApiResponse<T> {
   })
   message: string | null;
 
-  @ApiProperty({
-    required: false,
+  @ApiPropertyOptional({
     nullable: true,
     type: [StandardApiErrorDetails],
     description:

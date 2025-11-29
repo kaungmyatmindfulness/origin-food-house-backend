@@ -22,6 +22,12 @@ import { ApiSuccessResponse } from "src/common/decorators/api-success-response.d
 import { GetUser } from "src/common/decorators/get-user.decorator";
 import { SubscriptionTier } from "src/generated/prisma/client";
 
+import {
+  StoreActionResponseDto,
+  StoreAnalyticsResponseDto,
+  StoreDetailResponseDto,
+  StoreResponseDto,
+} from "../dto/admin-store-response.dto";
 import { BanStoreDto } from "../dto/ban-store.dto";
 import { DowngradeTierDto } from "../dto/downgrade-tier.dto";
 import { ListStoresDto } from "../dto/list-stores.dto";
@@ -30,12 +36,6 @@ import { SuspendStoreDto } from "../dto/suspend-store.dto";
 import { PlatformAdminGuard } from "../guards/platform-admin.guard";
 import { AdminAuditInterceptor } from "../interceptors/admin-audit.interceptor";
 import { AdminStoreService } from "../services/admin-store.service";
-
-// Placeholder response class for untyped responses
-class StoreResponseDto {}
-class StoreDetailResponseDto {}
-class StoreActionResponseDto {}
-class StoreAnalyticsResponseDto {}
 
 @ApiTags("Admin - Store Management")
 @Controller("admin/stores")

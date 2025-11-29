@@ -25,7 +25,11 @@ export class AdminProfileResponseDto {
   @ApiProperty({ example: true })
   isActive: boolean;
 
-  @ApiProperty({ example: "2025-10-28T10:00:00.000Z", nullable: true })
+  @ApiProperty({
+    type: Date,
+    example: "2025-10-28T10:00:00.000Z",
+    nullable: true,
+  })
   lastLoginAt: Date | null;
 
   @ApiProperty({ example: "2025-10-01T10:00:00.000Z" })

@@ -13,6 +13,7 @@ export class MenuItemNestedResponseDto {
   name: string;
 
   @ApiPropertyOptional({
+    type: String,
     example: "Classic Thai stir-fried rice noodles",
     nullable: true,
   })
@@ -26,6 +27,7 @@ export class MenuItemNestedResponseDto {
   basePrice: string;
 
   @ApiPropertyOptional({
+    type: String,
     example: "uploads/abc-123-def",
     description: "Base S3 path",
     nullable: true,
