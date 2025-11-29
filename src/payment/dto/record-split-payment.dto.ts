@@ -1,15 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 import {
   IsEnum,
   IsInt,
-  IsObject,
   IsOptional,
   IsString,
   Min,
+  ValidateNested,
 } from "class-validator";
 
 import { PaymentMethod } from "src/generated/prisma/client";
 
+import { SplitMetadataDto } from "./split-types.dto";
 import { IsPositiveNumericString } from "../../common/decorators/is-positive-numeric-string.decorator";
 
 export class RecordSplitPaymentDto {
@@ -64,14 +66,14 @@ export class RecordSplitPaymentDto {
   guestNumber: number;
 
   @ApiPropertyOptional({
-    type: "object",
-    additionalProperties: true,
-    description: "Split metadata (JSON object with calculation details)",
-    example: { guestCount: 2, assignedItems: [] },
+    type: () => SplitMetadataDto,
+    description: "Split metadata with calculation details",
+    example: { guestCount: 2, amountPerGuest: "50.00" },
   })
   @IsOptional()
-  @IsObject()
-  splitMetadata?: Record<string, unknown>;
+  @ValidateNested()
+  @Type(() => SplitMetadataDto)
+  splitMetadata?: SplitMetadataDto;
 
   @ApiProperty({
     description: "External transaction ID (for card/mobile payments)",

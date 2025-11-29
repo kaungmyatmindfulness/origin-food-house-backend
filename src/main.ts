@@ -43,6 +43,7 @@ import {
   AdminUserResponseDto,
   ValidateAdminResponseDto,
 } from "src/admin/dto/validate-admin-response.dto";
+import { AuditLogDetailsDto } from "src/audit-log/dto/audit-log-details.dto";
 import {
   CartItemCustomizationResponseDto,
   CartItemResponseDto,
@@ -54,6 +55,10 @@ import {
 } from "src/common/dto/paginated-response.dto";
 import { StandardApiErrorDetails } from "src/common/dto/standard-api-error-details.dto";
 import { StandardApiResponse } from "src/common/dto/standard-api-response.dto";
+import {
+  ImageMetadataDto,
+  VersionMetadataDto,
+} from "src/common/upload/dto/upload-image-response.dto";
 import { KitchenOrderResponseDto } from "src/kitchen/dto/kitchen-order-response.dto";
 import {
   OrderItemCustomizationResponseDto,
@@ -64,6 +69,12 @@ import {
   PaymentResponseDto,
   RefundResponseDto,
 } from "src/payment/dto/payment-response.dto";
+import {
+  ByItemSplitDataDto,
+  CustomSplitDataDto,
+  EvenSplitDataDto,
+  SplitMetadataDto,
+} from "src/payment/dto/split-types.dto";
 import {
   OrderStatusCountDto,
   OrderStatusReportDto,
@@ -77,9 +88,15 @@ import {
   PopularItemsDto,
 } from "src/report/dto/popular-items.dto";
 import { SalesSummaryDto } from "src/report/dto/sales-summary.dto";
+import {
+  BusinessHoursDto,
+  DayHoursDto,
+  SpecialHoursEntryDto,
+} from "src/store/dto/business-hours.dto";
 import { GetStoreDetailsResponseDto } from "src/store/dto/get-store-details-response.dto";
 import { StoreInformationResponseDto } from "src/store/dto/store-information-response.dto";
 import { StoreSettingResponseDto } from "src/store/dto/store-setting-response.dto";
+import { BankTransferDetailsDto } from "src/subscription/dto/bank-transfer-details.dto";
 import {
   OwnershipTransferResponseDto,
   PaymentRequestResponseDto,
@@ -205,6 +222,10 @@ async function bootstrap() {
       GetStoreDetailsResponseDto,
       StoreInformationResponseDto,
       StoreSettingResponseDto,
+      // Store - Business Hours (typed value DTOs)
+      BusinessHoursDto,
+      DayHoursDto,
+      SpecialHoursEntryDto,
       // Subscription
       SubscriptionResponseDto,
       TrialEligibilityResponseDto,
@@ -212,6 +233,18 @@ async function bootstrap() {
       PaymentRequestResponseDto,
       RefundRequestResponseDto,
       OwnershipTransferResponseDto,
+      // Subscription - Bank Transfer (typed value DTO)
+      BankTransferDetailsDto,
+      // Payment - Split Types (typed value DTOs)
+      SplitMetadataDto,
+      EvenSplitDataDto,
+      ByItemSplitDataDto,
+      CustomSplitDataDto,
+      // Audit Log - Details (typed value DTO)
+      AuditLogDetailsDto,
+      // Upload - Image Metadata (typed value DTOs)
+      VersionMetadataDto,
+      ImageMetadataDto,
     ],
   });
   SwaggerModule.setup("api-docs", app, document, {

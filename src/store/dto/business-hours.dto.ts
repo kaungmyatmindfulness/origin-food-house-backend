@@ -1,8 +1,9 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   IsBoolean,
   IsOptional,
+  IsString,
   Matches,
   ValidateNested,
 } from "class-validator";
@@ -94,4 +95,49 @@ export class BusinessHoursDto {
   @ValidateNested()
   @Type(() => DayHoursDto)
   sunday: DayHoursDto;
+}
+
+/**
+ * DTO for special hours entry (holidays, events)
+ * Used as the value type in special hours record (key is date string: YYYY-MM-DD)
+ */
+export class SpecialHoursEntryDto {
+  @ApiProperty({
+    description: "Opening time in HH:MM format",
+    example: "10:00",
+  })
+  @IsOptional()
+  @Matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+    message: "Opening time must be in HH:MM format",
+  })
+  open?: string;
+
+  @ApiProperty({
+    description: "Closing time in HH:MM format",
+    example: "18:00",
+  })
+  @IsOptional()
+  @Matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+    message: "Closing time must be in HH:MM format",
+  })
+  close?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    description: "Optional note for this special hours entry",
+    example: "Christmas Day - Limited Hours",
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  note?: string | null;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    description: "Whether the store is closed on this date",
+    example: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isClosed?: boolean;
 }

@@ -2,6 +2,8 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 import { AuditAction } from "src/generated/prisma/client";
 
+import { AuditLogDetailsDto } from "./audit-log-details.dto";
+
 /**
  * DTO for audit log user information
  */
@@ -71,13 +73,13 @@ export class AuditLogEntryDto {
   entityId?: string;
 
   @ApiPropertyOptional({
-    type: "object",
-    additionalProperties: true,
-    description: "Additional action-specific details",
-    example: { previousValue: "10.00", newValue: "12.00" },
+    type: () => AuditLogDetailsDto,
+    description:
+      "Additional action-specific details (fields vary by action type)",
+    example: { previousValue: "10.00", newValue: "12.00", fieldName: "price" },
     nullable: true,
   })
-  details?: Record<string, unknown>;
+  details?: AuditLogDetailsDto;
 
   @ApiPropertyOptional({
     description: "IP address of the requester",

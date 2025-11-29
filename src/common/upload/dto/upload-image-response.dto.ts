@@ -70,9 +70,11 @@ export class ImageMetadataDto implements ImageMetadata {
 
   @ApiProperty({
     type: "object",
-    additionalProperties: true,
+    additionalProperties: {
+      $ref: "#/components/schemas/VersionMetadataDto",
+    },
     description:
-      "Generated versions with their metadata (dimensions and sizes, no URLs)",
+      "Generated versions with their metadata (dimensions and sizes, no URLs). Keys are size names: 'small', 'medium', 'large', 'original'",
     example: {
       small: {
         width: 400,
@@ -91,7 +93,7 @@ export class ImageMetadataDto implements ImageMetadata {
       },
     },
   })
-  versions: Partial<Record<ImageSizeVersion, VersionMetadata>>;
+  versions: Partial<Record<ImageSizeVersion, VersionMetadataDto>>;
 }
 
 export class UploadImageResponseDto {

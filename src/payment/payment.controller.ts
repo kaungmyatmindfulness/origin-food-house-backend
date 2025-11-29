@@ -176,7 +176,7 @@ export class PaymentController {
     const result = await this.paymentService.calculateSplitAmounts(
       orderId,
       dto.splitType,
-      dto.splitData,
+      dto.splitData as unknown as Record<string, unknown>,
     );
 
     return StandardApiResponse.success({

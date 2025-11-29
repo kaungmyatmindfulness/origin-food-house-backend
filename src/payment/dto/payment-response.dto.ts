@@ -1,7 +1,9 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 import { Decimal } from "src/common/types/decimal.type";
 import { PaymentMethod } from "src/generated/prisma/client";
+
+import { SplitMetadataDto } from "./split-types.dto";
 
 export class PaymentResponseDto {
   @ApiProperty()
@@ -36,14 +38,13 @@ export class PaymentResponseDto {
   })
   splitType: string | null;
 
-  @ApiProperty({
-    type: "object",
-    additionalProperties: true,
+  @ApiPropertyOptional({
+    type: () => SplitMetadataDto,
     nullable: true,
-    description: "JSON metadata containing split details",
-    example: { numberOfGuests: 4, amountPerGuest: "25.00" },
+    description: "Metadata containing split payment details",
+    example: { guestCount: 4, amountPerGuest: "25.00" },
   })
-  splitMetadata: Record<string, unknown> | null;
+  splitMetadata: SplitMetadataDto | null;
 
   @ApiProperty({
     type: Number,

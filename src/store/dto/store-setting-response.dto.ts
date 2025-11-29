@@ -2,6 +2,8 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 import { Currency } from "src/generated/prisma/client";
 
+import { BusinessHoursDto, SpecialHoursEntryDto } from "./business-hours.dto";
+
 export class StoreSettingResponseDto {
   @ApiProperty({ format: "uuid", description: "Setting record ID" })
   id: string;
@@ -32,30 +34,48 @@ export class StoreSettingResponseDto {
   })
   serviceChargeRate?: string | null;
 
+  /**
+   * Business hours configuration.
+   * TypeScript type is flexible for Prisma JSON, OpenAPI schema is typed for code generation.
+   */
   @ApiPropertyOptional({
-    type: "object",
-    additionalProperties: true,
+    type: () => BusinessHoursDto,
     nullable: true,
     description:
-      "Business hours configuration as JSON (keys: days of week, values: open/close times)",
+      "Business hours configuration (days of week with open/close times)",
     example: {
-      monday: { open: "09:00", close: "22:00", isOpen: true },
-      tuesday: { open: "09:00", close: "22:00", isOpen: true },
+      monday: { closed: false, open: "09:00", close: "22:00" },
+      tuesday: { closed: false, open: "09:00", close: "22:00" },
+      wednesday: { closed: false, open: "09:00", close: "22:00" },
+      thursday: { closed: false, open: "09:00", close: "22:00" },
+      friday: { closed: false, open: "09:00", close: "22:00" },
+      saturday: { closed: false, open: "10:00", close: "20:00" },
+      sunday: { closed: true },
     },
   })
-  businessHours?: Record<string, unknown> | null;
+  businessHours?: BusinessHoursDto | Record<string, unknown> | null;
 
+  /**
+   * Special hours configuration.
+   * TypeScript type is flexible for Prisma JSON, OpenAPI schema is typed for code generation.
+   */
   @ApiPropertyOptional({
     type: "object",
-    additionalProperties: true,
+    additionalProperties: {
+      $ref: "#/components/schemas/SpecialHoursEntryDto",
+    },
     nullable: true,
     description:
-      "Special hours configuration as JSON (holidays, special events)",
+      "Special hours configuration (key: date in YYYY-MM-DD format, value: special hours entry)",
     example: {
       "2025-12-25": { open: "10:00", close: "18:00", note: "Christmas Day" },
+      "2025-01-01": { isClosed: true, note: "New Year's Day" },
     },
   })
-  specialHours?: Record<string, unknown> | null;
+  specialHours?:
+    | Record<string, SpecialHoursEntryDto>
+    | Record<string, unknown>
+    | null;
 
   @ApiProperty({
     type: Boolean,

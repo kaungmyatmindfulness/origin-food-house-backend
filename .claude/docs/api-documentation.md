@@ -458,3 +458,271 @@ Before marking API endpoints complete:
 - [ ] Structured error responses with context
 - [ ] Stateless design (all context in request)
 - [ ] Swagger documentation for all endpoints
+- [ ] No `Record<string, unknown>` in generated types (see section below)
+
+## Preventing Record<string, unknown> in OpenAPI Generation
+
+**CRITICAL**: When OpenAPI schemas use `additionalProperties: true`, frontend code generators produce `Record<string, unknown>` types, losing all type safety. This section covers patterns to prevent this.
+
+### The Problem
+
+```typescript
+// BAD - Results in Record<string, unknown> in generated frontend types
+@ApiPropertyOptional({
+  type: "object",
+  additionalProperties: true,  // <-- Loses type info!
+  description: "Business hours configuration",
+})
+businessHours?: Record<string, unknown> | null;
+
+// OpenAPI output:
+// { "businessHours": { "type": "object", "additionalProperties": true } }
+// Frontend generates: businessHours?: Record<string, unknown>
+```
+
+### Solution 1: Define Typed DTO for Object Values
+
+**ALWAYS create a DTO class for structured objects:**
+
+```typescript
+// GOOD - Define the value type as a DTO
+export class BusinessHoursSlotDto {
+  @ApiProperty({ example: "09:00" })
+  open: string;
+
+  @ApiProperty({ example: "22:00" })
+  close: string;
+
+  @ApiProperty({ example: true })
+  isOpen: boolean;
+}
+
+// In Response DTO - Use additionalProperties with $ref
+@ApiPropertyOptional({
+  type: "object",
+  additionalProperties: {
+    $ref: "#/components/schemas/BusinessHoursSlotDto",
+  },
+  description: "Business hours by day of week",
+  example: { monday: { open: "09:00", close: "22:00", isOpen: true } },
+})
+businessHours?: Record<string, BusinessHoursSlotDto> | null;
+
+// OpenAPI output:
+// { "businessHours": { "type": "object", "additionalProperties": { "$ref": "..." } } }
+// Frontend generates: businessHours?: Record<string, BusinessHoursSlotDto>
+```
+
+### Solution 2: Use Array Instead of Record for Known Keys
+
+When the keys are from a known set (like days of week), use an array:
+
+```typescript
+// GOOD - Array with discriminator field instead of dynamic keys
+export class BusinessHoursEntryDto {
+  @ApiProperty({ enum: ['monday', 'tuesday', ...], example: "monday" })
+  day: string;
+
+  @ApiProperty({ example: "09:00" })
+  open: string;
+
+  @ApiProperty({ example: "22:00" })
+  close: string;
+
+  @ApiProperty({ example: true })
+  isOpen: boolean;
+}
+
+// In Response DTO
+@ApiProperty({ type: [BusinessHoursEntryDto] })
+businessHours: BusinessHoursEntryDto[];
+
+// Frontend generates: businessHours: BusinessHoursEntryDto[]
+```
+
+### Solution 3: Translation Maps Pattern
+
+For locale-keyed objects (translation maps), use `additionalProperties` with `$ref`:
+
+```typescript
+// GOOD - Translation map with typed values
+@ApiPropertyOptional({
+  type: "object",
+  additionalProperties: {
+    $ref: "#/components/schemas/TranslationWithDescriptionResponseDto",
+  },
+  description: "Translations by locale code",
+  example: {
+    en: { locale: "en", name: "Pad Thai", description: "Thai noodles" },
+    th: { locale: "th", name: "ผัดไทย", description: "..." },
+  },
+})
+translations?: TranslationMap<TranslationWithDescriptionResponseDto>;
+
+// Frontend generates: translations?: Record<string, TranslationWithDescriptionResponseDto>
+```
+
+### Solution 4: Inline Object Schema for Simple Cases
+
+For simple objects with known properties, define inline schema:
+
+```typescript
+// GOOD - Inline schema for simple metadata
+@ApiPropertyOptional({
+  type: "object",
+  properties: {
+    width: { type: "number", example: 800 },
+    height: { type: "number", example: 600 },
+    format: { type: "string", example: "webp" },
+  },
+  description: "Image metadata",
+})
+metadata?: { width: number; height: number; format: string };
+
+// Frontend generates typed object instead of Record<string, unknown>
+```
+
+### Patterns That Cause Record<string, unknown>
+
+| Pattern | Problem | Solution |
+|---------|---------|----------|
+| `additionalProperties: true` | No value type constraint | Use `additionalProperties: { $ref: "..." }` |
+| `type: "object"` alone | No schema for properties | Add `properties` or `additionalProperties` with schema |
+| Generic `T` in wrapper class | OpenAPI can't resolve generics | Use `allOf` composition with `$ref` |
+| `Record<string, any>` | TypeScript any propagates | Define explicit value DTO |
+
+### DTOs Requiring Value Type Definitions
+
+The following DTOs currently use `Record<string, unknown>` and need typed value DTOs:
+
+| DTO | Field | Recommended Value DTO |
+|-----|-------|----------------------|
+| `StoreSettingResponseDto` | `businessHours` | `BusinessHoursSlotDto` |
+| `StoreSettingResponseDto` | `specialHours` | `SpecialHoursEntryDto` |
+| `PaymentResponseDto` | `splitMetadata` | `SplitMetadataDto` |
+| `AuditLogResponseDto` | `details` | Use discriminated union by `action` |
+| `UploadImageResponseDto` | `versions` | `ImageVersionMetadataDto` |
+
+### Registration Requirement
+
+**CRITICAL**: Value DTOs used in `additionalProperties.$ref` MUST be registered in `extraModels`:
+
+```typescript
+// src/main.ts
+const document = SwaggerModule.createDocument(app, config, {
+  extraModels: [
+    // ... existing models
+    BusinessHoursSlotDto,        // Required for $ref resolution
+    SpecialHoursEntryDto,
+    SplitMetadataDto,
+    ImageVersionMetadataDto,
+  ],
+});
+```
+
+### Verification
+
+After updating DTOs, verify no `Record<string, unknown>` in generated types:
+
+```bash
+# Generate OpenAPI spec
+npm run dev &
+sleep 5
+curl -s http://localhost:3000/api-docs-json > openapi.json
+
+# Check for additionalProperties: true (should be zero or minimal)
+cat openapi.json | jq '.. | objects | select(.additionalProperties == true)' | wc -l
+
+# Generate frontend types and search for unknown
+npx openapi-typescript openapi.json -o types.ts
+grep -c "Record<string, unknown>" types.ts  # Should be 0
+```
+
+### OpenAPI Type Safety Checklist
+
+Before marking DTO work complete:
+
+- [ ] No `additionalProperties: true` without typed schema
+- [ ] All object fields have `properties` or `additionalProperties: { $ref }`
+- [ ] Value DTOs registered in `extraModels`
+- [ ] Frontend type generation produces no `Record<string, unknown>`
+- [ ] Complex metadata uses discriminated unions or typed DTOs
+
+### Exception: StandardApiResponse.data Field
+
+The `StandardApiResponse<T>` generic wrapper class intentionally uses `additionalProperties: true` for its `data` field:
+
+```typescript
+// src/common/dto/standard-api-response.dto.ts
+export class StandardApiResponse<T> {
+  @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: true,  // Intentional - resolved via allOf composition
+    nullable: true,
+  })
+  data: T | null;
+}
+```
+
+**Why this is acceptable:**
+
+The `ApiSuccessResponse` decorator resolves the generic type using OpenAPI `allOf` composition:
+
+```typescript
+// src/common/decorators/api-success-response.decorator.ts
+ResponseDecorator({
+  schema: {
+    allOf: [
+      { $ref: getSchemaPath(StandardApiResponse) },  // Base wrapper
+      {
+        properties: {
+          data: { $ref: getSchemaPath(model) },      // Specific DTO type
+        },
+      },
+    ],
+  },
+});
+```
+
+**How it works:**
+
+1. `StandardApiResponse` defines the wrapper structure (`status`, `data`, `message`, `errors`)
+2. `ApiSuccessResponse(MenuItemDto)` creates an `allOf` composition
+3. The `data` property is overridden with `$ref` to `MenuItemDto`
+4. Frontend code generators see the composed schema with proper typing
+
+**OpenAPI output for `GET /menu-items/:id`:**
+
+```json
+{
+  "schema": {
+    "allOf": [
+      { "$ref": "#/components/schemas/StandardApiResponse" },
+      {
+        "properties": {
+          "data": { "$ref": "#/components/schemas/MenuItemResponseDto" }
+        }
+      }
+    ]
+  }
+}
+```
+
+**Frontend generated type:**
+
+```typescript
+// Properly typed, NOT Record<string, unknown>
+interface GetMenuItemResponse {
+  status: "success" | "error";
+  data: MenuItemResponseDto | null;
+  message: string | null;
+  errors: StandardApiErrorDetails[] | null;
+}
+```
+
+**Rules:**
+
+- NEVER modify `StandardApiResponse.data` to use a specific type
+- ALWAYS use `ApiSuccessResponse(YourDto)` decorator on endpoints
+- The `allOf` composition properly resolves the generic type for code generation
+- This is the ONLY acceptable use of `additionalProperties: true` in response DTOs

@@ -1,5 +1,21 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsEnum, IsObject } from "class-validator";
+import { Type } from "class-transformer";
+import { IsEnum, IsObject, ValidateNested } from "class-validator";
+
+import {
+  EvenSplitDataDto,
+  ByItemSplitDataDto,
+  CustomSplitDataDto,
+} from "./split-types.dto";
+
+/**
+ * Union type for split data based on split type.
+ * Frontend should send the appropriate structure based on splitType.
+ */
+export type SplitDataUnion =
+  | EvenSplitDataDto
+  | ByItemSplitDataDto
+  | CustomSplitDataDto;
 
 export class CalculateSplitDto {
   @ApiProperty({
@@ -11,9 +27,13 @@ export class CalculateSplitDto {
   splitType: "EVEN" | "BY_ITEM" | "CUSTOM";
 
   @ApiProperty({
-    type: "object",
-    additionalProperties: true,
-    description: "Split data based on split type",
+    description:
+      "Split data based on split type. Structure varies by splitType: EVEN requires guestCount, BY_ITEM requires itemAssignments, CUSTOM requires customAmounts.",
+    oneOf: [
+      { $ref: "#/components/schemas/EvenSplitDataDto" },
+      { $ref: "#/components/schemas/ByItemSplitDataDto" },
+      { $ref: "#/components/schemas/CustomSplitDataDto" },
+    ],
     examples: {
       even: {
         summary: "Even split among guests",
@@ -37,5 +57,7 @@ export class CalculateSplitDto {
     },
   })
   @IsObject()
-  splitData: Record<string, unknown>;
+  @ValidateNested()
+  @Type(() => Object)
+  splitData: SplitDataUnion;
 }

@@ -20,6 +20,7 @@ Before marking ANY task complete:
 - [ ] JSDoc comments on public methods
 - [ ] No security vulnerabilities introduced
 - [ ] REST API conventions followed (nouns, HTTP methods, proper status codes)
+- [ ] No `Record<string, unknown>` in OpenAPI DTOs (use typed `additionalProperties`)
 
 **If ANY item fails, the task is NOT complete.**
 
@@ -98,5 +99,12 @@ Before marking ANY task complete, verify ALL of the following:
 - [ ] Redis caching for read-heavy operations
 - [ ] Connection pool configured appropriately
 - [ ] N+1 query problem avoided (use `include` or `select`)
+
+### OpenAPI Type Safety
+
+- [ ] No `additionalProperties: true` without typed schema in DTOs
+- [ ] Object fields use `properties` or `additionalProperties: { $ref: "..." }`
+- [ ] Value DTOs for Record types registered in `extraModels` (main.ts)
+- [ ] Frontend type generation produces no `Record<string, unknown>`
 
 **If ANY item fails, the task is NOT complete.**

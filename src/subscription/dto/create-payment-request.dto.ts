@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 import {
   IsEnum,
   IsString,
@@ -7,10 +8,12 @@ import {
   IsOptional,
   IsInt,
   Min,
-  IsObject,
+  ValidateNested,
 } from "class-validator";
 
 import { SubscriptionTier, Currency } from "src/generated/prisma/client";
+
+import { BankTransferDetailsDto } from "./bank-transfer-details.dto";
 
 export class CreatePaymentRequestDto {
   @ApiProperty({
@@ -58,10 +61,8 @@ export class CreatePaymentRequestDto {
   currency?: Currency = Currency.USD;
 
   @ApiPropertyOptional({
-    type: "object",
-    additionalProperties: true,
-    description:
-      "Bank transfer details (JSON object with bank name, account number, etc.)",
+    type: () => BankTransferDetailsDto,
+    description: "Bank transfer details for payment verification",
     example: {
       bankName: "Bank of America",
       accountNumber: "****1234",
@@ -70,7 +71,8 @@ export class CreatePaymentRequestDto {
     },
     nullable: true,
   })
-  @IsObject()
+  @ValidateNested()
+  @Type(() => BankTransferDetailsDto)
   @IsOptional()
-  bankTransferDetails?: Record<string, unknown>;
+  bankTransferDetails?: BankTransferDetailsDto;
 }

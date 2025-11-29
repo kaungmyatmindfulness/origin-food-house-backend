@@ -5,6 +5,7 @@ import {
   SubscriptionTier,
   Currency,
 } from "src/generated/prisma/client";
+import { BankTransferDetailsDto } from "src/subscription/dto/bank-transfer-details.dto";
 
 /**
  * Store info for payment list items
@@ -111,12 +112,11 @@ export class PaymentDetailResponseDto {
   paymentProofPath: string | null;
 
   @ApiPropertyOptional({
-    type: "object",
-    additionalProperties: true,
-    description: "Bank transfer details",
+    type: () => BankTransferDetailsDto,
+    description: "Bank transfer details for payment verification",
     nullable: true,
   })
-  bankTransferDetails: Record<string, unknown> | null;
+  bankTransferDetails: BankTransferDetailsDto | null;
 
   @ApiPropertyOptional({
     type: String,
